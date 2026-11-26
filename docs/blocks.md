@@ -75,6 +75,15 @@ The models screen, the editor's describe, waveod Studio and the presets see one 
 
 A slot stores (menu, id) as before; resolving by id finds an effect wherever it is.
 
+The update file brings waveod's own effects with it (`tools/portfw.py`): every block of `src/blocks/*.c` that is
+not a built-in nor a port of an original's effect (the circuit drives, the light modulations, the Delay, the
+Reverb, Plate and Spring) is built as a module and added at the end of its menu in the effect library (section 1),
+so they are in list 1 above on any pedal updated with it, without the Efeitos tab. Their entries name options and
+units like waveod's library does: `fw/library.c` reads them for any entry with a waveod id (0x57MMnnnn; the
+original's ids never start so). A module installed in waveod's library with an id the firmware already has (the
+Efeitos tab put it there before) is not listed twice: the firmware's copy plays (`fw/catalog.c`).
+`tools/check_ownfw.py FW.bin` checks it in the emulator.
+
 A preset whose waveod effect is not installed (a module removed, a preset from another pedal) does not fall
 back to the menu's first effect like the original's:
 - the slot keeps its id and knobs (`RESOLVE_MISSING`, index `CATALOG_MISSING`);

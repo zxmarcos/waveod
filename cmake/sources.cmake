@@ -91,6 +91,7 @@ set(WAVEOD_APP_SOURCES
     ui/screens/scr_exp_cal.c
     ui/screens/scr_presets.c
     ui/screens/scr_menu.c
+    ui/screens/scr_mods.c
     ui/screens/scr_mic.c
     ui/screens/scr_drum.c
     ui/screens/scr_edit.c
@@ -116,6 +117,7 @@ set(WAVEOD_APP_SOURCES
     ui/ui.c
     ui/widgets/analyzer.c
     ui/widgets/block.c
+    ui/widgets/mod_graph.c
     ui/widgets/param_cell.c
     ui/widgets/row_list.c
     ui/widgets/top_bar.c

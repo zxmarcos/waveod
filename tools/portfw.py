@@ -15,6 +15,14 @@ Dark blocks) stay as they are. The original's code that is left never runs with 
   - Cab (Supero 1x6) and User IR: waveod's Cab / IR engine (engine/cabir_block.c; on unless switched off).
 The Clone entry gets its port (blocks/clone/clone.c) like the others; a NAM capture plays on the NAM engine.
 
+waveod's own effects go in too (unless --no-own): every block of src/blocks/*.c that is neither compiled into the
+application (a built-in of cmake/sources.cmake's WAVEOD_APP_SOURCES) nor a port of an original's effect (the
+circuit drives, the light modulations, the Delay, the Reverb, Plate and Spring...) is built as a module and added
+at the end of its menu as an entry of its own (the container of tools/wvfx.py lib: its name, knobs, options and
+units). The update writes them with the rest of section 1, so the pedal has them without the Efeitos tab, and
+waveod's library at 0x2A0000 (the user's own modules) is left as it was; a module installed there with the same
+id is not listed twice (fw/catalog.c).
+
 Then the application goes in as tools/mkfw.py does (section 0 from --elf; sections 2-3 and the drum sounds from
 BASE). The intermediate image (BASE with the new library) is OUT minus .bin plus _base.bin.
 """
@@ -30,7 +38,8 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import check_stock                                  # noqa: E402
 
-MAX_ELF = 0x8000                                    # the app's staging buffer for a module (fw/library.h)
+MAX_ELF = 0x8000                                    # the original app's staging buffer for a module (fw/library.h)
+MAX_OWN_ELF = 0x10000                               # waveod's own: its app loads a module in place (BENCH_ELF_MAX)
 MAX_INDEX = 0x1000                                  # the index the app copies to RAM
 MAX_LIBRARY = 0x700000 - 0x480000                   # section 1's flash partition
 
@@ -129,12 +138,45 @@ def build(name, src, outdir):
     return name, open(elf, 'rb').read(), ''
 
 
+def own_blocks():
+    """waveod's own effects as modules: src/blocks/*.c that are not built-ins nor ports, {name: source}"""
+    import re
+    text = open(os.path.join(ROOT, 'cmake', 'sources.cmake'), encoding='utf-8').read()
+    app = re.search(r'set\(WAVEOD_APP_SOURCES(.*?)\)', text, re.S).group(1)
+    builtin = set(re.findall(r'blocks/([A-Za-z0-9_]+)\.c', app))
+    ported = {src for src, *_ in check_stock.BLOCKS.values()}
+    out = {}
+    for f in sorted(os.listdir(os.path.join(ROOT, 'src', 'blocks'))):
+        name, ext = os.path.splitext(f)
+        if ext == '.c' and name not in builtin and f not in ported:
+            out[name] = f
+    return out
+
+
+def own_entries(elfs):
+    """the entries of waveod's library container for these module ELFs, [(menu, entry bytes)]"""
+    sys.path.insert(0, os.path.join(ROOT, 'studio'))
+    from waveod_studio import wvlib
+    lib = wvlib.Library()
+    for name, elf in elfs.items():
+        before = len(lib)
+        try:
+            lib.add(elf)
+        except wvlib.LibraryError as e:
+            sys.exit('%s: %s' % (name, e))
+        if len(lib) == before:
+            sys.exit('%s: id repetido' % name)
+    menus, entries = parse_library(lib.pack())
+    return [(m, entries[i]) for m, lst in enumerate(menus) for i in lst]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('base')
     ap.add_argument('out')
     ap.add_argument('--elf', default=os.path.join(ROOT, 'build', 'fw', 'waveod.elf'))
     ap.add_argument('--keep', action='append', default=[], help='a port (check_stock name) left on the original')
+    ap.add_argument('--no-own', action='store_true', help="leave waveod's own effects out (only the ports)")
     ap.add_argument('--jobs', type=int, default=os.cpu_count() or 4)
     a = ap.parse_args()
 
@@ -147,13 +189,16 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     want = [(ports[entry_id(e)][0], ports[entry_id(e)][1]) for e in entries if entry_id(e) in ports]
+    own = {} if a.no_own else own_blocks()
+    want += sorted(own.items())
     elfs = {}
     with concurrent.futures.ThreadPoolExecutor(a.jobs) as pool:
         for name, elf, err in pool.map(lambda t: build(t[0], t[1], outdir), want):
             if elf is None:
                 sys.exit('wvfx.py build %s falhou:\n%s' % (name, err))
-            if len(elf) > MAX_ELF:
-                sys.exit('%s: o módulo tem %d bytes, o pedal aceita %d' % (name, len(elf), MAX_ELF))
+            limit = MAX_OWN_ELF if name in own else MAX_ELF
+            if len(elf) > limit:
+                sys.exit('%s: o módulo tem %d bytes, o pedal aceita %d' % (name, len(elf), limit))
             elfs[name] = elf
 
     replaced, kept, old_bytes, new_bytes = 0, [], 0, 0
@@ -170,6 +215,20 @@ def main():
     missing = sorted(set(ports) - {entry_id(e) for e in entries})
     if missing:
         sys.exit('ports sem entrada na biblioteca da base: %s' % ', '.join('%#010x' % m for m in missing))
+
+    added = []
+    if own:
+        have = {entry_id(e): i for i, e in enumerate(entries)}
+        for menu, e in own_entries({n: elfs[n] for n in own}):
+            eid = entry_id(e)
+            if eid in have:                     # a base that already carries it (a research one): this build's
+                entries[have[eid]] = e
+            else:
+                while len(menus) <= menu:
+                    menus.append([])
+                menus[menu].append(len(entries))
+                entries.append(e)
+            added.append('%#010x %s' % (eid, entry_name(e)))
     secs[1] = pack_library(menus, entries)
 
     base_out = os.path.splitext(a.out)[0] + '_base.bin'
@@ -177,6 +236,9 @@ def main():
     print('%d entradas com o port (módulos %d -> %d bytes), %d como estavam:' % (replaced, old_bytes, new_bytes,
                                                                                  len(kept)))
     for k in kept:
+        print('  ' + k)
+    print('%d efeitos próprios do waveod (seção 1: %d bytes):' % (len(added), len(secs[1])))
+    for k in added:
         print('  ' + k)
     r = subprocess.run([sys.executable, '-I', os.path.join(HERE, 'mkfw.py'), base_out, a.out, '--elf', a.elf])
     sys.exit(r.returncode)

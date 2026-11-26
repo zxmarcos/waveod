@@ -16,7 +16,8 @@
 
 enum screen_id { SCR_PRESET, SCR_STOMP, SCR_CHAIN, SCR_EDIT, SCR_BROWSE, SCR_SAVE, SCR_NAME, SCR_TUNER, SCR_SETTINGS,
                  SCR_EQ, SCR_ASSIGN, SCR_LOOPER, SCR_DRUM, SCR_SCENE, SCR_CONTROLS,
-                 SCR_LINK, SCR_CONTROL_MAP, SCR_TARGET, SCR_LATENCY, SCR_MIC, SCR_EXP_CAL, SCR_PRESETS, SCR_MENU, SCR_COUNT };
+                 SCR_LINK, SCR_CONTROL_MAP, SCR_TARGET, SCR_LATENCY, SCR_MIC, SCR_EXP_CAL, SCR_PRESETS, SCR_MENU,
+                 SCR_MODS, SCR_COUNT };
 
 /* what the footswitches do: the preset's preset group, its stomp group, or the scenes (footswitch.c) */
 enum fs_mode { FS_MODE_PRESET, FS_MODE_STOMP, FS_MODE_SCENE };
@@ -59,6 +60,7 @@ struct ui_ctx {
     int scope_mode;                 /* its enum analyzer_mode: the block's input / output, or the preset's */
     int link_slot, link_param;      /* assign screen: the parameter (rig_param order) of a block */
     int controls_key, controls_mode, controls_link;   /* links screen: open on these, -1 / 0 = as it was */
+    int mods_mod, mods_link;        /* modulators screen: open on modulator mods_mod (-1 = as it was), link selected */
     int target_link, target_new;    /* destination screen: the link (table index); new = dropped if left unset */
     int ctl_global;                 /* CONTROLES, a key's links, the destination and the card name edit the global table
                                        (GLOBAL › CONTROLES GLOBAIS) instead of the preset's */
@@ -83,7 +85,7 @@ struct screen {
 extern const struct screen screen_preset, screen_stomp, screen_chain, screen_edit, screen_browse, screen_save,
     screen_name, screen_tuner, screen_settings, screen_eq, screen_assign, screen_looper, screen_drum, screen_scene,
     screen_controls, screen_link, screen_control_map, screen_target, screen_latency, screen_mic, screen_exp_cal,
-    screen_presets, screen_menu;
+    screen_presets, screen_menu, screen_mods;
 
 /* screen manager. The design's navigation: tabs (PRESET, STOMP, CENAS, CHAIN, TUNER) are the top level; a tab
    shows its screen and forgets the way back. Other screens are opened on top (ui_go) and ‹ / EXIT goes back
@@ -108,7 +110,10 @@ struct ui_ctx *ui_context(void);                /* for code driven from outside 
 void ui_learn(ui_learn_fn fn);                  /* the next footswitch or pedal the player uses goes to fn (once;
                                                    0 = stop learning; showing another screen stops it too) */
 void ui_link_param(int slot, int k);            /* what controls parameter k of slot (the assign screen) */
-void ui_controls(int key, int mode, int link);  /* key's links in mode (0 = the footswitch mode), link selected */
+void ui_controls(int key, int mode, int link);  /* key's links in mode (0 = the footswitch mode), link selected;
+                                                   a modulator's key opens the modulators screen */
+void ui_mods(int mod, int link);                /* the modulators screen on modulator mod (0..3), link selected (-1) */
+void ui_link_text(struct ui_ctx *ui, const struct control *l, char *out, unsigned size);   /* a link, one line */
 const char *ui_key_name(int key);               /* "A", "BANK +", "A + B", "EXP 1A", "MIDI CC 80" */
 void ui_target(int link, int is_new);           /* where link goes (the destination screen); is_new: a link just
                                                    added, removed again when left without choosing one */

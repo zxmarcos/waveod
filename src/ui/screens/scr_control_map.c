@@ -4,20 +4,26 @@
  * EXP 1 and EXP 2 over A and B), each with what it does in the mode shown: one line per link, held ones marked
  * SEG. EXP 1's card has its groups' links (A, B) and its toe switch's (BICO). Below, MIDI: the CCs that have links
  * (every mode), and KNOBS: the preset's quick knobs (opens the assignments, scr_assign.c; not on the global table).
+ * A second page (on a preset; not on the global table), MODULADORES: a card per modulator (MOD 1-4) with its type
+ * and rate, a small drawing of it playing (ui/widgets/mod_graph.c) and its first link; it opens the modulators
+ * screen (scr_mods.c) on it. A segment per page along the bottom.
  * Not in the design. On a preset the cards also show the global links that play there (the groups the
  * preset has none in) in grey; opened from GLOBAL › CONTROLES GLOBAIS (ui->ctl_global) it shows the global table.
  *
- * Controls: MENU turns = a card (MIDI and KNOBS last), MENU press = its links (scr_controls.c: the pairs and the active
+ * Controls: MENU turns = a card (MIDI and KNOBS last, then MOD 1-4: the page follows), MENU press = its links (scr_controls.c: the pairs and the active
  * preset's key are there too, on knob 1 of TECLA; MIDI: the first CC's, or CC 1), EFX = the mode shown (preset,
  * stomp, scenes), EXIT or CTRL = back.
- * Touch: tap a card = its links.
+ * Touch: tap a card = its links; swipe sideways (or tap a page's segment) = the other page.
  */
 #include "model/control.h"
+#include "model/param_format.h"
 #include "platform/sdram.h"
 #include "ui/footswitch.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
+#include "ui/widgets/mod_graph.h"
 #include "ui/widgets/top_bar.h"
+#include "platform/time.h"
 #include <string.h>
 #include "ui/sdram_code.h"           /* last: this screen runs from SDRAM */
 
@@ -27,22 +33,39 @@
 #define GRID_Y   (UI_TOPBAR_H + 8)
 #define CARD_W   ((UI_W - 2 * UI_PAD - 3 * GRID_GAP) / 4)
 #define BAR_H    28
-#define BAR_Y    (UI_H - 6 - BAR_H)
+#define PAGE_Y   (UI_H - 5)                 /* the pages' segments */
+#define BAR_Y    (PAGE_Y - 5 - BAR_H)
 #define CARD_H   ((BAR_Y - 6 - GRID_Y - GRID_GAP) / 2)
 #define CARD_PAD 7
 #define LINE_Y   32
 #define LINE_H   17
 #define MIDI     CARDS                      /* the MIDI bar, after the cards */
 #define KNOBS    (CARDS + 1)                /* the quick knobs, right of it */
+#define MODS     (CARDS + 2)                /* .. + MOD_COUNT - 1: the modulators' cards, on the second page */
 #define KNOBS_W  170
+#define PAGES    2
+#define PAGE_TAG 100                        /* gestures on a page's empty space (swipes) */
+#define SEG_TAG  110                        /* .. + 1: a page's segment */
+#define MCARD_W  ((UI_W - 2 * UI_PAD - GRID_GAP) / 2)
+#define MCARD_H  ((PAGE_Y - 6 - GRID_Y - GRID_GAP) / 2)
+#define MGRAPH_Y 30
+#define MGRAPH_H (MCARD_H - MGRAPH_Y - 26)
 
 struct card {
     lv_obj_t *box, *key, *count, *line[LINES];
 };
 
+struct mod_card {
+    lv_obj_t *box, *name, *info, *link;
+    struct mod_graph graph;
+};
+
 static struct {
     struct card cards[CARDS];
+    struct mod_card mods[MOD_COUNT];
+    lv_obj_t *page[PAGES], *seg[PAGES];
     lv_obj_t *midi, *midi_text, *knobs, *knobs_text;
+    uint32_t last_tick;
     int sel;
     int mode;                               /* enum control_mode bit shown */
     int opened;                             /* a card's links were opened: coming back keeps the mode */
@@ -171,10 +194,15 @@ static int first_midi(struct ui_ctx *ui)
     return 0;
 }
 
-/* items MENU turns through: the cards, MIDI and (on a preset) KNOBS */
+/* items MENU turns through: the cards, MIDI and (on a preset) KNOBS and the modulators */
 static int items(const struct ui_ctx *ui)
 {
-    return ui->ctl_global ? CARDS + 1 : CARDS + 2;
+    return ui->ctl_global ? CARDS + 1 : MODS + MOD_COUNT;
+}
+
+static int page_of(int item)
+{
+    return item >= MODS ? 1 : 0;
 }
 
 static void open(struct ui_ctx *ui, int i)
@@ -183,6 +211,11 @@ static void open(struct ui_ctx *ui, int i)
         s.opened = 1;
         ui->assign_row = -1;
         ui_go(SCR_ASSIGN);
+        return;
+    }
+    if (i >= MODS && i < MODS + MOD_COUNT) {
+        s.opened = 1;
+        ui_mods(i - MODS, -1);
         return;
     }
     if (i == MIDI) {
@@ -198,9 +231,26 @@ static void open(struct ui_ctx *ui, int i)
     ui_controls(key, s.mode, -1);
 }
 
+/* the other page: its first item */
+static void to_page(struct ui_ctx *ui, int page)
+{
+    if (ui->ctl_global || page == page_of(s.sel))
+        return;
+    s.sel = page ? MODS : 0;
+    ui->rev++;
+}
+
 static void on_tap(struct ui_ctx *ui, const struct gesture *g)
 {
-    if (g->kind == GESTURE_TAP) {
+    if (g->kind == GESTURE_DRAG_END && gesture_swipe_x(g)) {   /* finger to the left = the next page */
+        to_page(ui, gesture_swipe_x(g) < 0 ? 1 : 0);
+        return;
+    }
+    if (g->kind != GESTURE_TAP)
+        return;
+    if (g->tag >= SEG_TAG) {
+        to_page(ui, g->tag - SEG_TAG);
+    } else if (g->tag < PAGE_TAG) {
         s.sel = g->tag;
         open(ui, g->tag);
     }
@@ -208,14 +258,54 @@ static void on_tap(struct ui_ctx *ui, const struct gesture *g)
 
 /* ---------------------------------------------------------------- screen */
 
+static void create_mod_cards(struct ui_ctx *ui, lv_obj_t *page)
+{
+    for (int i = 0; i < MOD_COUNT; i++) {
+        struct mod_card *c = &s.mods[i];
+        int x = UI_PAD + (i % 2) * (MCARD_W + GRID_GAP), y = GRID_Y + (i / 2) * (MCARD_H + GRID_GAP);
+        char name[8];
+        c->box = theme_box(page, x, y, MCARD_W, MCARD_H, C_BG);
+        gesture_bind(c->box, on_tap, MODS + i);
+        lv_obj_set_style_radius(c->box, 3, 0);
+        lv_obj_set_style_border_width(c->box, 2, 0);
+        lv_obj_set_style_outline_color(c->box, rgb(C_ACCENT), 0);
+        lv_obj_set_style_outline_pad(c->box, 2, 0);
+        c->name = theme_label(c->box, &font_value_20, C_TEXT, 0);
+        lv_obj_set_pos(c->name, CARD_PAD, CARD_PAD - 2);
+        lv_snprintf(name, sizeof name, "MOD %d", i + 1);
+        lv_label_set_text(c->name, name);
+        c->info = theme_label(c->box, &font_tag_12, C_LABEL, 1);
+        lv_obj_set_width(c->info, MCARD_W - 90);
+        lv_obj_set_style_text_align(c->info, LV_TEXT_ALIGN_RIGHT, 0);
+        lv_label_set_long_mode(c->info, LV_LABEL_LONG_DOT);
+        lv_obj_align(c->info, LV_ALIGN_TOP_RIGHT, -CARD_PAD, CARD_PAD + 2);
+        mod_graph_create(&c->graph, c->box, CARD_PAD - 2, MGRAPH_Y, MCARD_W - 2 * CARD_PAD + 4, MGRAPH_H, ui, i, 2, 1);
+        c->link = theme_label(c->box, &font_body_14, C_TEXT, 0);
+        lv_obj_set_width(c->link, MCARD_W - 2 * CARD_PAD - 4);
+        lv_label_set_long_mode(c->link, LV_LABEL_LONG_DOT);
+        lv_obj_set_pos(c->link, CARD_PAD, MCARD_H - 24);
+    }
+}
+
 static void create(struct ui_ctx *ui, lv_obj_t *root)
 {
-    (void)ui;
+    for (int p = 0; p < PAGES; p++) {
+        s.page[p] = theme_box(root, 0, 0, UI_W, PAGE_Y - 1, C_BG);
+        gesture_bind(s.page[p], on_tap, PAGE_TAG + p);
+    }
+    lv_obj_t *page0 = s.page[0];
+    create_mod_cards(ui, s.page[1]);
+    theme_box(root, UI_PAD, PAGE_Y + 1, UI_W - 2 * UI_PAD, 1, C_LINE);   /* the pages: a segment each on a hairline */
+    for (int p = 0; p < PAGES; p++) {
+        int w = (UI_W - 2 * UI_PAD) / PAGES;
+        s.seg[p] = theme_box(root, UI_PAD + p * w, PAGE_Y, w, 3, C_LINE);
+        gesture_bind(s.seg[p], on_tap, SEG_TAG + p);
+    }
     for (int i = 0; i < CARDS; i++) {
         struct card *c = &s.cards[i];
         int x, y;
         cell(i, &x, &y);
-        c->box = theme_box(root, x, y, CARD_W, CARD_H, C_BG);
+        c->box = theme_box(page0, x, y, CARD_W, CARD_H, C_BG);
         gesture_bind(c->box, on_tap, i);
         lv_obj_set_style_radius(c->box, 3, 0);
         lv_obj_set_style_border_width(c->box, 2, 0);
@@ -234,7 +324,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
             lv_obj_set_pos(c->line[n], CARD_PAD, LINE_Y + n * LINE_H);
         }
     }
-    s.midi = theme_box(root, UI_PAD, BAR_Y, UI_W - 2 * UI_PAD, BAR_H, C_BG);
+    s.midi = theme_box(page0, UI_PAD, BAR_Y, UI_W - 2 * UI_PAD, BAR_H, C_BG);
     gesture_bind(s.midi, on_tap, MIDI);
     lv_obj_set_style_radius(s.midi, 3, 0);
     lv_obj_set_style_border_width(s.midi, 2, 0);
@@ -243,7 +333,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     s.midi_text = theme_label(s.midi, &font_body_14, C_OFF, 0);
     lv_label_set_long_mode(s.midi_text, LV_LABEL_LONG_DOT);
 
-    s.knobs = theme_box(root, UI_W - UI_PAD - KNOBS_W, BAR_Y, KNOBS_W, BAR_H, C_BG);
+    s.knobs = theme_box(page0, UI_W - UI_PAD - KNOBS_W, BAR_Y, KNOBS_W, BAR_H, C_BG);
     gesture_bind(s.knobs, on_tap, KNOBS);
     lv_obj_set_style_radius(s.knobs, 3, 0);
     lv_obj_set_style_border_width(s.knobs, 2, 0);
@@ -286,6 +376,59 @@ static void refresh_knobs(struct ui_ctx *ui)
     lv_obj_set_style_outline_width(s.knobs, s.sel == KNOBS ? 2 : 0, 0);
 }
 
+/* the modulators' cards: the type and rate, the drawing, the first link and how many */
+static void refresh_mods(struct ui_ctx *ui)
+{
+    static const char *const shapes[MS_SHAPES] = {
+        "SENOIDE", "TRI\xC3\x82NGULO", "QUADRADA", "DENTE SUBINDO", "DENTE DESCENDO", "ALEAT\xC3\x93RIA",
+        "ALEAT\xC3\x93RIA SUAVE",
+    };
+    const struct preset_controls *c = &ui->rig->preset.controls;
+    for (int i = 0; i < MOD_COUNT; i++) {
+        const struct preset_mod *m = &ui->rig->preset.mods.m[i];
+        struct mod_card *mc = &s.mods[i];
+        char info[48], rate[16], text[48];
+        int cr = (int)(m->rate * 100.0f + 0.5f);
+        if (m->sync)
+            lv_snprintf(rate, sizeof rate, "%s", param_sync_divisions[(m->sync - 1) % 11]);
+        else
+            lv_snprintf(rate, sizeof rate, "%d.%02d Hz", cr / 100, cr % 100);
+        if (m->type == MOD_LFO)
+            lv_snprintf(info, sizeof info, "%s \xC2\xB7 %s", shapes[m->shape % MS_SHAPES], rate);
+        else if (m->type == MOD_ENV)
+            lv_snprintf(info, sizeof info, "ENVELOPE \xC2\xB7 %+d dB", m->sens);
+        else if (m->type == MOD_SEQ)
+            lv_snprintf(info, sizeof info, "SEQU\xC3\x8A" "NCIA %d \xC2\xB7 %s", m->steps, rate);
+        else
+            lv_snprintf(info, sizeof info, "DESLIGADO");
+        theme_set_text(mc->info, info);
+        theme_set_color(mc->info, m->type == MOD_OFF ? C_OFF : C_LABEL);
+        theme_set_color(mc->name, m->type == MOD_OFF ? C_OFF : C_TEXT);
+        const struct control *first = 0;
+        int n = 0;
+        for (int k = 0; k < c->count; k++)
+            if (c->c[k].key == CK_MOD1 + i) {
+                if (!n)
+                    first = &c->c[k];
+                n++;
+            }
+        if (first) {
+            brief(ui, first, text, sizeof text);
+            if (n > 1) {
+                unsigned at = (unsigned)strlen(text);
+                lv_snprintf(text + at, sizeof text - at, "  +%d", n - 1);
+            }
+        } else {
+            lv_snprintf(text, sizeof text, m->type == MOD_OFF ? "\xE2\x80\x93" : "SEM LIGA\xC3\x87\xC3\x95" "ES");
+        }
+        theme_set_text(mc->link, text);
+        theme_set_color(mc->link, first && m->type != MOD_OFF ? C_TEXT : C_OFF);
+        theme_set_border(mc->box, m->type != MOD_OFF ? C_ACCENT : 0x2A2926);
+        lv_obj_set_style_outline_width(mc->box, s.sel == MODS + i ? 2 : 0, 0);
+        lv_obj_invalidate(mc->graph.box);
+    }
+}
+
 /* "MIDI · CC 7 VOLUME · CC 80 ..." (each CC once, its first link; G = a global one on a preset) */
 static void refresh_midi(struct ui_ctx *ui)
 {
@@ -326,9 +469,28 @@ static void refresh(struct ui_ctx *ui)
 {
     static const char *const modes[] = { "", "MODO PRESET", "MODO STOMP", "", "MODO CENAS" };
     char title[48];
-    lv_snprintf(title, sizeof title, "%s \xC2\xB7 %s", ui->ctl_global ? "CONTROLES GLOBAIS" : "CONTROLES",
-                modes[s.mode]);
+    int page = ui->ctl_global ? 0 : page_of(s.sel);
+    if (page)
+        lv_snprintf(title, sizeof title, "CONTROLES \xC2\xB7 MODULADORES");
+    else
+        lv_snprintf(title, sizeof title, "%s \xC2\xB7 %s", ui->ctl_global ? "CONTROLES GLOBAIS" : "CONTROLES",
+                    modes[s.mode]);
     top_bar_sub(title);
+    for (int p = 0; p < PAGES; p++) {
+        if (p == page)
+            lv_obj_clear_flag(s.page[p], LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(s.page[p], LV_OBJ_FLAG_HIDDEN);
+        theme_set_bg(s.seg[p], p == page ? C_LABEL : C_LINE);
+        if (ui->ctl_global)                         /* one page: no segments */
+            lv_obj_add_flag(s.seg[p], LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_clear_flag(s.seg[p], LV_OBJ_FLAG_HIDDEN);
+    }
+    if (page) {
+        refresh_mods(ui);
+        return;
+    }
     static const struct control *links[CARD_MAX];
     static uint8_t global[CARD_MAX];
     for (int i = 0; i < CARDS; i++) {
@@ -363,6 +525,16 @@ static void refresh(struct ui_ctx *ui)
     refresh_knobs(ui);
 }
 
+/* the modulators' drawings move 25 times a second while their page is shown */
+static void tick(struct ui_ctx *ui)
+{
+    if (ui->ctl_global || !page_of(s.sel) || time_ms() - s.last_tick < MOD_GRAPH_TICK_MS)
+        return;
+    s.last_tick = time_ms();
+    for (int i = 0; i < MOD_COUNT; i++)
+        mod_graph_tick(&s.mods[i].graph);
+}
+
 static int input(struct ui_ctx *ui, const struct input_event *ev)
 {
     int d = ui_turned(ev, ENC_MENU);
@@ -392,4 +564,4 @@ static int input(struct ui_ctx *ui, const struct input_event *ev)
     return 0;
 }
 
-const struct screen screen_control_map = { create, enter, refresh, input, 0, 0 };
+const struct screen screen_control_map = { create, enter, refresh, input, 0, tick };

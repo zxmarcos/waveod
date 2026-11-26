@@ -2,6 +2,21 @@
 
 waveod's versions (semantic versioning, see [docs/releasing.md](docs/releasing.md)).
 
+## v0.1.1
+
+- The update file brings waveod's own effects: the circuit drives (Dark Muff, Dark Muff Lite, Green Drive, Rodent
+  Dist, Round Fuzz, Treble Boost), the modulations (Chorus, Flanger, Phaser, Rotary, Vibe, Tremolo), the Delay and
+  the Reverb, Plate and Spring are in the effect library after an update, with no need to install them from the
+  Efeitos tab. A copy installed there before is not listed twice.
+- Modulators on the pedal: a second page of CONTROLES with a card per modulator (MOD 1-4) and a small live
+  drawing of each, opening the new MODULADORES screen: the modulator's drawing as it plays (the LFO's shape, the
+  sequence's steps, the envelope), its settings and the parameters it moves. They were only reachable from the
+  links screen's TECLA before.
+- waveod Studio: the modulators drawn as the pedal plays them (the LFO shapes, the random ones with the values the
+  pedal takes; the envelope on two plucked notes; the sequence's steps dragged on their bars), their settings on
+  knobs.
+- waveod Studio for macOS (Apple silicon), the pedal's MIDI on CoreMIDI.
+
 ## v0.1.0
 
 The first public version.

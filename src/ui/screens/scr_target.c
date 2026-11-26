@@ -676,11 +676,13 @@ static void show(lv_obj_t *o, int on)
         lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
 }
 
-/* the heel / toe labels: a pedal's, a MIDI CC's (its value 0 / 127), else OFF / ON */
+/* the heel / toe labels: a pedal's, a modulator's (0 / 100 %), a MIDI CC's (its value 0 / 127), else OFF / ON */
 static const char *end_label(struct ui_ctx *ui, int toe)
 {
     if (pedal(ui))
         return toe ? "PONTA" : "CALCANHAR";
+    if (modulator(ui))
+        return toe ? "MOD 100%" : "MOD 0%";
     if (sweeps(ui))
         return toe ? "EM 127" : "EM 0";
     return toe ? "ON" : "OFF";

@@ -341,6 +341,7 @@ export interface ControlsData {
   knobs: Record<string, number[]>;  // slot -> the stored knob values
   scenes: string[];
   mods: ModSettings[];
+  bpm?: number | null;              // the preset's tempo (the modulators' synced rates)
   global: CtlTable | null;          // null: the pedal has no global table (protocol < 3)
 }
 // ---------------------------------------------------------------- flash dumps (webapp.flash_view)

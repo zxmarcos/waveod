@@ -61,8 +61,11 @@ int lib_entry(const struct library *lib, int menu, int index, struct lib_entry *
     uint32_t total = rd32(e), hdr = rd32(e + 4);
     if (hdr > total || off + total > lib->size)
         return -1;
-    out->wv = lib->wv;
     out->id = rd32(e + 8);
+    /* waveod's own block (id 0x57MMnnnn, sdk/wvfx.h WVFX_IS_ID): its records name options / units in either library
+       (the update file carries waveod's effects in section 1 too: tools/portfw.py); the original's ids are
+       menu << 24 | n and never start with 0x57 */
+    out->wv = lib->wv || (out->id >> 24) == 0x57u;
     out->link_id = (int32_t)rd32(e + 12);
     out->nparams = e[16];
     out->subgroup = e[17];

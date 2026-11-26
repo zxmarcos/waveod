@@ -53,6 +53,7 @@ static const struct screen *const screens[SCR_COUNT] = {
     [SCR_EXP_CAL] = &screen_exp_cal,
     [SCR_PRESETS] = &screen_presets,
     [SCR_MENU] = &screen_menu,
+    [SCR_MODS] = &screen_mods,
 };
 
 /* ---------------------------------------------------------------- display driver */
@@ -461,6 +462,10 @@ void ui_link_param(int slot, int k)
 
 void ui_controls(int key, int mode, int link)
 {
+    if (CK_IS_MOD(key)) {                          /* a modulator: its own screen (settings, drawing, links) */
+        ui_mods(key - CK_MOD1, link);
+        return;
+    }
     ctx.controls_key = key;
     ctx.controls_mode = mode;
     ctx.controls_link = link;
@@ -468,6 +473,17 @@ void ui_controls(int key, int mode, int link)
         screen_controls.enter(&ctx);
     else
         ui_go(SCR_CONTROLS);
+    ctx.rev++;
+}
+
+void ui_mods(int mod, int link)
+{
+    ctx.mods_mod = mod & 3;
+    ctx.mods_link = link;
+    if (ctx.current == SCR_MODS)
+        screen_mods.enter(&ctx);
+    else
+        ui_go(SCR_MODS);
     ctx.rev++;
 }
 
@@ -542,6 +558,8 @@ void ui_init(struct rig *rig, struct settings *settings, struct globals *globals
     ctx.name_scene = -1;
     ctx.name_key = -1;
     ctx.controls_key = -1;
+    ctx.mods_mod = -1;
+    ctx.mods_link = -1;
     ctx.assign_row = -1;
     loads_seen = rig->loads;
     rig->scene_auto = !settings->scene_manual;

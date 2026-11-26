@@ -28,6 +28,7 @@ class Ctl {
   blocks = $state<CtlBlock[]>([]);
   knobs = $state<Record<string, number[]>>({});
   scenes = $state<string[]>(['', '', '', '']);
+  bpm = $state(120);                  // the preset's tempo: the modulators' synced rates
   mode = $state(C.STOMP);
   key = $state(C.A);
   sel = $state<number | null>(null);
@@ -62,6 +63,7 @@ class Ctl {
       const d = await studio.call((b) => b.controls(index));
       if (this.open?.index !== index) return;
       this.open = { kind: 'preset', index, name: d.name, own: d.own, from };
+      this.bpm = d.bpm && d.bpm > 0 ? d.bpm : 120;
       this.fill(d.table, d.mods, d.global, d.blocks, d.knobs, d.scenes);
     } catch (e) {
       this.open = null;

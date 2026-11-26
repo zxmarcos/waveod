@@ -6,6 +6,8 @@
 -->
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import ModWave from './ModWave.svelte';
+  import ModKnobs from './ModKnobs.svelte';
   import * as C from '../lib/controls';
   import { ctl } from '../lib/ctl.svelte';
   import { presetLabel, studio } from '../lib/store.svelte';
@@ -42,6 +44,17 @@
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
   const comma = (s: string) => s.replace('.', ',');
   const setEnd = (which: 'off' | 'on', p: CtlParam) => (v: number) => { if (l) l[which] = C.quantize(p, v); };
+
+  /** a modulator: the parameter its drawing names on the right (the picked link, else its first), at 0 and 100 % */
+  const modEnds = $derived.by(() => {
+    if (!C.isMod(key)) return null;
+    const pick = l && l.action === C.PARAM && C.linkParam(l, ctl.blocks) ? l : null;
+    const x = pick ?? ctl.own.map((i) => ctl.table.links[i]).find((y) => y.action === C.PARAM && C.linkParam(y, ctl.blocks));
+    const p = x ? C.linkParam(x, ctl.blocks) : undefined;
+    if (!x || !p) return null;
+    return { name: C.brief(x, ctl.blocks), lo: comma(C.paramFmt(p, x.off)), hi: comma(C.paramFmt(p, x.on)) };
+  });
+  let focusStep = $state<number | null>(null);
 
   function keydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && !studio.dialog && (e.target as HTMLElement).tagName !== 'SELECT') {
@@ -98,7 +111,11 @@
               {#if k < C.FOOTSWITCH_KEYS}
                 <i class="led" class:auto={!ctl.table.colour[k]} style:--led={C.COLOUR_CSS[ctl.table.colour[k] & 7]}></i>
               {:else if C.isMod(k) && ctl.mods}
-                <i class="led mod" class:live={ctl.mods[k - C.MOD1].type !== 'off'}></i>
+                {#if ctl.mods[k - C.MOD1].type === 'off'}
+                  <i class="led mod"></i>
+                {:else}
+                  <span class="mthumb"><ModWave m={ctl.mods[k - C.MOD1]} mini /></span>
+                {/if}
               {/if}
               <span class="kn">{fsName(k)}</span>
               {#if k < C.FOOTSWITCH_KEYS && ctl.table.label[k]}<span class="card">{ctl.table.label[k]}</span>{/if}
@@ -139,58 +156,29 @@
         {#if ctl.mod}
           {@const m = ctl.mod}
           <div class="modbox">
-            <label class="field">
-              <span>Tipo</span>
-              <select value={m.type} onchange={(e) => ctl.setModType(e.currentTarget.value as typeof m.type)}>
-                {#each C.MOD_TYPES as t (t.id)}<option value={t.id}>{t.label}</option>{/each}
-              </select>
-            </label>
-            {#if m.type === 'lfo'}
-              <label class="field">
-                <span>Forma</span>
-                <select value={m.shape} onchange={(e) => (m.shape = e.currentTarget.value)}>
-                  {#each C.MOD_SHAPES as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
-                </select>
-              </label>
-            {/if}
-            {#if m.type === 'lfo' || m.type === 'seq'}
-              <label class="field">
-                <span>Sincronia</span>
-                <select value={m.sync % C.DIVISIONS.length} onchange={(e) => (m.sync = Number(e.currentTarget.value))}>
-                  {#each C.DIVISIONS as d, n (n)}<option value={n}>{d}</option>{/each}
-                </select>
-              </label>
-              {#if !m.sync}
-                {@render number('Velocidade', comma(m.rate.toFixed(2)), '0,05 a 20 Hz', (v) => (m.rate = Math.round(clamp(v, 0.05, 20) * 100) / 100))}
-              {/if}
-            {/if}
-            {#if m.type === 'lfo'}
-              {@render number('Fase inicial', `${m.phase}`, '0 a 95 %', (v) => (m.phase = Math.round(clamp(v, 0, 95))))}
-            {:else if m.type === 'env'}
-              {@render number('Sensibilidade', `${m.sens}`, '-20 a 40 dB', (v) => (m.sens = Math.round(clamp(v, -20, 40))))}
-              {@render number('Ataque', `${m.attack}`, '1 a 2000 ms', (v) => (m.attack = Math.round(clamp(v, 1, 2000))))}
-              {@render number('Retorno', `${m.release}`, '10 a 5000 ms', (v) => (m.release = Math.round(clamp(v, 10, 5000))))}
-            {:else if m.type === 'seq'}
-              <label class="field">
-                <span>Passos</span>
-                <select value={m.steps} onchange={(e) => (m.steps = Number(e.currentTarget.value))}>
-                  {#each Array.from({ length: C.MOD_STEPS }, (_, n) => n + 1) as n (n)}<option value={n}>{n}</option>{/each}
-                </select>
-              </label>
-              {@render number('Deslize', `${m.glide}`, '0 a 100 %', (v) => (m.glide = Math.round(clamp(v, 0, 100))))}
-            {/if}
-            {#if m.type === 'seq'}
-              <div class="steps" aria-label="Valores dos passos (0 a 100)">
-                {#each m.step.slice(0, m.steps) as v, n (n)}
-                  <label class="step">
-                    <span class="bar"><i style:height="{v}%"></i></span>
-                    <input value={v} defaultValue={String(v)} aria-label="Passo {n + 1}"
-                           onchange={(e) => num(e, (x) => (m.step[n] = Math.round(clamp(x, 0, 100))))} />
-                    <small>{n + 1}</small>
-                  </label>
+            <div class="mhead">
+              <div class="seg types" role="radiogroup" aria-label="Tipo do modulador">
+                {#each C.MOD_TYPES as t (t.id)}
+                  <button role="radio" aria-checked={m.type === t.id} class:on={m.type === t.id}
+                          onclick={() => ctl.setModType(t.id)}>{t.label}</button>
                 {/each}
               </div>
-            {/if}
+              {#if m.type === 'lfo'}
+                <div class="shapes" role="radiogroup" aria-label="Forma do LFO">
+                  {#each C.MOD_SHAPES as s (s.id)}
+                    <button role="radio" aria-checked={m.shape === s.id} class:on={m.shape === s.id} title={s.label}
+                            aria-label={s.label} onclick={() => (m.shape = s.id)}>
+                      <ModWave {m} mini shape={s.id} />
+                    </button>
+                  {/each}
+                  <span class="shape-name">{C.MOD_SHAPES.find((s) => s.id === m.shape)?.label ?? ''}</span>
+                </div>
+              {/if}
+            </div>
+            <div class="mbody">
+              <div class="mwave"><ModWave {m} bpm={ctl.bpm} ends={modEnds} selStep={focusStep} onstep={(i) => (focusStep = i)} /></div>
+              <ModKnobs {m} bpm={ctl.bpm} />
+            </div>
             {#if m.type !== 'off' && !ctl.own.length}
               <p class="hint">Ligue o modulador a um parâmetro: Nova ligação, abaixo.</p>
             {/if}
@@ -367,8 +355,7 @@
   .key.on .what:not(.g) { color: var(--text); }
   .led { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--led); box-shadow: 0 0 6px var(--led); }
   .led.auto { background: conic-gradient(#ff4d4a, #ffd53d, #39d36b, #3de0ff, #3d8bff, #ff4dd2, #ff4d4a); box-shadow: none; opacity: 0.75; }
-  .led.mod { background: var(--dim); box-shadow: none; border-radius: 2px; }
-  .led.mod.live { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .led.mod { width: 22px; height: 2px; background: var(--dim); box-shadow: none; border-radius: 1px; }
   .addcc { display: flex; gap: 6px; margin: 10px 4px 0; }
   .addcc input {
     width: 0; flex: 1; height: 32px; padding: 0 10px; border-radius: var(--r-sm); background: var(--bg);
@@ -402,19 +389,23 @@
   .swatch-sel { display: flex; align-items: center; gap: 8px; }
 
   .modbox {
-    display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-start; margin-top: 16px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 14px; margin-top: 16px; padding: 14px 16px 16px;
     border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line);
   }
-  .steps { flex-basis: 100%; display: flex; gap: 4px; }
-  .step { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 42px; }
-  .step .bar { position: relative; width: 100%; height: 44px; border-radius: 4px; background: var(--bg); overflow: hidden; }
-  .step .bar i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); opacity: 0.8; }
-  .step input {
-    width: 100%; height: 28px; text-align: center; border-radius: 5px; background: var(--bg); border: 1px solid var(--border-off);
-    outline: none; font: 500 12.5px var(--f-value); user-select: text;
+  .mhead { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; }
+  .mbody { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .mwave { width: 100%; max-width: 640px; min-width: 0; }
+  .types { align-self: flex-start; }
+  .shapes { display: flex; align-items: center; gap: 4px; }
+  .shapes button {
+    display: grid; place-items: center; width: 52px; height: 34px; border-radius: var(--r-sm);
+    border: 1px solid var(--border-off); color: var(--label); background: var(--bg);
   }
-  .step input:focus { border-color: var(--accent); }
-  .step small { font: 500 10.5px var(--f-value); color: var(--off); }
+  .shapes button:hover:not(.on) { color: var(--text); border-color: var(--wire); }
+  .shapes button.on { color: var(--accent); border-color: var(--accent); background: #1d1810; }
+  .shape-name { margin-left: 8px; font: 600 14px var(--f-display); color: var(--text); white-space: nowrap; }
+  .mthumb { display: grid; place-items: center; flex: none; width: 22px; color: var(--accent); }
+  .mthumb :global(svg) { width: 22px; height: 10px; }
 
   .links { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   .links li {

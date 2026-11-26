@@ -9,7 +9,7 @@ Packet:   F0 21 25 4D 50 00 00 cs flag len_lo len_hi off_lo off_hi <2 nibbles pe
           packet, cs = (sum of the nibbles) & 0x7F, flag 0x11 request / 0x12 data / 0x13 NAK.
 The pedal answers with the same framing; its payloads are LZO1X compressed too (FUN_00030b38).
 """
-import ctypes, struct, time
+import ctypes, struct, sys, time
 
 HDR = bytes([0x21, 0x25, 0x4D, 0x50, 0x00, 0x00])
 CHUNK = 0xB8
@@ -305,6 +305,10 @@ class Port:
 
     def __exit__(self, *a):
         self.close()
+
+
+if sys.platform == 'darwin':                        # macOS: the same names on CoreMIDI (usb/coremidi.py)
+    from .coremidi import list_ports, Port         # noqa: E402,F401,F811
 
 
 def transact(port, cmd, payload=b'', flag=FLAG_DATA, want=None, timeout=8.0, gap=0.04, log=print):

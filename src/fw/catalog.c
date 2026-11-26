@@ -40,11 +40,39 @@ static int dir_index(const struct catalog *c, int menu, int index)
     }
 }
 
+/* Module k of waveod's library is one the firmware already has (an entry of the effect library with its id, which
+   the update file brings: tools/portfw.py, or a built-in): it is not listed again, the firmware's copy plays. */
+static int wv_shadowed(const struct catalog *c, int menu, int k)
+{
+    struct lib_entry e;
+    return lib_entry(&c->wvl, menu, k, &e) == 0 &&
+           (lib_find(&c->lib, menu, e.id) >= 0 || blocks_find(menu, e.id) >= 0);
+}
+
+/* the modules of waveod's library listed in menu */
+static int wv_listed(const struct catalog *c, int menu)
+{
+    int n = 0, total = lib_count(&c->wvl, menu);
+    for (int k = 0; k < total; k++)
+        n += !wv_shadowed(c, menu, k);
+    return n;
+}
+
+/* the library index of listed module i, -1 */
+static int wv_index(const struct catalog *c, int menu, int i)
+{
+    int total = lib_count(&c->wvl, menu);
+    for (int k = 0; k < total; k++)
+        if (!wv_shadowed(c, menu, k) && i-- == 0)
+            return k;
+    return -1;
+}
+
 int catalog_count(const struct catalog *c, int menu)
 {
     if (!catalog_is_special(menu))
         return menu >= 0 && menu < c->lib.menus ?
-               lib_count(&c->lib, menu) + blocks_count(menu) + lib_count(&c->wvl, menu) : 0;
+               lib_count(&c->lib, menu) + blocks_count(menu) + wv_listed(c, menu) : 0;
     if (lib_count(&c->lib, menu) < 1 || !c->irs.base)
         return 0;
     switch (menu) {
@@ -68,7 +96,7 @@ int catalog_item(const struct catalog *c, int menu, int index, struct catalog_it
     if (!catalog_is_special(menu)) {
         int n = lib_count(&c->lib, menu), b = blocks_count(menu);
         if (index >= n + b) {                       /* a module of waveod's library */
-            if (lib_entry(&c->wvl, menu, index - n - b, &out->engine) != 0)
+            if (lib_entry(&c->wvl, menu, wv_index(c, menu, index - n - b), &out->engine) != 0)
                 return -1;
             out->id = out->engine.id;
             out->nparams = out->engine.nparams;
@@ -130,8 +158,12 @@ static int find_item(const struct catalog *c, int menu, uint32_t id)
         int i = lib_find(&c->lib, menu, id);
         if (i < 0 && (i = blocks_find(menu, id)) >= 0)
             i += lib_count(&c->lib, menu);
-        if (i < 0 && (i = lib_find(&c->wvl, menu, id)) >= 0)
+        if (i < 0 && (i = lib_find(&c->wvl, menu, id)) >= 0) {   /* not shadowed: found above otherwise */
+            int k = i;
+            for (int j = 0; j < k; j++)
+                i -= wv_shadowed(c, menu, j);
             i += lib_count(&c->lib, menu) + blocks_count(menu);
+        }
         return i;
     }
     int n = catalog_count(c, menu);

@@ -17,6 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION = os.path.join(ROOT, 'VERSION')
 PYPROJECT = os.path.join(ROOT, 'studio', 'pyproject.toml')
 PACKAGE = os.path.join(ROOT, 'studio', 'ui', 'package.json')
+LOCK = os.path.join(ROOT, 'studio', 'ui', 'package-lock.json')
 SEMVER = re.compile(r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$')
 PY_LINE = re.compile(r'^version = "([^"]*)"$', re.M)
 
@@ -61,7 +62,9 @@ def bump(new):
     write(PYPROJECT, PY_LINE.sub('version = "%s"' % new, text, count=1))
     text = read(PACKAGE)                    # only the version line, the file's layout kept
     write(PACKAGE, re.sub(r'("version"\s*:\s*")[^"]*(")', r'\g<1>%s\g<2>' % new, text, count=1))
-    print('VERSION, studio/pyproject.toml e studio/ui/package.json: %s' % new)
+    text = read(LOCK)                       # the lock's root package: its first two "version" lines
+    write(LOCK, re.sub(r'("version"\s*:\s*")[^"]*(")', r'\g<1>%s\g<2>' % new, text, count=2))
+    print('VERSION, studio/pyproject.toml, studio/ui/package.json e package-lock.json: %s' % new)
     print('depois: CHANGELOG.md, commit, git tag v%s (docs/releasing.md)' % new)
 
 

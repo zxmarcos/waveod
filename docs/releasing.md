@@ -29,8 +29,10 @@ In the private repository (the development one):
 2. Commit ("Release vX.Y.Z") and tag: `git tag -a vX.Y.Z -m "waveod vX.Y.Z"`.
 3. Build the release from the tag, apart from the working tree:
    `python tools/buildfw.py out/waveod-vX.Y.Z-app.bin --rev vX.Y.Z --base blobs/QME-200_FW_USB_V1.2.2.bin`
-   (the pedal shows `vX.Y.Z`), then the stock effects on their ports:
-   `python tools/portfw.py blobs/QME-200_FW_USB_V1.2.2.bin out/waveod-vX.Y.Z.bin --elf out/waveod-vX.Y.Z-app.elf`.
+   (the pedal shows `vX.Y.Z`), then the stock effects on their ports and waveod's own effects with them:
+   `python tools/portfw.py blobs/QME-200_FW_USB_V1.2.2.bin out/waveod-vX.Y.Z.bin --elf out/waveod-vX.Y.Z-app.elf`
+   (`python tools/check_ownfw.py out/waveod-vX.Y.Z.bin --elf out/waveod-vX.Y.Z-app.elf` plays each own effect in
+   the emulator).
 4. Check it on the pedal (install, play the factory presets, GLOBAL › SISTEMA shows `vX.Y.Z` and the bootloader
    PROTEGIDO).
 
@@ -43,11 +45,13 @@ Then the public repository (`D:/dev/waveod`, github.com/zxmarcos/waveod):
    `gh release create vX.Y.Z --title "waveod vX.Y.Z" --notes-file <the changelog section>`.
    The workflow `.github/workflows/release.yml` builds the firmware of the tag on GitHub (Windows, the same
    Arm Toolchain for Embedded, checksum checked) and attaches `waveod-vX.Y.Z.bin` (the stock effects on their
-   ports), `waveod-vX.Y.Z-stock.bin` (over the stock library), `waveod-vX.Y.Z.elf`,
+   ports and waveod's own effects), `waveod-vX.Y.Z-stock.bin` (over the stock library), `waveod-vX.Y.Z.elf`,
    `waveod-studio-vX.Y.Z-windows.zip` (waveod Studio without Python: `tools/package_studio.py`, PyInstaller,
-   the NAM -> Clone converter built with the static C++ runtime) and `SHA256SUMS.txt`. It refuses a tag that
-   differs from `VERSION`, a build that would not show `vX.Y.Z`, or a converter that needs the Visual C++
-   runtime DLLs. To build an existing tag again: Actions › Release firmware › Run workflow.
+   the NAM -> Clone converter built with the static C++ runtime), `waveod-studio-vX.Y.Z-macos.zip` (the same
+   built on a macOS runner: the .app for Apple silicon, the pedal's MIDI on CoreMIDI) and `SHA256SUMS.txt` (made
+   by the last job over all of them). It refuses a tag that differs from `VERSION`, a build that would not show
+   `vX.Y.Z`, or a converter that needs the Visual C++ runtime DLLs. To build an existing tag again: Actions ›
+   Release firmware › Run workflow.
 
 The two repositories' commits differ, but a tag names the same source in both: the public tree is the private
 tag's, so a build of either shows `vX.Y.Z`.

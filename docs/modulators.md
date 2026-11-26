@@ -36,14 +36,24 @@ They restart when the preset loads, so an LFO or a sequence starts from the same
 
 ## On the pedal
 
-CONTROLES (CTRL on STOMP / CENAS) › a key's links, TECLA turned to MOD 1-4 (after the pedals):
-- **The modulator's own rows**, instead of NOME / COR:
-  - TIPO, with its value now (AGORA n %, live);
-  - then by type: FORMA, SINCRONIA (LIVRE or a division), VELOCIDADE (Hz, when free), FASE INICIAL;
-    SENSIBILIDADE, ATAQUE, RETORNO; SINCRONIA, VELOCIDADE, PASSOS, DESLIZE and one row per step.
-  - Knob 1 turns a value, MENU press steps it up.
-- **The links below**, as a pedal's: + NOVA LIGAÇÃO opens PARA ONDE with the chain's blocks and, in them, only
-  their parameters; then the values at MOD 0 % and MOD 100 % and the curve.
+CONTROLES (CTRL on PRESET / STOMP / CENAS) has a second page, MODULADORES (swipe sideways, or turn MENU past
+KNOBS): a card per modulator with its type and rate, a small drawing of it playing and its first link. A card opens
+the modulators screen (`ui/screens/scr_mods.c`) on it. Both draw with `ui/widgets/mod_graph.c`. A modulator's link opened from anywhere else
+(`ui_controls` with a MOD key) lands there too; the links screen's TECLA no longer offers MOD 1-4.
+- **Tabs** MOD 1-4: the type and a bar of the value now. Knob 2 or EFX changes the modulator, or tap a tab.
+- **The drawing**, 25 times a second:
+  - LFO (sine, triangle, square, saws): two cycles of the shape, the start phase marked, the point where it is now
+    running along them. Tap = the next shape.
+  - LFO random / smooth random and ENVELOPE: what it did over the last 6 s, the newest on the right.
+  - SEQUÊNCIA: a bar per step, the one playing lit, the glides drawn as ramps, the step of the selected row
+    outlined. Tap or drag on it sets the step under the finger (5 % steps).
+  - The caption: the shape or type, the rate (Hz or the division) and the value now in %.
+- **The rows below:** TIPO, then by type FORMA, SINCRONIA (LIVRE or a division), VELOCIDADE (Hz, when free),
+  FASE INICIAL / SENSIBILIDADE, ATAQUE, RETORNO / SINCRONIA, VELOCIDADE, PASSOS, DESLIZE and one row per step.
+  Knob 1 turns a value, MENU press steps it up.
+- **Then the links:** a PARA row per parameter it moves (MENU = its destination, MENU hold = remove), and
+  + NOVA LIGAÇÃO, which opens PARA ONDE with the chain's blocks and only their parameters; then the values at
+  MOD 0% and MOD 100% and the curve.
 
 ## In waveod Studio
 

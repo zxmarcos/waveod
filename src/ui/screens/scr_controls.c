@@ -6,13 +6,11 @@
  *
  * Rows (knob 1 / MENU press):
  *   TECLA              key (A..D, BANK -/+, the pairs, in preset mode the active preset's key again, the toe
- *                      switch, EXP 1A / 1B / 2, MIDI CC 1..127) / learn it: the next footswitch pressed, pedal
+ *                      switch, EXP 1A / 1B / 2, MIDI CC 1..127; the modulators have their own screen,
+ *                      scr_mods.c) / learn it: the next footswitch pressed, pedal
  *                      moved or MIDI CC received
  *   NOME NO CARD       - / the name keyboard (A..D, BANK -/+)
  *   COR                automatic or a LED colour
- *   (a modulator, MOD 1-4, instead of these two: its settings, fw/preset_format.h struct preset_mod: TIPO, then
- *   per type FORMA, SINCRONIA, VELOCIDADE, FASE / SENSIBILIDADE, ATAQUE, RETORNO / SINCRONIA, VELOCIDADE, PASSOS,
- *   DESLIZE and one row per step; knob 1 or MENU press changes them)
  *   one row per link   - / where it goes (the destination screen)
  *   + NOVA LIGAÇÃO     - / a new one, on the destination screen
  * MENU hold removes the selected link; EFX = the mode edited (preset, stomp, scenes); EXIT stops learning, else
@@ -23,7 +21,6 @@
  * has no links in follow its own as GLOBAL rows: MENU press copies the group into the preset (then its destination),
  * MENU hold gives the group a CA_NOTHING link.
  */
-#include "engine/modulators.h"
 #include "model/control.h"
 #include "model/param_format.h"
 #include "platform/sdram.h"
@@ -49,8 +46,7 @@ static struct {
     int links[CONTROL_MAX], nlinks;         /* table entries of the key, in the rows' order */
     uint8_t from_global[CONTROL_MAX];       /* that row is a global link (a group the preset has no links in) */
     int global;                             /* editing the global table (GLOBAL › CONTROLES GLOBAIS) */
-    int first;                              /* the first link row (R_LINKS, or after a modulator's settings) */
-    int fields[ROW_LIST_MAX], nfields;      /* a modulator's settings rows, from row 1 (enum mod_field) */
+    int first;                              /* the first link row (R_LINKS) */
     int drag_start;
 } s SDRAM_BSS;
 
@@ -76,154 +72,11 @@ static struct preset_controls *table(struct ui_ctx *ui)
 }
 
 /* the keys offered: footswitches and pairs, the active preset's key (preset mode only, not global), the toe
-   switch, the pedals, the MIDI CCs (these three in every mode) */
+   switch, the pedals, the MIDI CCs (these three in every mode); not the modulators (scr_mods.c) */
 static int key_ok(int mode, int key)
 {
     return key >= 0 && CK_VALID(key) && (key != CK_AGAIN || (mode == CM_PRESET && !s.global)) &&
-           !(s.global && CK_IS_MOD(key));      /* a modulator belongs to its preset */
-}
-
-/* ---------------------------------------------------------------- a modulator's settings */
-
-enum mod_field { MF_TYPE, MF_SHAPE, MF_SYNC, MF_RATE, MF_PHASE, MF_SENS, MF_ATTACK, MF_RELEASE, MF_STEPS, MF_GLIDE,
-                 MF_STEP };                 /* MF_STEP + i: step i */
-
-static int modulator(void)
-{
-    return CK_IS_MOD(s.key);
-}
-
-static struct preset_mod *the_mod(struct ui_ctx *ui)
-{
-    return &ui->rig->preset.mods.m[(s.key - CK_MOD1) & 3];
-}
-
-/* the settings rows of the modulator's type */
-static void mod_fields(struct ui_ctx *ui)
-{
-    const struct preset_mod *m = the_mod(ui);
-    int *f = s.fields, n = 0;
-    f[n++] = MF_TYPE;
-    if (m->type == MOD_LFO) {
-        f[n++] = MF_SHAPE;
-        f[n++] = MF_SYNC;
-        if (!m->sync)
-            f[n++] = MF_RATE;
-        f[n++] = MF_PHASE;
-    } else if (m->type == MOD_ENV) {
-        f[n++] = MF_SENS;
-        f[n++] = MF_ATTACK;
-        f[n++] = MF_RELEASE;
-    } else if (m->type == MOD_SEQ) {
-        f[n++] = MF_SYNC;
-        if (!m->sync)
-            f[n++] = MF_RATE;
-        f[n++] = MF_STEPS;
-        f[n++] = MF_GLIDE;
-        for (int i = 0; i < m->steps && i < MOD_STEPS; i++)
-            f[n++] = MF_STEP + i;
-    }
-    s.nfields = n;
-}
-
-/* the setting of a row, -1 = not a modulator's settings row */
-static int field_of(int row)
-{
-    return modulator() && row >= 1 && row < 1 + s.nfields ? s.fields[row - 1] : -1;
-}
-
-static int clampi(int v, int lo, int hi)
-{
-    return v < lo ? lo : v > hi ? hi : v;
-}
-
-/* a time in ms d steps on (finer when short) */
-static int step_ms(int ms, int d, int lo, int hi)
-{
-    for (; d > 0; d--)
-        ms += ms < 20 ? 1 : ms < 100 ? 5 : ms < 500 ? 10 : 50;
-    for (; d < 0; d++)
-        ms -= ms <= 20 ? 1 : ms <= 100 ? 5 : ms <= 500 ? 10 : 50;
-    return clampi(ms, lo, hi);
-}
-
-static void mod_knob(struct ui_ctx *ui, int field, int d)
-{
-    struct preset_mod *m = the_mod(ui);
-    if (field == MF_TYPE) {
-        int t = clampi(m->type + d, MOD_OFF, MOD_TYPES - 1);
-        if (t != m->type && m->type == MOD_OFF)
-            preset_mod_default(m, t);
-        m->type = (uint8_t)t;
-    } else if (field == MF_SHAPE) {
-        m->shape = (uint8_t)(((m->shape + d) % MS_SHAPES + MS_SHAPES) % MS_SHAPES);
-    } else if (field == MF_SYNC) {
-        m->sync = (uint8_t)clampi(m->sync + d, 0, 11);
-    } else if (field == MF_RATE) {
-        int c = (int)(m->rate * 100.0f + 0.5f);     /* hundredths of a Hz */
-        for (; d > 0; d--)
-            c += c < 100 ? 5 : c < 500 ? 10 : c < 1000 ? 50 : 100;
-        for (; d < 0; d++)
-            c -= c <= 100 ? 5 : c <= 500 ? 10 : c <= 1000 ? 50 : 100;
-        m->rate = (float)clampi(c, 5, 2000) * 0.01f;
-    } else if (field == MF_PHASE) {
-        m->phase = (uint8_t)clampi(m->phase + 5 * d, 0, 95);
-    } else if (field == MF_SENS) {
-        m->sens = (int8_t)clampi(m->sens + d, -20, 40);
-    } else if (field == MF_ATTACK) {
-        m->attack = (uint16_t)step_ms(m->attack, d, 1, 2000);
-    } else if (field == MF_RELEASE) {
-        m->release = (uint16_t)step_ms(m->release, d, 10, 5000);
-    } else if (field == MF_STEPS) {
-        m->steps = (uint8_t)clampi(m->steps + d, 1, MOD_STEPS);
-    } else if (field == MF_GLIDE) {
-        m->glide = (uint8_t)clampi(m->glide + 5 * d, 0, 100);
-    } else if (field >= MF_STEP && field < MF_STEP + MOD_STEPS) {
-        uint8_t *v = &m->step[field - MF_STEP];
-        *v = (uint8_t)clampi(*v + 5 * d, 0, 100);
-    }
-}
-
-static void field_title(int field, char *buf, unsigned size)
-{
-    static const char *const titles[MF_STEP] = {
-        "TIPO", "FORMA", "SINCRONIA", "VELOCIDADE", "FASE INICIAL", "SENSIBILIDADE", "ATAQUE", "RETORNO", "PASSOS",
-        "DESLIZE",
-    };
-    if (field >= MF_STEP)
-        lv_snprintf(buf, size, "PASSO %d", field - MF_STEP + 1);
-    else
-        lv_snprintf(buf, size, "%s", field >= 0 ? titles[field] : "");
-}
-
-static void field_text(struct ui_ctx *ui, int field, char *out, unsigned size)
-{
-    static const char *const types[MOD_TYPES] = { "DESLIGADO", "LFO", "ENVELOPE", "SEQU\xC3\x8A" "NCIA" };
-    static const char *const shapes[MS_SHAPES] = {
-        "SENOIDE", "TRI\xC3\x82NGULO", "QUADRADA", "DENTE SUBINDO", "DENTE DESCENDO", "ALEAT\xC3\x93RIA",
-        "ALEAT\xC3\x93RIA SUAVE",
-    };
-    const struct preset_mod *m = the_mod(ui);
-    int c = (int)(m->rate * 100.0f + 0.5f);
-    switch (field) {
-    case MF_TYPE:
-        if (m->type == MOD_OFF)
-            lv_snprintf(out, size, "%s", types[MOD_OFF]);
-        else
-            lv_snprintf(out, size, "%s \xC2\xB7 AGORA %d%%", types[m->type % MOD_TYPES],
-                        (int)(mods_value(s.key - CK_MOD1) * 100.0f + 0.5f));
-        break;
-    case MF_SHAPE:   lv_snprintf(out, size, "%s", shapes[m->shape % MS_SHAPES]); break;
-    case MF_SYNC:    lv_snprintf(out, size, "%s", m->sync ? param_sync_divisions[(m->sync - 1) % 11] : "LIVRE"); break;
-    case MF_RATE:    lv_snprintf(out, size, "%d.%02d Hz", c / 100, c % 100); break;
-    case MF_PHASE:   lv_snprintf(out, size, "%d%%", m->phase); break;
-    case MF_SENS:    lv_snprintf(out, size, "%+d dB", m->sens); break;
-    case MF_ATTACK:  lv_snprintf(out, size, "%d ms", m->attack); break;
-    case MF_RELEASE: lv_snprintf(out, size, "%d ms", m->release); break;
-    case MF_STEPS:   lv_snprintf(out, size, "%d", m->steps); break;
-    case MF_GLIDE:   lv_snprintf(out, size, "%d%%", m->glide); break;
-    default:         lv_snprintf(out, size, "%d%%", m->step[(field - MF_STEP) % MOD_STEPS]); break;
-    }
+           !CK_IS_MOD(key);
 }
 
 /* the next key offered after `key` (dir 1) or before it (-1), round */
@@ -257,10 +110,7 @@ static int in_group(const struct control *l, int hold)
 static void collect(struct ui_ctx *ui)
 {
     const struct preset_controls *c = table(ui), *g = &ui->rig->global;
-    s.nfields = 0;
-    if (modulator())
-        mod_fields(ui);
-    s.first = modulator() ? 1 + s.nfields : R_LINKS;
+    s.first = R_LINKS;
     int max = ROW_LIST_MAX - s.first - 1, own[2] = { 0, 0 };
     s.nlinks = 0;
     for (int i = 0; i < c->count && s.nlinks < max; i++)
@@ -364,12 +214,6 @@ static void knob(struct ui_ctx *ui, int row, int d)
         s.key = step_key(s.mode, s.key, d);
         collect(ui);
         ui->rev++;
-    } else if (field_of(row) >= 0) {
-        mod_knob(ui, field_of(row), d);
-        collect(ui);                                /* a type or sync change shows other rows */
-        edited(ui);
-    } else if (modulator()) {
-        return;
     } else if (row == R_COLOUR && s.key < CK_KEYS) {
         c->colour[s.key] = (uint8_t)(((c->colour[s.key] + d) % 8 + 8) % 8);
         edited(ui);
@@ -440,9 +284,7 @@ static void activate(struct ui_ctx *ui, int row)
 {
     if (row == R_KEY) {
         ui_learn(ui->learned == learned ? 0 : learned);
-    } else if (field_of(row) >= 0) {
-        knob(ui, row, 1);
-    } else if (row == R_NAME && !modulator()) {
+    } else if (row == R_NAME) {
         if (s.key < CK_KEYS)
             ui_name_key(s.key);
     } else if (row == row_add()) {
@@ -470,7 +312,7 @@ static const char *when_text(int when)
     return when == CW_HOLD ? "SEGURAR" : when == CW_MOMENT ? "ENQUANTO PISA" : "APERTAR";
 }
 
-static void link_text(struct ui_ctx *ui, const struct control *l, char *out, unsigned size)
+void ui_link_text(struct ui_ctx *ui, const struct control *l, char *out, unsigned size)
 {
     char name[24] = "?";
     if (l->action == CA_NOTHING) {
@@ -523,8 +365,6 @@ static void value_text(void *ctx, int row, char *out, unsigned size)
         lv_snprintf(out, size, "PISE, MEXA UM PEDAL OU MANDE UM CC");
     } else if (row == R_KEY) {
         lv_snprintf(out, size, "%s \xC2\xB7 %d", key_name(s.key), s.nlinks);
-    } else if (field_of(row) >= 0) {
-        field_text(ui, field_of(row), out, size);
     } else if (row == R_NAME) {
         lv_snprintf(out, size, "%s", s.key >= CK_KEYS ? "-" :
                                      c->label[s.key][0] ? c->label[s.key] : "(AUTOM\xC3\x81TICO)");
@@ -533,7 +373,7 @@ static void value_text(void *ctx, int row, char *out, unsigned size)
     } else if (row == row_add()) {
         lv_snprintf(out, size, "MENU \xC2\xBB");
     } else if (row_control(ui, row)) {
-        link_text(ui, row_control(ui, row), out, size);
+        ui_link_text(ui, row_control(ui, row), out, size);
     } else {
         out[0] = 0;
     }
@@ -607,8 +447,6 @@ static void refresh(struct ui_ctx *ui)
     const char *pre = s.global ? "GLOBAIS \xC2\xB7 " : "";
     if (CK_IS_MIDI(s.key))
         lv_snprintf(title, sizeof title, "%sMIDI \xC2\xB7 TODOS OS MODOS", pre);
-    else if (modulator())
-        lv_snprintf(title, sizeof title, "MODULADORES \xC2\xB7 DESTE PRESET");
     else if (s.key >= CK_TOE)
         lv_snprintf(title, sizeof title, "%sPEDAIS \xC2\xB7 TODOS OS MODOS", pre);
     else
@@ -624,16 +462,11 @@ static void refresh(struct ui_ctx *ui)
     if (l->sel >= n)
         l->sel = n - 1;
     lv_snprintf(s.titles[R_KEY], sizeof s.titles[0], "TECLA");
-    if (modulator()) {
-        for (int r = 1; r < s.first; r++)
-            field_title(field_of(r), s.titles[r], sizeof s.titles[0]);
-    } else {
-        lv_snprintf(s.titles[R_NAME], sizeof s.titles[0], "NOME NO CARD");
-        lv_snprintf(s.titles[R_COLOUR], sizeof s.titles[0], "COR");
-    }
+    lv_snprintf(s.titles[R_NAME], sizeof s.titles[0], "NOME NO CARD");
+    lv_snprintf(s.titles[R_COLOUR], sizeof s.titles[0], "COR");
     for (int k = 0; k < s.nlinks; k++)
         lv_snprintf(s.titles[s.first + k], sizeof s.titles[0], "%s%s", s.from_global[k] ? "GLOBAL \xC2\xB7 " : "",
-                    pedal() ? "PEDAL" : modulator() ? "MOD" : CK_IS_MIDI(s.key) ? "MIDI" :
+                    pedal() ? "PEDAL" : CK_IS_MIDI(s.key) ? "MIDI" :
                     s.key == CK_TOE ? "APERTAR" : when_text(row_control(ui, s.first + k)->when));
     lv_snprintf(s.titles[row_add()], sizeof s.titles[0], "+ NOVA LIGA\xC3\x87\xC3\x83O");
     for (int r = 0; r < n; r++)
@@ -681,14 +514,4 @@ static int input(struct ui_ctx *ui, const struct input_event *ev)
     return 0;
 }
 
-/* a modulator's value now, on its TIPO row, 10 times a second */
-static void tick(struct ui_ctx *ui)
-{
-    static uint32_t last;
-    if (!modulator() || the_mod(ui)->type == MOD_OFF || time_ms() - last < 100)
-        return;
-    last = time_ms();
-    row_list_refresh(&s.list, value_text, ui);
-}
-
-const struct screen screen_controls = { create, enter, refresh, input, 0, tick };
+const struct screen screen_controls = { create, enter, refresh, input, 0, 0 };

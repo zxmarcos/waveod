@@ -5,7 +5,7 @@ The PC app of the waveod firmware (QME-200 / Sonicake Matribox II Pro). It talks
 what the original PC editor knows.
 
 Self-contained: Python 3.10+ and its standard library only (Tkinter; USB MIDI through the Windows multimedia API
-with ctypes). The new interface (`--web`, below) adds pywebview. The visual kit, the USB MIDI transport and the firmware updater started as copies of Matribox
+with ctypes, or CoreMIDI on macOS). Releases bring it as an app for Windows and for macOS (`tools/package_studio.py`). The new interface (`--web`, below) adds pywebview. The visual kit, the USB MIDI transport and the firmware updater started as copies of Matribox
 Studio's (MIT licence) and live in `waveod_studio/ui` and `waveod_studio/usb`; the IBM Plex fonts are under the
 SIL Open Font License (`waveod_studio/fonts/OFL.txt`).
 
@@ -68,7 +68,8 @@ latency [L|R|SEND|PRESET]`.
 | `waveod_studio/app.py` | the window |
 | `waveod_studio/ui/kit.py` | theme, fonts and widgets (canvas-drawn, anti-aliased by `ui/aa.py`) |
 | `waveod_studio/ui/updateview.py` | the firmware update dialog |
-| `waveod_studio/usb/htmidi.py` | the editor protocol's SysEx packets, LZO, Windows MIDI ports |
+| `waveod_studio/usb/htmidi.py` | the editor protocol's SysEx packets, LZO, Windows MIDI ports (winmm) |
+| `waveod_studio/usb/coremidi.py` | the pedal's MIDI ports on macOS (CoreMIDI through ctypes); `htmidi` uses it there |
 | `waveod_studio/usb/qmeupdate.py` | firmware upload through the bootloader |
 | `waveod_studio/emulated.py` | the emulated pedal (`../tools/emu.py` + `../tools/check_editor.py`'s USB host) |
 | `waveod_studio/shot.py` | window screenshots (`--shot out.png`) |
@@ -114,7 +115,14 @@ table editor, with the classic one's rules (`lib/controls.ts` follows `controls.
 against it). The keys on the left, each with what it does (the global link that plays there, marked G); the picked
 key's links in the footswitch mode on top, the global ones under them (Copiar / Sem globais); the picked link's
 destination, what of it, when or the curve, its values. Footswitch card names and LED colours, the modulators
-MOD 1-4. The table is a draft until **Gravar no pedal** (Ctrl+S); `webapp.table_from` refuses a link the pedal would
+MOD 1-4: each drawn as the pedal plays it (`lib/modwave.ts` follows `../src/engine/modulators.c`; the key list shows
+a thumbnail). An LFO's shape over two cycles (the random ones: the values it takes after the preset loads) with its
+start phase, picked from thumbnails of the seven shapes; an envelope following two plucked notes, so attack, release
+and sensitivity show; a sequence as bars dragged to their values, its glides as ramps. A point runs along the
+drawing at the rate (synced ones at the preset's BPM), and the first parameter it moves labels the right edge with
+its values at 0 and 100 %. The settings are the grid's knobs (rate and times on a log scale; a synced rate shows,
+dimmed, what the division gives, and turning it frees it); a sequence's steps are its bars (drag them, or the wheel
+over one). The table is a draft until **Gravar no pedal** (Ctrl+S); `webapp.table_from` refuses a link the pedal would
 drop instead of losing it. While a table equals what the original's footswitch fields give, the pedal keeps those
 fields instead (`fw/wv_preset.c`), so such a preset still reads as having no table of its own.
 

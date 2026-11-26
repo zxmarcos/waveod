@@ -1,11 +1,13 @@
 # Builds the firmware and waveod Studio of a release and attaches them to the release (docs/releasing.md):
-#   waveod-vX.Y.Z.bin                    the update file: waveod with the stock effects on their ports (what the
-#                                        pedal runs)
+#   waveod-vX.Y.Z.bin                    the update file: waveod with the stock effects on their ports and its
+#                                        own effects (tools/portfw.py; what the pedal runs)
 #   waveod-vX.Y.Z-stock.bin              the same application over the stock effect library as Sonicake ships it
 #   waveod-vX.Y.Z.elf                    the application with its symbols (the emulator, crash addresses)
 #   waveod-studio-vX.Y.Z-windows.zip     waveod Studio for Windows, no Python needed (tools/package_studio.py)
+#   waveod-studio-vX.Y.Z-macos.zip       the same for macOS (Apple silicon)
 #   SHA256SUMS.txt
-# Runs when a release is published, or by hand for a tag (Actions > Release firmware > Run workflow).
+# Runs when a release is published, or by hand for a tag (Actions > Release firmware > Run workflow). The Windows
+# and macOS jobs leave their files as artifacts; the last job checks them all and attaches them.
 name: Release firmware
 
 on:
@@ -119,14 +121,76 @@ jobs:
           python tools/package_studio.py "dist/waveod-studio-$env:TAG-windows.zip" --clonefit out/clonefit/clonefit.exe
           if ($LASTEXITCODE) { throw 'package_studio failed' }
 
-      - name: Checksums
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  studio-macos:
+    runs-on: macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          submodules: true
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: studio/ui/package-lock.json
+
+      - name: Python packages
+        run: python -m pip install pyinstaller==6.22.3 pywebview==6.2.1 pillow
+
+      - name: The tag is the version
         run: |
-          Get-ChildItem dist -Exclude SHA256SUMS.txt | ForEach-Object {
-            '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
-          } | Set-Content dist/SHA256SUMS.txt
-          Get-Content dist/SHA256SUMS.txt
+          python tools/version.py check
+          test "v$(head -n 1 VERSION | tr -d '[:space:]')" = "$TAG" || { echo "tag $TAG, but VERSION differs"; exit 1; }
+
+      - name: The pedal's MIDI on CoreMIDI
+        working-directory: studio
+        run: python -c "from waveod_studio.usb import htmidi; print(htmidi.Port.__module__, htmidi.list_ports())"
+
+      - name: NAM -> Clone converter
+        run: |
+          python tools/wvbuild.py clonefit
+          file out/clonefit/clonefit
+          otool -L out/clonefit/clonefit
+
+      - name: waveod Studio for macOS
+        run: python tools/package_studio.py "dist/waveod-studio-$TAG-macos.zip" --clonefit out/clonefit/clonefit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+          if-no-files-found: error
+
+  attach:
+    needs: [firmware, studio-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload $env:TAG (Get-ChildItem dist).FullName --clobber
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"

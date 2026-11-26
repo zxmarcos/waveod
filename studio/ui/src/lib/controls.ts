@@ -223,7 +223,7 @@ export const whenText = (l: CtlLink) => (everyMode(l.key) ? '' : WHEN_NAMES[l.wh
 export function ends(key: number): [string, string] {
   if (isPedal(key)) return ['CALCANHAR', 'PONTA'];
   if (isMidi(key)) return ['EM 0', 'EM 127'];
-  if (isMod(key)) return ['MOD EM 0%', 'MOD EM 100%'];
+  if (isMod(key)) return ['MOD 0%', 'MOD 100%'];
   return ['OFF', 'ON'];
 }
 

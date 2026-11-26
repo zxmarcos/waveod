@@ -305,6 +305,7 @@ export class DemoBackend implements Backend {
       blocks: src.blocks.map((b) => ({ slot: b.slot, menu: b.menu, name: b.name, params: clone(FIX.ctl!.models[b.model]) })),
       table: clone(w?.table ?? src.table),
       mods: clone(w?.mods ?? (src.mods ?? [null, null, null, null]).map((m) => m ?? off)),
+      bpm: FIX.details?.[String(at.src)]?.bpm ?? 120,
       global: clone(this.glob),
     };
   }

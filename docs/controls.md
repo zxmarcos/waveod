@@ -119,7 +119,12 @@ turns pick a card, MENU press (touch: tap) opens its links; EFX shows the next m
 pairs and the active preset's key are on the links screen (TECLA). Below the cards, MIDI: the CCs that have links
 (every mode), each with its first one; it opens the first CC's links (CC 1 when there is none: learn one on TECLA).
 Right of it, KNOBS: what the preset's three quick knobs turn; it opens the quick knobs' assignments (below). MIDI and
-KNOBS are the last stops of the MENU turns; on the global table there is no KNOBS.
+KNOBS are the last stops of the page's MENU turns; on the global table there is no KNOBS.
+
+A second page, CONTROLES · MODULADORES (on a preset only): a card per modulator, MOD 1-4, with its type and rate,
+a small drawing of it playing and its first link (+n for the others); a card opens the modulators screen on it
+(Modulators, below). MENU turns go on from KNOBS to MOD 1-4 and the page follows; swipe sideways or tap a page's
+segment (along the bottom) for the other page.
 
 ### A key's links
 
@@ -127,7 +132,7 @@ The screen shows the mode the pedal is in, or the one CONTROLES showed (EFX: the
 
 | Row | Knob 1 | MENU press |
 |---|---|---|
-| TECLA | key, then the toe switch, the pedals, the modulators MOD 1-4 and MIDI CC 1..127 | learn: the next footswitch pressed, pedal moved or MIDI CC received (EXIT stops) |
+| TECLA | key, then the toe switch, the pedals and MIDI CC 1..127 (the modulators: their own screen, below) | learn: the next footswitch pressed, pedal moved or MIDI CC received (EXIT stops) |
 | NOME NO CARD | | keyboard (8 characters; empty = from the links) |
 | COR | automatic (the first block's category, white for parameters) or a LED colour | |
 | a link (APERTAR / SEGURAR / ENQUANTO PISA, PEDAL, MIDI) | | where it goes (PARA ONDE, below) |
@@ -173,13 +178,15 @@ Below: UM VALOR POR CENA (tap or EFX: a scene parameter or the preset's, see Sce
 another of the block). MENU turns pick a card (MIDI last), MENU press = tap, MENU held (touch: hold) removes the
 card's links to the parameter; EXIT or EXP = back.
 
-### Modulators (TECLA = MOD 1-4)
+### Modulators (CONTROLES › MODULADORES)
 
 The preset's four modulators (an LFO, an envelope of the guitar, a step sequencer; docs/modulators.md) are keys
-after the pedals. On a modulator the links screen shows its settings instead of NOME / COR: TIPO (with its value
-now, live), then per type FORMA, SINCRONIA, VELOCIDADE, FASE INICIAL / SENSIBILIDADE, ATAQUE, RETORNO /
-SINCRONIA, VELOCIDADE, PASSOS, DESLIZE and a row per step; knob 1 turns a value, MENU press steps it. Its links
-are parameters of the chain's blocks only (PARA ONDE offers nothing else), from MOD EM 0% to MOD EM 100% along a
+of the control table after the pedals, edited on their own screen, MODULADORES: a card of CONTROLES' second page, or any
+modulator link opened elsewhere. Tabs MOD 1-4 (knob 2 / EFX / tap), a live drawing (the LFO's shape with the point
+running along it, the sequence's steps, or the last seconds of the envelope and the random shapes), then TIPO, the
+type's settings (FORMA, SINCRONIA, VELOCIDADE, FASE INICIAL / SENSIBILIDADE, ATAQUE, RETORNO / SINCRONIA,
+VELOCIDADE, PASSOS, DESLIZE and a row per step; knob 1 turns a value, MENU press steps it) and the links. Its
+links are parameters of the chain's blocks only (PARA ONDE offers nothing else), from MOD 0% to MOD 100% along a
 curve, moved in the audio interrupt every block. Not on the global table.
 
 ### MIDI in the links

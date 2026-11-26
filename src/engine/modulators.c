@@ -161,6 +161,16 @@ float mods_value(int i)
     return i >= 0 && i < MOD_COUNT ? md.value[i] : 0.0f;
 }
 
+float mods_phase(int i)
+{
+    return i >= 0 && i < MOD_COUNT ? md.st[i].phase : 0.0f;
+}
+
+uint32_t mods_cycle(int i)
+{
+    return i >= 0 && i < MOD_COUNT ? md.st[i].cycle : 0u;
+}
+
 void mods_run(struct chain *c, const float *in, int frames, uint32_t beat_ms)
 {
     const struct mod_set *s = &md.set[md.cur];

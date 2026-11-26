@@ -36,6 +36,11 @@ void mods_run(struct chain *c, const float *in, int frames, uint32_t beat_ms);
 /* The value of modulator i now, 0..1 (for the screens). */
 float mods_value(int i);
 
+/* Where modulator i is (for the screens' drawings): 0..1 of its LFO cycle or SEQ step, and the cycles / steps
+   done since it started. */
+float mods_phase(int i);
+uint32_t mods_cycle(int i);
+
 /* One modulator's next value, for the tests: the state of one modulator advanced by `frames`. */
 struct mod_state {
     float phase;                        /* 0..1 of an LFO cycle or a SEQ step */

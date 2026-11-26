@@ -40,7 +40,8 @@ LOST = 'O pedal foi desconectado.'
 PRESET_FILES = ('Preset do waveod (*.wvp)',)
 BACKUP_FILES = ('Backup do waveod (*.wvbak)',)
 FIRMWARE_FILES = ('Firmware do pedal (*.bin)',)     # pywebview takes only letters, digits and spaces before '('
-LOG_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'waveodStudio')
+LOG_DIR = os.path.join(os.path.expanduser('~/Library/Application Support') if sys.platform == 'darwin' else
+                       os.environ.get('APPDATA', os.path.expanduser('~')), 'waveodStudio')
 NAM_FILES = ('Captura NAM (*.nam)',)
 
 
@@ -691,7 +692,7 @@ class Api:
                                  params=[dict(index=q.index, knob=q.knob, name=q.name, min=q.min, max=q.max,
                                               step=q.step) for q in b.params]) for b in blocks],
                     knobs={str(s.slot): s.knobs for s in pr.slots()},
-                    scenes=[s['name'] for s in pr.scenes()['scenes']], mods=pr.mods(),
+                    scenes=[s['name'] for s in pr.scenes()['scenes']], mods=pr.mods(), bpm=pr.bpm,
                     **{'global': table_view(glob) if glob is not None else None})
 
     def write_controls(self, index, table, mods=None):

@@ -215,8 +215,8 @@ Auto Wah); and all 5 EQs (EQ: Guitar EQ 1, 2, Bass EQ 1, 2, Calif EQ). See
 
 ## Modulators
 
-Four per preset (LFO, envelope, step sequencer) move any parameter, as keys of the control table (CONTROLES ›
-TECLA = MOD 1-4, or waveod Studio). See [docs/modulators.md](docs/modulators.md).
+Four per preset (LFO, envelope, step sequencer) move any parameter, as keys of the control table (CONTROLES, second page,
+a screen with a live drawing of each, or waveod Studio). See [docs/modulators.md](docs/modulators.md).
 
 ## Spillover
 
