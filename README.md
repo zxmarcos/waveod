@@ -7,6 +7,9 @@ from scratch in C: a new interface, a new effect engine and a PC app of its own,
 Nothing is lost on the way: your presets, IRs and Clone captures stay where they are, every stock effect is
 still there, and the stock firmware is one update away.
 
+> waveod is an unofficial open-source project, provided as is: read the [disclaimer](#disclaimer) before you
+> install it.
+
 <p align="center">
   <img src="docs/images/pedal_preset.png" width="400" alt="Playing a preset">
   <img src="docs/images/pedal_chain.png" width="400" alt="Parallel routing on the chain screen">
@@ -232,8 +235,18 @@ The bootloader is never touched by an update, and waveod write-protects it in th
 power-up enters update mode with any application installed; then flash the stock
 `blobs/QME-200_FW_USB_V1.2.2.bin` with the PC editor or waveod Studio. Back up presets before any update.
 
-waveod is unofficial and comes with no warranty: installing it, or effect modules from others, is at your own
-risk.
+## Disclaimer
+
+waveod is an independent, open-source project. It is made with care: every part is checked against the stock
+firmware (in a PC simulator, in an ARM emulator running the real image, against the stock code itself and on the
+pedal), the bootloader is write-protected, a crash restarts the pedal instead of leaving it stuck, and the stock
+firmware can always be put back.
+
+Even so, waveod, waveod Studio and everything in this repository are provided **as is, without warranty of any
+kind** (see [LICENSE](LICENSE)). **The author and the contributors are not responsible for your equipment or for
+any damage, loss of data or other harm** that installing or using them, or effect modules from others, may cause.
+You install and use them at your own risk. waveod is not affiliated with or endorsed by Sonicake; installing it may
+affect the manufacturer's warranty.
 
 ## Versions
 
