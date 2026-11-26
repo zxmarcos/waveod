@@ -1,0 +1,21 @@
+{
+  "name": "waveod-studio-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "waveod Studio's interface (Svelte 5), shown by waveod_studio/webapp.py in a pywebview window",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.4",
+    "svelte": "^5.59.1",
+    "svelte-check": "^4.7.8",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.8"
+  }
+}

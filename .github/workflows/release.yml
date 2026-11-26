@@ -1,0 +1,132 @@
+# Builds the firmware and waveod Studio of a release and attaches them to the release (docs/releasing.md):
+#   waveod-vX.Y.Z.bin                    the update file: waveod with the stock effects on their ports (what the
+#                                        pedal runs)
+#   waveod-vX.Y.Z-stock.bin              the same application over the stock effect library as Sonicake ships it
+#   waveod-vX.Y.Z.elf                    the application with its symbols (the emulator, crash addresses)
+#   waveod-studio-vX.Y.Z-windows.zip     waveod Studio for Windows, no Python needed (tools/package_studio.py)
+#   SHA256SUMS.txt
+# Runs when a release is published, or by hand for a tag (Actions > Release firmware > Run workflow).
+name: Release firmware
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build (vX.Y.Z)
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  ATFE_VERSION: 23.1.0
+  ATFE_SHA256: f1aec4fd8ae5c74186c00f620a8c1eea9d03d4d51db2eba5bcd4e707b4c19fe7
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  firmware:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Line endings as committed
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          submodules: true
+          fetch-depth: 0              # the tags: the firmware shows vX.Y.Z only on the tagged commit
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: studio/ui/package-lock.json
+
+      - name: Python packages and Ninja
+        run: python -m pip install numpy ninja pyinstaller==6.22.3 pywebview==6.2.1
+
+      - name: Arm Toolchain for Embedded (cache)
+        id: atfe-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/atfe
+          key: atfe-${{ env.ATFE_VERSION }}-windows-x86_64
+
+      - name: Arm Toolchain for Embedded (download)
+        if: steps.atfe-cache.outputs.cache-hit != 'true'
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'atfe.zip'
+          $url = "https://github.com/arm/arm-toolchain/releases/download/release-$env:ATFE_VERSION-ATfE/ATfE-$env:ATFE_VERSION-Windows-x86_64.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:ATFE_SHA256) { throw "ATfE checksum $hash, expected $env:ATFE_SHA256" }
+          Expand-Archive $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'atfe')
+
+      - name: Arm Toolchain for Embedded (ATFE_ROOT)
+        run: |
+          $clang = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'atfe') -Recurse -Filter clang.exe |
+                   Where-Object { $_.Directory.Name -eq 'bin' } | Select-Object -First 1
+          if (-not $clang) { throw 'clang.exe not found in the toolchain' }
+          "ATFE_ROOT=$($clang.Directory.Parent.FullName)" >> $env:GITHUB_ENV
+
+      - name: The tag is the version
+        run: |
+          python tools/version.py check
+          $version = 'v' + (Get-Content VERSION -TotalCount 1).Trim()
+          if ($version -ne $env:TAG) { throw "tag $env:TAG, but VERSION says $version" }
+
+      - name: Build
+        run: |
+          cmake --preset fw
+          cmake --build --preset fw
+          $shown = Get-Content build/fw/generated/waveod_version.h
+          Write-Output $shown
+          if ($shown -notmatch "`"$env:TAG`"") { throw "the firmware would show $shown, not $env:TAG" }
+
+      - name: Update files
+        run: |
+          New-Item -ItemType Directory -Force dist, work | Out-Null
+          $base = 'blobs/QME-200_FW_USB_V1.2.2.bin'
+          python tools/mkfw.py $base "dist/waveod-$env:TAG-stock.bin" --elf build/fw/waveod.elf
+          if ($LASTEXITCODE) { throw 'mkfw failed' }
+          python tools/portfw.py $base "work/waveod-$env:TAG.bin" --elf build/fw/waveod.elf
+          if ($LASTEXITCODE) { throw 'portfw failed' }
+          Copy-Item "work/waveod-$env:TAG.bin" dist/
+          Copy-Item build/fw/waveod.elf "dist/waveod-$env:TAG.elf"
+
+      - name: NAM -> Clone converter
+        run: |
+          $clang = Get-Command clang++ -ErrorAction SilentlyContinue
+          if (-not $clang) { $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH" }
+          python tools/wvbuild.py clonefit
+          if ($LASTEXITCODE) { throw 'clonefit failed' }
+          # it must run on a Windows without the Visual C++ redistributable: only the system's DLLs
+          $dlls = & "$env:ATFE_ROOT/bin/llvm-objdump.exe" -p out/clonefit/clonefit.exe | Select-String 'DLL Name'
+          Write-Output $dlls
+          if ($dlls -match 'vcruntime|msvcp') { throw 'clonefit needs the Visual C++ runtime DLLs' }
+
+      - name: waveod Studio for Windows
+        run: |
+          python tools/package_studio.py "dist/waveod-studio-$env:TAG-windows.zip" --clonefit out/clonefit/clonefit.exe
+          if ($LASTEXITCODE) { throw 'package_studio failed' }
+
+      - name: Checksums
+        run: |
+          Get-ChildItem dist -Exclude SHA256SUMS.txt | ForEach-Object {
+            '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content dist/SHA256SUMS.txt
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload $env:TAG (Get-ChildItem dist).FullName --clobber

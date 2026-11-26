@@ -1,0 +1,76 @@
+/*
+ * Vibrato (MOD › Vibrato): the original's Vibrato (QME-200 V1.2.2, library entry 8.8, id 0x04000017) in C, its output
+ * bit for bit (tools/check_stock.py; docs/stock_port.md). The left input into two 250-sample delay lines, one per
+ * output, read in opposite phase. Single precision.
+ *
+ * Each line is read 10 + 111 (1 +- sin(2 pi r n)) d samples back, between two samples (linear interpolation), x
+ * Volume. Depth (d), Volume and the rate glide 0.00022676 of the way to the knobs each sample, the rate from 0; the
+ * sample count n starts over at one period.
+ */
+#include "mod.h"
+
+static const struct wvfx_param params[] = {
+    { "Depth", 0.0f, 100.0f, 1.0f, 50.0f, 0, 0x15, 0x00, 0, 0, 0 },
+    { "Rate", 0.10000000149011612f, 10.0f, 0.10000000149011612f, 0.5f, 1, 0x22, 0x13, 0, 0, 0 },
+    { "Volume", 0.0f, 100.0f, 1.0f, 50.0f, 2, 0x15, 0x00, 0, 0, 0 },
+    { "Sync", 0.0f, 1.0f, 1.0f, 0.0f, 3, 0x00, 0x21, 0, 0, 0 },
+};
+
+struct state {
+    float depth, volume, rate;
+    int n;
+    MOD_LINE(250) l, r;
+};
+
+static int init(void *state, void *buffer, const struct wvfx_env *env, const float *k)
+{
+    struct state *s = state;
+    (void)buffer; (void)env;
+    *s = (struct state){ 0 };
+    s->depth = k[0] * 0.01f;
+    s->volume = k[2] * 0.01f;
+    return 0;
+}
+
+static void process(void *state, const struct wvfx_io *io)
+{
+    struct state *s = state;
+    const float *k = io->knobs;
+    float rate = mod_rate(k[1], k[3], io->beat_ms);
+    if (!io->enabled || io->frames == 0)
+        return;
+    float dd = (k[0] * 0.01f - s->depth) * 0.0002267600066261366f;
+    float dr = (rate - s->rate) * 0.0002267600066261366f;
+    float dv = (k[2] * 0.01f - s->volume) * 0.0002267600066261366f;
+    float *p = io->io;
+    for (int i = 0; i < io->frames; i++, p += 2) {
+        s->rate += dr;
+        s->depth += dd;
+        s->volume += dv;
+        float period = 1.0f / s->rate, x = p[0];
+        float m = st_sinf((s->rate * 6.2831854820251465f) * (float)s->n) * 111.0f;
+        s->n++;
+        if (period <= (float)s->n)
+            s->n = 0;
+        float l = mod_line_run(&s->l, x, st_fma(m + 111.0f, s->depth, 10.0f));
+        float r = mod_line_run(&s->r, x, st_fma(111.0f - m, s->depth, 10.0f));
+        p[0] = l * s->volume;
+        p[1] = r * s->volume;
+    }
+}
+
+const struct wvfx_desc mod_vibrato_block = {
+    .magic = WVFX_MAGIC,
+    .abi = WVFX_ABI,
+    .id = WVFX_ID(WVFX_MOD, 0x108),
+    .menu = WVFX_MOD,
+    .nparams = sizeof params / sizeof params[0],
+    .name = "Vibrato",
+    .category = "Vibrato",
+    .params = params,
+    .state_size = sizeof(struct state),
+    .buffer_size = 0,
+    .init = init,
+    .process = process,
+    .poll = 0,
+};

@@ -1,0 +1,10 @@
+build/
+out/
+__pycache__/
+*.pyc
+*.egg-info/
+# waveod Studio's new interface: dependencies and the build (cd studio/ui && npm install && npm run build)
+studio/ui/node_modules/
+studio/waveod_studio/web/
+dist/
+work/

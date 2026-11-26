@@ -1,0 +1,34 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "fw",
+      "displayName": "QME-200 firmware (Arm Toolchain for Embedded)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/fw",
+      "toolchainFile": "${sourceDir}/cmake/atfe.cmake",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON" }
+    },
+    {
+      "name": "fw-locktest",
+      "inherits": "fw",
+      "displayName": "QME-200 firmware with the flash lock test command (WAVEOD_LOCK_TEST, never for release)",
+      "binaryDir": "${sourceDir}/build/fw-locktest",
+      "cacheVariables": { "WAVEOD_LOCK_TEST": "ON" }
+    },
+    {
+      "name": "host",
+      "displayName": "PC simulator and unit tests (clang)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host",
+      "toolchainFile": "${sourceDir}/cmake/host-clang.cmake",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "fw", "configurePreset": "fw" },
+    { "name": "fw-locktest", "configurePreset": "fw-locktest" },
+    { "name": "host", "configurePreset": "host" }
+  ]
+}
