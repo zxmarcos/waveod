@@ -23,11 +23,13 @@ from waveod_studio import clonefit as CF
 from waveod_studio import controls as CT
 from waveod_studio import drums as D
 from waveod_studio import flashmap as FM
+from waveod_studio import i18n as I18N
 from waveod_studio import irs as IRS
 from waveod_studio import nam as NAM
 from waveod_studio import protocol as P
 from waveod_studio import wvlib as WL
 from waveod_studio import wvpreset as WP
+from waveod_studio.i18n import tr
 from waveod_studio.usb import htmidi
 from waveod_studio.usb import qmeupdate as U
 
@@ -36,17 +38,41 @@ WEB = os.path.join(HERE, 'web')
 DEV_URL = 'http://localhost:5173'
 NEEDS = 8                                           # the protocol of the chain screen (src/editor/wv_rig_msgs.c)
 SEARCH_S, RETRY_S, WATCH_S = 1.5, 3.0, 2.0         # looking for the pedal; a port that failed; a connected one
-LOST = 'O pedal foi desconectado.'
-PRESET_FILES = ('Preset do waveod (*.wvp)',)
-BACKUP_FILES = ('Backup do waveod (*.wvbak)',)
-FIRMWARE_FILES = ('Firmware do pedal (*.bin)',)     # pywebview takes only letters, digits and spaces before '('
+LOST = 'py.link_lost'                               # the catalog's key: the message in the language of the moment
 LOG_DIR = os.path.join(os.path.expanduser('~/Library/Application Support') if sys.platform == 'darwin' else
                        os.environ.get('APPDATA', os.path.expanduser('~')), 'waveodStudio')
-NAM_FILES = ('Captura NAM (*.nam)',)
+# the file dialogs' filters: (label's key, patterns) per kind; pywebview takes only letters, digits and spaces
+# before '(' (file_types() makes the texts, in the language of the moment)
+FILES = dict(
+    preset=(('py.file_preset', '*.wvp'),),
+    backup=(('py.file_backup', '*.wvbak'),),
+    firmware=(('py.file_firmware', '*.bin'),),
+    nam=(('py.file_nam', '*.nam'),),
+    module=(('py.file_module', '*.elf'),),
+    bench=(('py.file_bench_any', '*.elf;*.c'), ('py.file_bench_elf', '*.elf'), ('py.file_bench_c', '*.c')),
+    dump=(('py.file_dump', '*.bin'),),
+    ir=(('py.file_ir', '*.wav'),),
+    midi=(('py.file_midi', '*.mid;*.midi'), ('py.file_all', '*.*')),
+)
+
+
+def file_types(kind):
+    """a file dialog's filters for pywebview: ('waveod preset (*.wvp)', ...)"""
+    return tuple('%s (%s)' % (tr(key), pattern) for key, pattern in FILES[kind])
+
+
+def msg(key, **params):
+    """a message for the connection's status, made into text when the page reads it (its language then)"""
+    return (key, params)
+
+
+def text(m):
+    """msg()'s text, or m when it is text already"""
+    return tr(m[0], **m[1]) if isinstance(m, tuple) else m
 
 
 def nam_arch(m):
-    """a .nam's network in words: 'WaveNet A1 (16 / 8 canais)', 'A2 (SlimmableContainer)', 'LSTM', ..."""
+    """a .nam's network in words: 'WaveNet A1 (16 / 8 channels)', 'A2 (SlimmableContainer)', 'LSTM', ..."""
     arch = str(m.get('architecture', '?'))
     cfg = m.get('config') or {}
     if arch == 'SlimmableContainer':
@@ -56,13 +82,8 @@ def nam_arch(m):
         ch = [l.get('channels') for l in layers if isinstance(l, dict)]
         if ch:
             kind = 'A1' if ch == [16, 8] else 'A2' if len(ch) == 1 else ''
-            return ('WaveNet %s (%s canais)' % (kind, ' / '.join(str(c) for c in ch))).replace('  ', ' ')
+            return tr('py.nam_wavenet', kind=kind, channels=' / '.join(str(c) for c in ch)).replace('  ', ' ')
     return arch
-MODULE_FILES = ('Módulo de efeito do waveod (*.elf)',)
-BENCH_FILES = ('Módulo ou fonte de um bloco (*.elf;*.c)', 'Módulo (*.elf)', 'Fonte de um bloco (*.c)')
-DUMP_FILES = ('Imagem da flash (*.bin)',)
-IR_FILES = ('Resposta ao impulso (*.wav)',)
-MIDI_FILES = ('Arquivo MIDI (*.mid;*.midi)', 'Todos os arquivos (*.*)')
 
 
 # ---------------------------------------------------------------- the grid as the pedal lays it out on loading
@@ -194,7 +215,7 @@ def table_from(d, is_global=False):
                         int(x['arg']), int(x.get('curve', 0)), int(x.get('flags', 0)), float(x.get('off', 0)),
                         float(x.get('on', 0)))
         except (KeyError, TypeError, ValueError):
-            raise RuntimeError('ligação %d malformada' % (n + 1)) from None
+            raise RuntimeError(tr('py.link_malformed', n=n + 1)) from None
         if l.action == CT.FN and l.arg == 0:
             continue
         if is_global and not CT.global_ok(l):
@@ -203,7 +224,7 @@ def table_from(d, is_global=False):
             continue
         links.append(l)
     if len(links) > CT.CONTROL_MAX:
-        raise RuntimeError('a tabela tem %d ligações; o pedal guarda até %d' % (len(links), CT.CONTROL_MAX))
+        raise RuntimeError(tr('py.table_too_many', n=len(links), max=CT.CONTROL_MAX))
     colour = [int(c) & 7 for c in (list(d.get('colour') or []) + [0] * CT.FOOTSWITCH_KEYS)[:CT.FOOTSWITCH_KEYS]]
     label = [str(s).upper()[:CT.LABEL_LEN] for s in (list(d.get('label') or []) + [''] * CT.FOOTSWITCH_KEYS)
              [:CT.FOOTSWITCH_KEYS]]
@@ -211,8 +232,7 @@ def table_from(d, is_global=False):
     back = CT.Table.decode(t.encode())
     if back is None or len(back.links) != len(links):
         bad = next((k for k, l in enumerate(links) if not back or k >= len(back.links) or back.links[k] != l), 0)
-        raise RuntimeError('o pedal não aceitaria a ligação de %s: %s' % (
-            CT.key_name(links[bad].key), CT.link_text(links[bad], [])))
+        raise RuntimeError(tr('py.link_refused', source=CT.key_name(links[bad].key), link=CT.link_text(links[bad], [])))
     return t
 
 
@@ -245,8 +265,8 @@ DUMPS = {'all': (0, FM.FLASH, 'flash_full.bin'), 'boot': (0, FM.BOOTLOADER, 'boo
 def flash_view(data):
     """an 8 MB dump as the pedal screen draws it: the areas (flashmap.AREAS) with what they use"""
     more = FM.details(data)
-    return [dict(name=name, start=lo, end=hi, used=n, last=last, note=FM.NOTES.get(name, ''), detail=more.get(name, ''))
-            for name, lo, hi, n, last in FM.summary(data)]
+    return [dict(name=name, start=lo, end=hi, used=n, last=last, note=FM.note(area), detail=more.get(area, ''))
+            for area, name, lo, hi, n, last in FM.areas(data)]
 
 
 def file_name(text):
@@ -268,7 +288,7 @@ class Api:
         self._dirs = {}                             # the folder of the last file of each kind
         self._lib_cache = None                      # ((total, crc), wvlib.Library): the library last read
         self._updating = False                      # a firmware update has the port: the watcher keeps off
-        self._sticky = ''                           # why the pedal is away (lost, rebooting), until it is back
+        self._sticky = ''                           # why the pedal is away (lost, rebooting: a key), until it is back
         self._cancel_update = False
         self._cancel_task = False                   # cancel_task(): the flash dump stops at its next request
         self._wake = threading.Event()             # retry(): look again now
@@ -277,8 +297,32 @@ class Api:
         self._connections = 0                       # bumped on every connection: the page reads everything again
         self._link = None
         self._booted = threading.Event()            # the emulator's first (and only) attempt is over
-        self._set('starting', 'Iniciando o pedal emulado (leva alguns segundos)…' if emu else 'Procurando o pedal…')
+        self._set('starting', msg('py.link_emu_starting') if emu else msg('py.link_looking'))
         threading.Thread(target=self._watch, daemon=True).start()
+
+    # ------------------------------------------------------------------ the page's preferences, the language
+    def prefs(self):
+        """what the page keeps between runs (the window's storage is private): a dict, {} when nothing yet"""
+        try:
+            with open(os.path.join(LOG_DIR, 'prefs.json'), encoding='utf-8') as f:
+                d = json.load(f)
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def set_prefs(self, changes):
+        """merge changes into the kept preferences"""
+        d = self.prefs()
+        d.update(dict(changes or {}))
+        os.makedirs(LOG_DIR, exist_ok=True)
+        tmp = os.path.join(LOG_DIR, 'prefs.json.tmp')
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(d, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, os.path.join(LOG_DIR, 'prefs.json'))
+
+    def set_language(self, code):
+        """the language of the messages from here on (the page's: docs/i18n.md)"""
+        I18N.set_language(str(code))
 
     # ------------------------------------------------------------------ the connection
     # The page asks status() (never blocked by a call to the pedal) and shows the phase:
@@ -293,6 +337,7 @@ class Api:
     # starts again by itself.
 
     def _set(self, phase, message='', **kw):
+        """message: text, or msg() (its text in the language the page has when it reads the status)"""
         self._link = dict(phase=phase, message=message, transport='emulador' if self._emu else 'usb',
                           attempts=self._attempts, connections=self._connections, name='', version='', protocol=0)
         self._link.update(kw)
@@ -304,7 +349,7 @@ class Api:
                 pedal = P.Pedal(transport=EmuTransport(self._emu), timeout=20)
                 self._attach(pedal, pedal.info())
             except Exception as e:                  # noqa: BLE001 - shown on the page
-                self._set('failed', 'O emulador não iniciou: %s' % (str(e) or e.__class__.__name__))
+                self._set('failed', msg('py.link_emu_failed', error=str(e) or e.__class__.__name__))
             self._booted.set()
             return
         while not self._closing:
@@ -336,19 +381,19 @@ class Api:
         try:
             outs = [n for n in htmidi.list_ports()[1] if self._matches(n)]
         except Exception as e:                      # noqa: BLE001
-            self._set('searching', 'O Windows não listou as portas MIDI: %s' % e)
+            self._set('searching', msg('py.link_no_ports', error=e))
             return
         if not outs:                                # still away: why, until it comes back
-            self._set('searching', self._sticky or 'Nenhum pedal conectado.')
+            self._set('searching', msg(self._sticky or 'py.link_none'))
             return
         if len(outs) > 1:
-            self._set('searching', 'Mais de uma porta parece ser do pedal: %s.' % ', '.join(outs))
+            self._set('searching', msg('py.link_many', ports=', '.join(outs)))
             return
         try:
             pedal = P.Pedal(self._port).__enter__()
         except RuntimeError as e:
-            if 'Open failed' in str(e):
-                self._set('busy', 'A porta MIDI do pedal está aberta em outro programa.', name=outs[0])
+            if isinstance(e, htmidi.PortError):
+                self._set('busy', msg('py.link_busy'), name=outs[0])
             else:
                 self._set('searching', str(e))
             return
@@ -356,12 +401,12 @@ class Api:
             info = pedal.info()
         except Exception:                           # noqa: BLE001 - no answer, or not waveod's
             pedal.close()
-            self._set('silent', 'O pedal está conectado mas não respondeu.', name=outs[0])
+            self._set('silent', msg('py.link_silent'), name=outs[0])
             return
         if info['protocol'] < NEEDS:
             pedal.close()
-            self._set('old', 'O waveod do pedal (protocolo %d) é anterior a esta interface (protocolo %d).' % (
-                info['protocol'], NEEDS), name=outs[0], version=info['version'], protocol=info['protocol'])
+            self._set('old', msg('py.link_old', have=info['protocol'], need=NEEDS), name=outs[0],
+                      version=info['version'], protocol=info['protocol'])
             return
         self._attach(pedal, info)
 
@@ -373,7 +418,8 @@ class Api:
         self._set('connected', '', name=pedal.name, version=info['version'], protocol=info['protocol'])
 
     def _lost(self, why):
-        """the pedal went away: drop it (after the call under way, if any) and look for it again"""
+        """the pedal went away (why: a message's key): drop it (after the call under way, if any) and look for it
+        again"""
         with self._lock:
             pedal, self._pedal = self._pedal, None
         if pedal is not None:
@@ -382,28 +428,27 @@ class Api:
             except Exception:                       # noqa: BLE001 - its handles may be gone with the device
                 pass
         self._sticky = why
-        self._set('searching', why)
+        self._set('searching', msg(why))
         self._wake.set()
 
     def _call(self, fn):
         if self._emu:
             self._booted.wait()                     # scripts call right away; the page waits for status()
         if self._pedal is None:
-            raise RuntimeError('pedal desconectado')
+            raise RuntimeError(tr('py.pedal_disconnected'))
         with self._lock:
             pedal = self._pedal
             if pedal is None:
-                raise RuntimeError('pedal desconectado')
+                raise RuntimeError(tr('py.pedal_disconnected'))
             try:
                 return fn(pedal)
             except (TimeoutError, P.NotWaveod, OSError, RuntimeError) as e:
                 # no answer (NotWaveod is what a timeout becomes) or winmm failing: the pedal may be gone
-                silent = isinstance(e, (TimeoutError, P.NotWaveod, OSError)) or (
-                    not isinstance(e, P.PedalError) and 'failed' in str(e))
+                silent = isinstance(e, (TimeoutError, P.NotWaveod, OSError, htmidi.PortError))
                 if not silent:
                     raise
                 gone = not self._emu and not self._present()
-                err = RuntimeError('o pedal foi desconectado' if gone else 'o pedal não respondeu')
+                err = RuntimeError(tr('py.pedal_gone') if gone else tr('py.pedal_silent'))
         if gone:
             self._lost(LOST)
         raise err
@@ -411,7 +456,11 @@ class Api:
     # ------------------------------------------------------------------ the page's calls
     def status(self):
         """where the connection stands (see above); free of the pedal's lock"""
-        return dict(self._link)
+        s = dict(self._link)
+        m = s['message']
+        s['code'] = m[0] if isinstance(m, tuple) else ''     # the message's key: the page tells messages by it
+        s['message'] = text(m)
+        return s
 
     def retry(self):
         """look for the pedal now instead of at the next try"""
@@ -420,7 +469,7 @@ class Api:
     def hello(self):
         if self._emu:
             self._booted.wait()
-        s = self._link
+        s = self.status()
         return dict(connected=s['phase'] == 'connected', transport=s['transport'], name=s['name'],
                     version=s['version'], protocol=s['protocol'], error=s['message'] or None)
 
@@ -476,7 +525,7 @@ class Api:
         i = int(index)
         origin, data = self._call(lambda p: p.get(i))
         name = WP.Preset.decode(data).name.strip()
-        path = self._ask_path(True, PRESET_FILES, 'presets', '%s %s.wvp' % (WP.preset_label(i), file_name(name)))
+        path = self._ask_path(True, file_types('preset'), 'presets', '%s %s.wvp' % (WP.preset_label(i), file_name(name)))
         if not path:
             return None
         with open(path, 'wb') as f:
@@ -485,7 +534,7 @@ class Api:
 
     def pick_preset(self):
         """a .wvp the user picks, checked: dict(path, file, name, blocks), or None when cancelled"""
-        path = self._ask_path(False, PRESET_FILES, 'presets')
+        path = self._ask_path(False, file_types('preset'), 'presets')
         if not path:
             return None
         with open(path, 'rb') as f:
@@ -505,15 +554,15 @@ class Api:
 
     def backup(self, path=None):
         """every preset (and the global controls) into a .wvbak; dict(file, presets, global) or None"""
-        path = path or self._ask_path(True, BACKUP_FILES, 'backup', 'waveod presets.wvbak')
+        path = path or self._ask_path(True, file_types('backup'), 'backup', 'waveod presets.wvbak')
         if not path:
             return None
-        m = self._long('Backup', lambda p, prog: B.save(p, path, prog))
+        m = self._long(tr('py.task_backup'), lambda p, prog: B.save(p, path, prog))
         return dict(file=os.path.basename(path), presets=len(m['presets']), **{'global': bool(m.get('global_controls'))})
 
     def pick_backup(self):
         """a .wvbak the user picks, read: dict(path, file, presets, created, firmware, global), or None"""
-        path = self._ask_path(False, BACKUP_FILES, 'backup')
+        path = self._ask_path(False, file_types('backup'), 'backup')
         if not path:
             return None
         try:
@@ -525,7 +574,7 @@ class Api:
 
     def restore(self, path):
         """a backup (from pick_backup) written over the same places; how many presets"""
-        return self._long('Restaurando', lambda p, prog: B.restore(p, path, prog))
+        return self._long(tr('py.task_restore'), lambda p, prog: B.restore(p, path, prog))
 
     # ------------------------------------------------------------------ the drums screen (MEUS RITMOS, protocol 7)
     def drums(self):
@@ -537,14 +586,14 @@ class Api:
         i = int(place)
         r = D.parse_record(self._call(lambda p: p.drum_get(i)))
         if r is None:
-            raise RuntimeError('o lugar M%d não tem um ritmo legível' % (i + 1))
+            raise RuntimeError(tr('py.drum_unreadable', n=i + 1))
         out = D.roll(r['events'])
         out.update(name=r['name'], once=r['once'], bpm=r['bpm'], events=len(r['events']))
         return out
 
     def pick_midi(self):
         """a MIDI file the user picks, converted with the defaults: dict(path, file, ...summary) or None"""
-        path = self._ask_path(False, MIDI_FILES, 'midi')
+        path = self._ask_path(False, file_types('midi'), 'midi')
         if not path:
             return None
         return self.midi_preview(path)
@@ -556,7 +605,7 @@ class Api:
                 data = f.read()
             pat = D.convert(data, kit=kit, once=bool(once), name=D.name_from_path(path))
         except (OSError, D.MidiError) as e:
-            raise RuntimeError('%s não serve: %s' % (os.path.basename(path), e)) from None
+            raise RuntimeError(tr('py.file_unusable', file=os.path.basename(path), error=e)) from None
         return dict(path=path, file=os.path.basename(path), **D.summary(pat))
 
     def drum_import(self, place, path, name, kit='acustico', once=False):
@@ -604,11 +653,11 @@ class Api:
     def library(self):
         """the effect modules on the pedal: dict(capacity, used (bytes of the packed library), modules=[...])"""
         self._lib_cache = None                      # the screen asks for it: read it from the pedal
-        return self._long('Lendo os efeitos', lambda p, prog: self._library(p, prog), unit='KB')
+        return self._long(tr('py.task_lib_read'), lambda p, prog: self._library(p, prog), unit='KB')
 
     def pick_modules(self):
         """module files (.elf) the user picks, read: [dict(path, file, ...module, error)] or None when cancelled"""
-        paths = self._ask_path(False, MODULE_FILES, 'modules', many=True)
+        paths = self._ask_path(False, file_types('module'), 'modules', many=True)
         if not paths:
             return None
         out = []
@@ -637,7 +686,7 @@ class Api:
                     raise RuntimeError(str(e)) from None
             p.write_library(lib.pack(), lambda d, t: prog(d // 1024, t // 1024))
             return self._written(p, lib)
-        return self._long('Gravando os efeitos', go, unit='KB')
+        return self._long(tr('py.task_lib_write'), go, unit='KB')
 
     def remove_modules(self, ids):
         """modules taken out of the pedal's library; the library afterwards"""
@@ -649,7 +698,7 @@ class Api:
                 lib.remove(i)
             p.write_library(lib.pack(), lambda d, t: prog(d // 1024, t // 1024))
             return self._written(p, lib)
-        return self._long('Gravando os efeitos', go, unit='KB')
+        return self._long(tr('py.task_lib_write'), go, unit='KB')
 
     def _lib_now(self, p, prog=None):
         """the pedal's library: the one last read while the pedal still has it (same size and crc), else read"""
@@ -727,7 +776,7 @@ class Api:
 
     def pick_nam(self):
         """a .nam the user picks, checked: what nam_preview gives, or None when cancelled"""
-        path = self._ask_path(False, NAM_FILES, 'nam')
+        path = self._ask_path(False, file_types('nam'), 'nam')
         return self.nam_preview(path) if path else None
 
     def nam_preview(self, path):
@@ -738,12 +787,11 @@ class Api:
         try:
             m = NAM.load(path)
         except json.JSONDecodeError:
-            raise RuntimeError('%s não é uma captura .nam (o arquivo não é o JSON de um modelo)'
-                               % os.path.basename(path)) from None
+            raise RuntimeError(tr('py.nam_not_json', file=os.path.basename(path))) from None
         except (OSError, ValueError) as e:
-            raise RuntimeError('%s não serve: %s' % (os.path.basename(path), e)) from None
+            raise RuntimeError(tr('py.file_unusable', file=os.path.basename(path), error=e)) from None
         if not isinstance(m, dict) or 'architecture' not in m:
-            raise RuntimeError('%s não é uma captura .nam (falta a arquitetura)' % os.path.basename(path))
+            raise RuntimeError(tr('py.nam_no_arch', file=os.path.basename(path)))
         base = dict(path=path, file=os.path.basename(path), name=NAM.default_name(path), arch=nam_arch(m),
                     convert=CF.exe() is not None, di='editor' if CF.editor_di() else 'builtin')
         meta = m.get('metadata') or {}
@@ -761,10 +809,10 @@ class Api:
         what it held. The slots afterwards."""
         i = int(slot)
         nm = str(name).strip()[:NAM.NAME_MAX] or NAM.default_name(path)
-        label = 'Convertendo %s para o Clone' % os.path.basename(path)
+        label = tr('py.task_clone_fit', file=os.path.basename(path))
 
         def prog(done, total):
-            self._progress = dict(label=label, done=done, total=total, unit='etapas')
+            self._progress = dict(label=label, done=done, total=total, unit=tr('py.unit_steps'))
         prog(0, CF.STEPS)
         try:
             data = CF.convert(path, prog)                  # minutes at most; the pedal is free meanwhile
@@ -791,14 +839,14 @@ class Api:
     # ------------------------------------------------------------------ the firmware (usb/qmeupdate.py)
     def pick_firmware(self):
         """a firmware .bin the user picks, checked as the original editor checks it; None when cancelled"""
-        path = self._ask_path(False, FIRMWARE_FILES, 'firmware')
+        path = self._ask_path(False, file_types('firmware'), 'firmware')
         return self.firmware_info(path) if path else None
 
     def firmware_info(self, path):
         try:
             img = U.Image.load(path)
         except (OSError, U.FirmwareError) as e:
-            raise RuntimeError('%s não serve: %s' % (os.path.basename(path), e)) from None
+            raise RuntimeError(tr('py.file_unusable', file=os.path.basename(path), error=e)) from None
         return dict(path=path, file=os.path.basename(path), version=img.version, size=len(img.raw),
                     sections=[dict(name=U.LOC_NAMES[loc], size=len(img.sections[loc])) for loc in U.ORDER])
 
@@ -808,7 +856,7 @@ class Api:
         packets). Afterwards the connection looks for the pedal again; it reboots into the new firmware. A log of
         every message goes to %APPDATA%\\waveodStudio\\update-*.log. dict(seconds, version, log)"""
         if self._emu:
-            raise RuntimeError('No emulador não há firmware para gravar: use o pedal na USB.')
+            raise RuntimeError(tr('py.update_emu'))
         img = U.Image.load(path)
         self._updating, self._cancel_update = True, False
         with self._lock:                            # after the call under way
@@ -818,7 +866,7 @@ class Api:
                 pedal.close()
             except Exception:                       # noqa: BLE001
                 pass
-        self._set('updating', 'Gravando o firmware %s.' % img.version)
+        self._set('updating', msg('py.update_writing', version=img.version))
         os.makedirs(LOG_DIR, exist_ok=True)
         log_path = os.path.join(LOG_DIR, 'update-%s.log' % time.strftime('%Y%m%d-%H%M%S'))
         trace = open(log_path, 'w', encoding='utf-8')
@@ -828,27 +876,28 @@ class Api:
             trace.write('%9.3f %s\n' % (time.time() - t0, text))
 
         def step(label, done=0, total=0):
-            self._progress = dict(label=label, done=done, total=total, unit='pacotes', cancel=True)
+            self._progress = dict(label=label, done=done, total=total, unit=tr('py.unit_packets'), cancel=True)
 
         port, ok = None, False
         try:
             log('firmware %s (%s)' % (path, img.version))
-            step('Procurando o pedal')
+            step(tr('py.update_looking'))
             port = htmidi.Port(self._port)
             if not U.probe(port, log=log):           # the app: reboot it into the bootloader
-                step('Reiniciando o pedal no modo de atualização')
+                step(tr('py.update_rebooting'))
                 log('pedido de reinício no modo de atualização (0x0500000E)')
                 U.request_jump(port)
                 port.close()
                 port = U.wait_bootloader(self._port, log=log, cancel=lambda: self._cancel_update)
                 if port is None:
-                    raise U.UpdateError('cancelado')
+                    raise U.UpdateError(tr('py.cancelled'))
             log('pedal em modo de atualização: %s' % port.name)
-            step('Consultando o pedal')
+            step(tr('py.update_query'))
             up = None
 
             def progress(done, total):
-                step('Gravando: %s' % U.LOC_NAMES.get(up.loc, '') if done < total else 'Finalizando', done, total)
+                step(tr('py.update_section', section=U.LOC_NAMES.get(up.loc, '')) if done < total else tr('py.update_finishing'),
+                     done, total)
             up = U.Updater(img, port.send, progress, log)
             U.run(port, up, cancel=lambda: self._cancel_update)
             log('concluído')
@@ -866,9 +915,8 @@ class Api:
             trace.close()
             self._progress = None
             self._updating = False
-            self._sticky = ('O pedal está reiniciando com o firmware novo.' if ok else
-                            'A gravação não terminou: o pedal deve estar no modo de atualização.')
-            self._set('searching', self._sticky)
+            self._sticky = 'py.update_done' if ok else 'py.update_unfinished'
+            self._set('searching', msg(self._sticky))
             self._wake.set()
 
     def cancel_update(self):
@@ -888,7 +936,7 @@ class Api:
 
     def pick_ir(self):
         """a .wav the user picks, converted as the slot would hold it (ir_preview), or None when cancelled"""
-        path = self._ask_path(False, IR_FILES, 'irs')
+        path = self._ask_path(False, file_types('ir'), 'irs')
         return self.ir_preview(path, False) if path else None
 
     def ir_preview(self, path, normalize=False):
@@ -912,7 +960,7 @@ class Api:
         """a slot under a new name; the 20 names afterwards"""
         n = str(name).strip()[:IRS.NAME_MAX]
         if not n:
-            raise RuntimeError('o nome não pode ficar vazio')
+            raise RuntimeError(tr('py.name_empty'))
 
         def go(p):
             p.rename_ir(int(slot), n)
@@ -924,8 +972,7 @@ class Api:
     def _settings_ok(self):
         proto = (self._info or {}).get('protocol', 0)
         if proto < 9:
-            raise RuntimeError('O waveod do pedal (protocolo %d) não passa os ajustes globais para o PC: grave um '
-                               'waveod mais novo (protocolo 9) na aba Pedal.' % proto)
+            raise RuntimeError(tr('py.settings_old', protocol=proto))
 
     def settings(self):
         """every GLOBAL setting with its range, and the global EQ (protocol.Pedal.settings)"""
@@ -946,11 +993,11 @@ class Api:
         """the pedal's flash ('all': the 8 MB, 'boot': the bootloader) read into a file the user names, with the
         progress in KB (cancellable); dict(file, size, seconds, summary or None), or None when no file was named"""
         start, length, name = DUMPS[kind]
-        path = self._ask_path(True, DUMP_FILES, 'dumps', name)
+        path = self._ask_path(True, file_types('dump'), 'dumps', name)
         if not path:
             return None
         self._cancel_task = False
-        label = 'Copiando a flash inteira' if kind == 'all' else 'Copiando o bootloader'
+        label = tr('py.dump_all') if kind == 'all' else tr('py.dump_boot')
 
         def prog(done, total):
             self._progress = dict(label=label, done=done // 1024, total=total // 1024, unit='KB', cancel=True,
@@ -959,10 +1006,8 @@ class Api:
         t0 = time.time()
         try:
             data = self._call(lambda p: p.dump(start, length, prog, cancel=lambda: self._cancel_task))
-        except P.PedalError as e:
-            if 'cancelado' in str(e):
-                raise RuntimeError('Cópia cancelada: nenhum arquivo foi gravado.') from None
-            raise
+        except P.Cancelled:
+            raise RuntimeError(tr('py.dump_cancelled')) from None
         finally:
             self._progress = None
         with open(path, 'wb') as f:
@@ -972,14 +1017,13 @@ class Api:
 
     def pick_dump(self):
         """an 8 MB dump the user picks, summarised: dict(file, size, summary), or None when cancelled"""
-        path = self._ask_path(False, DUMP_FILES, 'dumps')
+        path = self._ask_path(False, file_types('dump'), 'dumps')
         if not path:
             return None
         with open(path, 'rb') as f:
             data = f.read(FM.FLASH + 1)
         if len(data) != FM.FLASH:
-            raise RuntimeError('%s tem %d KB: o resumo precisa de uma cópia da flash inteira (8 MB).' % (
-                os.path.basename(path), len(data) // 1024))
+            raise RuntimeError(tr('py.dump_size', file=os.path.basename(path), kb=len(data) // 1024))
         return dict(file=os.path.basename(path), size=len(data), seconds=0, summary=flash_view(data))
 
     def cancel_task(self):
@@ -1004,7 +1048,7 @@ class Api:
         """run the latency test on route (0 L, 1 R, 2 send, 3 the active preset) and wait for it (progress() shows
         the runs); a cable route plays a click on that output"""
         r = int(route)
-        return self._long('Medindo a latência', lambda p, prog: p.measure_latency(r, prog), unit='medidas')
+        return self._long(tr('py.task_latency'), lambda p, prog: p.measure_latency(r, prog), unit=tr('py.unit_runs'))
 
     # ------------------------------------------------------------------ the Desempenho screen (protocol 11)
     def perf_profile(self, reset=True, play=0.0):
@@ -1021,7 +1065,7 @@ class Api:
     def pick_bench_module(self):
         """a module to measure, a .elf or a block's .c (built by the SDK, tools/wvfx.py), read again from the disk
         at every measurement: bench_module()'s answer, or None"""
-        path = self._ask_path(False, BENCH_FILES, 'bench')
+        path = self._ask_path(False, file_types('bench'), 'bench')
         return self.bench_module(path) if path else None
 
     def bench_module(self, path):
@@ -1058,7 +1102,7 @@ class Api:
             try:
                 elf, b = BN.module_source(path)                 # a .c is built again, a .elf read again
             except BN.BuildError as e:
-                return dict(status=-100, status_text='não compilou', error=str(e), log=e.log, modified=modified)
+                return dict(status=-100, status_text=tr('py.bench_not_built'), error=str(e), log=e.log, modified=modified)
             m = WL.describe(elf)
             for q in m.params:
                 if q['knob'] < BN.KNOBS:
@@ -1078,7 +1122,7 @@ class Api:
                 raise RuntimeError(str(e)) from None
             r.pop('knobs')
             return dict(r, menu=menu, emu=bool(self._emu), **extra)
-        return self._long('Medindo o efeito', lambda p, prog: go(p), unit='')
+        return self._long(tr('py.task_bench'), lambda p, prog: go(p), unit='')
 
     def _long(self, label, fn, unit='presets'):
         self._progress = dict(label=label, done=0, total=0, unit=unit)
@@ -1094,7 +1138,7 @@ class Api:
         """a file dialog of the window (the folder of the last one of that kind); the path or None"""
         import webview
         if self._window is None:
-            raise RuntimeError('sem janela para escolher o arquivo')
+            raise RuntimeError(tr('py.no_window'))
         r = self._window.create_file_dialog(webview.FileDialog.SAVE if save else webview.FileDialog.OPEN,
                                             directory=self._dirs.get(kind, ''), save_filename=name,
                                             file_types=types, allow_multiple=many)
@@ -1123,19 +1167,19 @@ class Api:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='waveod_studio --web')
-    ap.add_argument('--emu', metavar='FW.bin', help='o firmware no emulador do waveod em vez do pedal')
-    ap.add_argument('--port', help='a porta MIDI do pedal (padrão: a dele)')
-    ap.add_argument('--dev', action='store_true', help='a página do servidor do Vite (npm run dev), com recarga')
-    ap.add_argument('--debug', action='store_true', help='ferramentas de desenvolvedor na janela')
+    ap.add_argument('--emu', metavar='FW.bin', help=tr('py.arg_emu'))
+    ap.add_argument('--port', help=tr('py.arg_port'))
+    ap.add_argument('--dev', action='store_true', help=tr('py.arg_dev'))
+    ap.add_argument('--debug', action='store_true', help=tr('py.arg_debug'))
     a = ap.parse_args(argv)
     try:
         import webview
     except ImportError:
-        print('A interface nova precisa do pywebview: pip install pywebview', file=sys.stderr)
+        print(tr('py.need_pywebview'), file=sys.stderr)
         return 1
     index = os.path.join(WEB, 'index.html')
     if not a.dev and not os.path.exists(index):
-        print('A página não foi gerada: cd studio/ui && npm install && npm run build', file=sys.stderr)
+        print(tr('py.page_missing'), file=sys.stderr)
         return 1
     api = Api(a.emu, a.port)
     window = webview.create_window('waveod Studio', DEV_URL if a.dev else index, js_api=api, width=1440,

@@ -14,6 +14,7 @@
  */
 #include "engine/cabmic.h"
 #include "model/control.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/analyzer.h"
@@ -276,9 +277,9 @@ static void refresh(struct ui_ctx *ui)
     char title[48], lane[24], name[32];
     ui_lane_name(ui, ui->sel, lane, sizeof lane);
     if (scope && rows > 1)
-        lv_snprintf(title, sizeof title, "EDIT \xC2\xB7 %s \xC2\xB7 LINHA %d/%d", lane, ui->edit_row + 1, rows);
+        lv_snprintf(title, sizeof title, T(MSG_EDIT_TITLE_ROW), lane, ui->edit_row + 1, rows);
     else if (!scope && pages > 1)
-        lv_snprintf(title, sizeof title, "EDIT \xC2\xB7 %s \xC2\xB7 P\xC3\x81G %d/%d", lane, page + 1, pages);
+        lv_snprintf(title, sizeof title, T(MSG_EDIT_TITLE_PAGE), lane, page + 1, pages);
     else
         lv_snprintf(title, sizeof title, "EDIT \xC2\xB7 %s", lane);
     top_bar_sub(title);
@@ -364,10 +365,11 @@ static void refresh(struct ui_ctx *ui)
                 char source[32] = "";
                 if (link >= 0) {
                     int more = control_find_param(r, slot, prm.def.idx, link + 1) >= 0;
-                    lv_snprintf(source, sizeof source, "%s%s%s", scene ? "CENA \xC2\xB7 " : "",
-                                ui_key_name(r->preset.controls.c[link].key), more ? " +" : "");
+                    lv_snprintf(source, sizeof source, "%s%s%s%s", scene ? T(MSG_CHAIN_SCENE) : "",
+                                scene ? " \xC2\xB7 " : "", ui_key_name(r->preset.controls.c[link].key),
+                                more ? " +" : "");
                 } else if (scene) {
-                    lv_snprintf(source, sizeof source, "CENA");
+                    lv_snprintf(source, sizeof source, "%s", T(MSG_CHAIN_SCENE));
                 }
                 param_cell_set(&s.cells[rr][i], label, source, prm.text, ui_param_frac(&prm),
                                active ? C_LABEL : C_DIM, active ? C_TEXT : C_OFF, active ? C_ACCENT : C_WIRE);

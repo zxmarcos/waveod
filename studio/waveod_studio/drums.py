@@ -12,6 +12,9 @@ import os
 import re
 import struct
 
+from waveod_studio.i18n import tr
+from waveod_studio.i18n_lazy import Texts
+
 TICKS = 120                                 # per beat
 HIT, LOOP, END = 0x8000, 0xFFFF, 0xFFFE
 MAX_EVENTS = 2000
@@ -42,12 +45,8 @@ KITS = {
     'eletronico': {**_COMMON, 35: (0, 1.0), 36: (0, 1.0), 38: (3, 1.0), 40: (3, 1.0)},
 }
 KIT_NAMES = {'acustico': 'Acústicos', 'eletronico': 'Eletrônicos'}
-GM_NAMES = {35: 'bumbo acústico', 36: 'bumbo', 41: 'tom chão grave', 43: 'tom chão', 45: 'tom grave',
-            47: 'tom médio', 48: 'tom médio-agudo', 50: 'tom agudo', 58: 'vibraslap', 60: 'bongô agudo',
-            61: 'bongô grave', 62: 'conga abafada', 63: 'conga aberta', 64: 'conga grave', 65: 'timbal agudo',
-            66: 'timbal grave', 67: 'agogô agudo', 68: 'agogô grave', 71: 'apito curto', 72: 'apito longo',
-            73: 'guiro curto', 74: 'guiro longo', 75: 'claves', 76: 'wood block agudo', 77: 'wood block grave',
-            78: 'cuíca abafada', 79: 'cuíca aberta', 80: 'triângulo abafado', 81: 'triângulo aberto'}
+GM_NAMES = Texts({n: 'py.gm_%d' % n for n in (35, 36, 41, 43, 45, 47, 48, 50, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68,
+                                             71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81)})     # the notes left out
 
 
 class MidiError(ValueError):
@@ -60,43 +59,43 @@ def _varlen(b, at):
     v = 0
     for _ in range(4):
         if at >= len(b):
-            raise MidiError('arquivo MIDI cortado')
+            raise MidiError(tr('py.midi_cut'))
         c = b[at]
         at += 1
         v = v << 7 | c & 0x7F
         if not c & 0x80:
             return v, at
-    raise MidiError('número de tamanho variável inválido')
+    raise MidiError(tr('py.midi_varlen'))
 
 
 def read_midi(data):
     """dict(division, notes=[(tick, channel, note, velocity)], tempo (µs per beat or None), meter (num, den),
     end (last tick), name)"""
     if data[:4] != b'MThd':
-        raise MidiError('não é um arquivo MIDI (.mid)')
+        raise MidiError(tr('py.midi_not_mid'))
     hl, fmt, ntrk, div = struct.unpack_from('>IHHH', data, 4)
     if div & 0x8000:
-        raise MidiError('MIDI com tempo SMPTE não é suportado')
+        raise MidiError(tr('py.midi_smpte'))
     if fmt > 1:
-        raise MidiError('MIDI formato %d não é suportado (só 0 e 1)' % fmt)
+        raise MidiError(tr('py.midi_format', fmt=fmt))
     at = 8 + hl
     notes, tempo, meter, end, name = [], None, None, 0, ''
     for _ in range(ntrk):
         if data[at:at + 4] != b'MTrk':
-            raise MidiError('trilha MIDI inválida')
+            raise MidiError(tr('py.midi_track'))
         n, = struct.unpack_from('>I', data, at + 4)
-        tr, at = data[at + 8:at + 8 + n], at + 8 + n
+        trk, at = data[at + 8:at + 8 + n], at + 8 + n
         i, t, status = 0, 0, 0
-        while i < len(tr):
-            d, i = _varlen(tr, i)
+        while i < len(trk):
+            d, i = _varlen(trk, i)
             t += d
-            if i >= len(tr):
+            if i >= len(trk):
                 break
-            c = tr[i]
+            c = trk[i]
             if c == 0xFF:                       # meta
-                kind = tr[i + 1]
-                ln, i = _varlen(tr, i + 2)
-                body = tr[i:i + ln]
+                kind = trk[i + 1]
+                ln, i = _varlen(trk, i + 2)
+                body = trk[i:i + ln]
                 i += ln
                 if kind == 0x51 and ln == 3 and tempo is None:
                     tempo = body[0] << 16 | body[1] << 8 | body[2]
@@ -108,17 +107,17 @@ def read_midi(data):
                     break
                 continue
             if c in (0xF0, 0xF7):               # SysEx
-                ln, i = _varlen(tr, i + 1)
+                ln, i = _varlen(trk, i + 1)
                 i += ln
                 continue
             if c & 0x80:
                 status = c
                 i += 1
             elif not status:
-                raise MidiError('evento MIDI sem status')
+                raise MidiError(tr('py.midi_status'))
             kind, ch = status & 0xF0, status & 0x0F
             size = 1 if kind in (0xC0, 0xD0) else 2
-            args = tr[i:i + size]
+            args = trk[i:i + size]
             i += size
             if kind == 0x90 and len(args) == 2 and args[1] > 0:
                 notes.append((t, ch, args[0], args[1]))
@@ -133,7 +132,7 @@ def convert(data, kit='acustico', once=False, name=None):
     cut (bars left out to fit), name)"""
     m = read_midi(data)
     if not m['notes']:
-        raise MidiError('o arquivo não tem notas')
+        raise MidiError(tr('py.midi_no_notes'))
     chans = {c for _, c, _, _ in m['notes']}
     channel = 9 if 9 in chans else None     # the GM drum channel when there is one, else every channel
     mapping = KITS[kit]
@@ -151,7 +150,7 @@ def convert(data, kit='acustico', once=False, name=None):
         key = (tick, sound)
         hits[key] = max(hits.get(key, 0), v)            # the same sound twice at once: the louder
     if not hits:
-        raise MidiError('nenhuma nota de bateria que o pedal toque (%s)' % describe_dropped(dropped))
+        raise MidiError(tr('py.midi_no_drums', dropped=describe_dropped(dropped)))
     num, den = m['meter']
     bar = max(1, num * TICKS * 4 // den)
     last = max(t for t, _ in hits)
@@ -163,7 +162,7 @@ def convert(data, kit='acustico', once=False, name=None):
         cut += 1
         events, _ = _events({k: v for k, v in hits.items() if k[0] < length}, length, once)
     if len(events) > MAX_EVENTS:
-        raise MidiError('um compasso já passa de %d eventos' % MAX_EVENTS)
+        raise MidiError(tr('py.midi_bar_too_long', max=MAX_EVENTS))
     bpm = round(60e6 / m['tempo']) if m['tempo'] else 0
     return dict(events=events, bpm=bpm if 40 <= bpm <= 300 else 0, bars=length // bar, beats=length / TICKS,
                 hits=sum(1 for k in hits if k[0] < length), dropped=dropped, channel=channel, cut=cut,
@@ -203,8 +202,8 @@ def name_from_path(path):
 
 def describe_dropped(dropped):
     if not dropped:
-        return 'nada'
-    return ', '.join('%s ×%d' % (GM_NAMES.get(n, 'nota %d' % n), c) for n, c in sorted(dropped.items()))
+        return tr('py.nothing')
+    return ', '.join('%s ×%d' % (GM_NAMES.get(n) or tr('py.gm_note', n=n), c) for n, c in sorted(dropped.items()))
 
 
 def record(pattern, name=None):
@@ -230,7 +229,7 @@ def renamed(rec, name):
     """a stored record under another name"""
     r = parse_record(rec)
     if r is None:
-        raise MidiError('registro inválido')
+        raise MidiError(tr('py.midi_record'))
     return rec[:4] + clean_name(name).encode('ascii')[:NAME_LEN].ljust(NAME_LEN, b'\0') + rec[20:]
 
 

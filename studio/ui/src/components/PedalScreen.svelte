@@ -5,6 +5,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Icon from './Icon.svelte';
+  import { num as fmtNum, t, tn } from '../lib/i18n.svelte';
   import { pedal, ROUTES } from '../lib/pedal.svelte';
   import { presetLabel, studio } from '../lib/store.svelte';
 
@@ -12,118 +13,112 @@
 
   const i = $derived(pedal.info);
   const l = $derived(pedal.latency);
-  const num = (v: number, n = 2) => v.toFixed(n).replace('.', ',');
+  const num = (v: number, n = 2) => fmtNum(v, n);
   const usedPct = $derived(i && i.store.sectors ? (100 * (i.store.sectors - i.store.free)) / i.store.sectors : 0);
   const good = $derived(!!l && (l.status === 2 || l.status === 3));
-  const why = $derived(!l ? '' : l.status === 4 ? (l.route === 3 ? 'o preset não deixou o sinal passar (gate? volume?)'
-                                                                  : 'nada voltou: confira o cabo e a rota')
-                        : l.status === 5 ? 'a entrada saturou já a -30 dBFS: use o tipo de entrada LINHA (GLOBAL)' : '');
+  const why = $derived(!l ? '' : l.status === 4 ? t(l.route === 3 ? 'pedal.why_preset' : 'pedal.why_nothing')
+                        : l.status === 5 ? t('pedal.why_clip') : '');
   const rest = $derived(l ? l.mean - l.buffers : 0);
 
   let hover = $state(-1);
   const hex = (v: number) => v.toString(16).toUpperCase().padStart(6, '0');
-  const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(2).replace('.', ',')} MB` : `${Math.ceil(n / 1024)} KB`);
+  const kb = (n: number) => (n >= 1048576 ? `${fmtNum(n / 1048576, 2)} MB` : `${Math.ceil(n / 1024)} KB`);
+  const DUMPS = [['all', 'pedal.dump_all'], ['boot', 'pedal.dump_boot']] as const;
 </script>
 
 <div class="screen">
-  <header class="tools"><h1>Pedal</h1></header>
+  <header class="tools"><h1>{t('tab.pedal')}</h1></header>
   <div class="cards">
-    <section class="card about" aria-label="Este pedal">
-      <h2>Este pedal</h2>
+    <section class="card about" aria-label={t('pedal.this')}>
+      <h2>{t('pedal.this')}</h2>
       {#if i}
         <p class="model"><Icon name="pedal" size={18} stroke={2} /> {i.name}</p>
         <dl>
-          <div><dt>Firmware</dt><dd>waveod {i.version}</dd></div>
-          <div><dt>Protocolo</dt><dd>{i.protocol}</dd></div>
-          <div><dt>Preset ativo</dt><dd>{presetLabel(studio.rig?.index ?? i.active)}{studio.rig?.dirty ? ' · alterado' : ''}</dd></div>
-          <div><dt>Presets</dt><dd>{i.own} do waveod · {i.original} originais · {i.vacant} vazios</dd></div>
+          <div><dt>{t('pedal.firmware')}</dt><dd>waveod {i.version}</dd></div>
+          <div><dt>{t('pedal.protocol')}</dt><dd>{i.protocol}</dd></div>
+          <div><dt>{t('pedal.active')}</dt><dd>{presetLabel(studio.rig?.index ?? i.active)}{studio.rig?.dirty ? ` · ${t('pedal.edited')}` : ''}</dd></div>
+          <div><dt>{t('tab.presets')}</dt><dd>{t('pedal.preset_counts', { own: i.own, original: i.original, vacant: i.vacant })}</dd></div>
         </dl>
-        <h3>Memória do waveod</h3>
+        <h3>{t('pedal.memory')}</h3>
         <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(usedPct)}
-             aria-label="Setores em uso">
+             aria-label={t('pedal.sectors_used')}>
           <span style:width="{Math.max(usedPct, 1)}%"></span>
         </div>
-        <p class="small">{Math.round(i.store.live / 1024)} KB em uso · {i.store.free} de {i.store.sectors} setores livres.
-          Presets, ritmos e controles do waveod ficam numa área que nenhuma atualização de firmware apaga.</p>
+        <p class="small">{t('pedal.store', { kb: Math.round(i.store.live / 1024), free: i.store.free, sectors: i.store.sectors })}</p>
       {:else}
-        <p class="small">Lendo o pedal…</p>
+        <p class="small">{t('pedal.reading')}</p>
       {/if}
     </section>
 
-    <section class="card fw" aria-label="Firmware">
-      <h2>Atualizar o firmware</h2>
-      <p class="small">Grava um .bin do waveod (ou o firmware original, para voltar) pela USB, como o editor original:
-        o pedal reinicia no modo de atualização e recebe o firmware. Os presets do waveod, as capturas NAM e os IRs de
-        usuário são mantidos; os presets originais voltam aos do arquivo. Faça um backup antes.</p>
+    <section class="card fw" aria-label={t('pedal.firmware')}>
+      <h2>{t('pedal.fw_title')}</h2>
+      <p class="small">{t('pedal.fw_text')}</p>
       <div class="fwrow">
-        <button class="primary" onclick={() => pedal.pickFirmware()}><Icon name="file" size={15} stroke={2} /> Escolher firmware…</button>
-        <button onclick={() => studio.show('presets')}><Icon name="save" size={15} stroke={2} /> Ir ao backup</button>
+        <button class="primary" onclick={() => pedal.pickFirmware()}><Icon name="file" size={15} stroke={2} /> {t('pedal.pick_fw')}</button>
+        <button onclick={() => studio.show('presets')}><Icon name="save" size={15} stroke={2} /> {t('pedal.go_backup')}</button>
       </div>
     </section>
 
-    <section class="card lat" aria-label="Latência">
-      <h2>Latência</h2>
-      <p class="small">O pedal mede quanto o som leva da entrada à saída. Com um cabo da saída escolhida na entrada, o
-        teste toca um clique nessa saída (desligue o amplificador e o fone). Sem cabo, mede quanto o preset ativo
-        acrescenta. O mesmo teste fica em GLOBAL › LATÊNCIA no pedal.</p>
+    <section class="card lat" aria-label={t('pedal.latency')}>
+      <h2>{t('pedal.latency')}</h2>
+      <p class="small">{t('pedal.lat_text')}</p>
       <div class="row">
-        <div class="seg" role="radiogroup" aria-label="Rota">
+        <div class="seg" role="radiogroup" aria-label={t('pedal.route')}>
           {#each ROUTES as r (r.route)}
             <button role="radio" aria-checked={pedal.route === r.route} class:on={pedal.route === r.route}
                     onclick={() => (pedal.route = r.route)}>{r.label}</button>
           {/each}
         </div>
-        <button class="primary" onclick={() => pedal.measure()}>Medir</button>
+        <button class="primary" onclick={() => pedal.measure()}>{t('pedal.measure')}</button>
       </div>
 
       {#if l && good}
         <div class="result" class:unstable={l.status === 3}>
           <div class="big"><b>{num(l.ms, 2)}</b> ms</div>
           <div class="what">
-            <p>{ROUTES[l.route]?.label} · {num(l.mean)} amostras a {num(l.rate / 1000, 1)} kHz{l.status === 3 ? ' · INSTÁVEL' : ''}</p>
+            <p>{ROUTES[l.route]?.label} · {t('pedal.lat_line', { samples: num(l.mean), khz: num(l.rate / 1000, 1) })}{l.status === 3 ? ` · ${t('pedal.unstable')}` : ''}</p>
             {#if l.route !== 3}
               <div class="split" aria-hidden="true">
                 <span class="buf" style:flex={l.buffers}></span>
                 <span class="conv" style:flex={Math.max(rest, 2)}></span>
               </div>
-              <p class="small"><i class="key buf"></i>buffers {l.buffers} amostras ({num((l.buffers * 1000) / l.rate, 3)} ms)
-                + <i class="key conv"></i>conversores {num(rest, 1)} amostras ({num((rest * 1000) / l.rate, 3)} ms)</p>
+              <p class="small"><i class="key buf"></i>{t('pedal.buffers', { n: l.buffers, ms: num((l.buffers * 1000) / l.rate, 3) })}
+                + <i class="key conv"></i>{t('pedal.converters', { n: num(rest, 1), ms: num((rest * 1000) / l.rate, 3) })}</p>
             {:else}
-              <p class="small">o que o preset ativo soma à latência do pedal</p>
+              <p class="small">{t('pedal.preset_adds')}</p>
             {/if}
-            <p class="small">{l.runs} medidas de {num(l.min)} a {num(l.max)}{l.route !== 3 ? ` · ${l.level_db} dBFS` : ''} ·
-              semelhança {Math.round(l.match * 100)}%</p>
+            <p class="small">{tn('pedal.runs', l.runs, { min: num(l.min), max: num(l.max) })}{l.route !== 3 ? ` · ${l.level_db} dBFS` : ''} ·
+              {t('pedal.match', { pct: Math.round(l.match * 100) })}</p>
           </div>
         </div>
       {:else if l}
         <p class="fail">{ROUTES[l.route]?.label}: {l.status_text}{why ? ` · ${why}` : ''}</p>
       {:else}
-        <p class="small none">Sem medição. Só os buffers dão 128 amostras (2,90 ms) a 44,1 kHz.</p>
+        <p class="small none">{t('pedal.no_measure')}</p>
       {/if}
     </section>
 
-    <section class="card flash" aria-label="Cópia da flash">
-      <h2>Cópia da flash</h2>
-      <p class="small">Lê a memória flash do pedal para um arquivo, sem gravar nada nele. A cópia inteira guarda tudo
-        (presets, ritmos, capturas, IRs, efeitos) e serve de backup completo; pela USB leva alguns minutos.</p>
+    <section class="card flash" aria-label={t('pedal.dump_title')}>
+      <h2>{t('pedal.dump_title')}</h2>
+      <p class="small">{t('pedal.dump_text')}</p>
       <div class="row">
-        <div class="seg" role="radiogroup" aria-label="O que copiar">
-          {#each [['all', 'Flash inteira (8 MB)'], ['boot', 'Bootloader (128 KB)']] as [k, label] (k)}
+        <div class="seg" role="radiogroup" aria-label={t('pedal.dump_what')}>
+          {#each DUMPS as [k, label] (k)}
             <button role="radio" aria-checked={pedal.dumpKind === k} class:on={pedal.dumpKind === k}
-                    onclick={() => (pedal.dumpKind = k as 'all' | 'boot')}>{label}</button>
+                    onclick={() => (pedal.dumpKind = k)}>{t(label)}</button>
           {/each}
         </div>
-        <button class="primary" onclick={() => pedal.makeDump()}><Icon name="save" size={15} stroke={2} /> Copiar para arquivo…</button>
-        <button class="ghost" onclick={() => pedal.openDump()} title="O resumo de uma cópia de 8 MB feita antes">
-          <Icon name="file" size={15} stroke={2} /> Abrir cópia…</button>
+        <button class="primary" onclick={() => pedal.makeDump()}><Icon name="save" size={15} stroke={2} /> {t('pedal.dump_make')}</button>
+        <button class="ghost" onclick={() => pedal.openDump()} title={t('pedal.dump_open_title')}>
+          <Icon name="file" size={15} stroke={2} /> {t('pedal.dump_open')}</button>
       </div>
 
       {#if pedal.dump?.summary}
         {@const areas = pedal.dump.summary}
         <h3>{pedal.dump.file}</h3>
-        <div class="map" role="img" aria-label="Mapa da flash: o quanto cada área usa">
+        <div class="map" role="img" aria-label={t('pedal.map_aria')}>
           {#each areas as a, n (a.name)}
-            <span class="area" class:hot={hover === n} style:flex={a.end - a.start} title="{a.name}: {kb(a.used)} de {kb(a.end - a.start)}"
+            <span class="area" class:hot={hover === n} style:flex={a.end - a.start} title={t('pedal.area_title', { name: a.name, used: kb(a.used), size: kb(a.end - a.start) })}
                   onpointerenter={() => (hover = n)} onpointerleave={() => (hover = -1)} role="presentation">
               <i style:width="{Math.max(a.used ? 2 : 0, (100 * a.used) / (a.end - a.start))}%"></i>
             </span>
@@ -131,7 +126,7 @@
         </div>
         <div class="ticks" aria-hidden="true"><span>0</span><span>2 MB</span><span>4 MB</span><span>6 MB</span><span>8 MB</span></div>
         <table class="areas">
-          <thead><tr><th>Área</th><th>Faixa</th><th>Em uso</th><th>Último byte</th></tr></thead>
+          <thead><tr><th>{t('pedal.col_area')}</th><th>{t('pedal.col_range')}</th><th>{t('pedal.col_used')}</th><th>{t('pedal.col_last')}</th></tr></thead>
           <tbody>
             {#each areas as a, n (a.name)}
               <tr class:empty={!a.used} class:hot={hover === n} onpointerenter={() => (hover = n)} onpointerleave={() => (hover = -1)}>

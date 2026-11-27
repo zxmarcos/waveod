@@ -141,7 +141,7 @@ export interface Profile {
   worst_ms: number;
   blocks: number;
   slots: ProfileSlot[]; // chain order
-  sections: number[];   // mean cycles of each section of the interrupt (BENCH_SECTIONS), the chain's with the slots
+  sections: number[];   // mean cycles of each section of the interrupt (perf.svelte.ts sectionName), the chain's with the slots
 }
 /** a module to measure, a .elf or a block's .c (built by the SDK): read again (built again) at every measurement;
  *  a source that does not build has error and the compiler's log instead of the module */
@@ -174,10 +174,6 @@ export interface BenchResult {
   build_s?: number;
   name?: string;        // a file's module: its descriptor's name
 }
-/** the sections of engine_audio (src/engine/audio_engine.h enum engine_section), in order */
-export const BENCH_SECTIONS = ['Conversores → floats', 'Filtro de entrada', 'USB playback', 'Buffers / afinador',
-  'Antes da cadeia', 'Cadeia', 'Entre cadeia e nível', 'Nível / gravação USB', 'EQ global', 'Bateria', 'AUX / USB',
-  'Filtro de saída', 'Filtro do send', 'DAC', 'Latência / estatísticas'];
 export const CHAIN_SECTION = 5;
 
 /** a Clone slot (protocol 6): empty, the original's capture, or a NAM capture run by waveod's engine */
@@ -286,6 +282,7 @@ export type LinkPhase = 'starting' | 'searching' | 'busy' | 'silent' | 'old' | '
 export interface LinkStatus {
   phase: LinkPhase;
   message: string;
+  code?: string;        // the message's catalog key ('py.link_none'...), '' for a text of its own
   transport: string;    // 'usb' | 'emulador' | 'demonstração'
   attempts: number;
   connections: number;  // bumped on every connection: everything is read again

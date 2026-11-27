@@ -25,6 +25,7 @@
  */
 #include "model/route.h"
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/images/icons.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
@@ -296,7 +297,7 @@ static void drop(struct ui_ctx *ui)
     struct rig *r = ui->rig;
     if (t.kind == T_TRASH && moved >= 0) {
         if (rig_remove(r, pos_of(ui, moved)) == 0)
-            ui_toast("Bloco removido");
+            ui_toast(T(MSG_CHAIN_BLOCK_REMOVED));
     } else if ((t.kind == T_PLACE || t.kind == T_SWAP) && rig_move_cell(r, moved, t.cell) == 0) {
         choose(ui, SEL_CELL, t.cell);
     }
@@ -458,9 +459,9 @@ static void tempo_close(struct ui_ctx *ui)
 
 /* ---------------------------------------------------------------- parameters of the selection */
 
-static const char *const joint_labels[2][3] = {
-    { "BALAN\xC3\x87O A/B", "N\xC3\x8DVEL A", "N\xC3\x8DVEL B" },
-    { "MIX A/B", "PAN A", "PAN B" },
+static const uint16_t joint_labels[2][3] = {
+    { MSG_CHAIN_BALANCE_AB, MSG_CHAIN_LEVEL_A, MSG_CHAIN_LEVEL_B },
+    { MSG_CHAIN_MIX_AB, MSG_CHAIN_PAN_A, MSG_CHAIN_PAN_B },
 };
 
 static int joint_param(int i)
@@ -702,6 +703,8 @@ static void create_graph(lv_obj_t *root)
         lv_obj_set_style_transform_rotation(s.joints[i], 450, 0);
     }
 
+    if (s.fly)                              /* on the top layer: a new language builds the screens again */
+        lv_obj_delete(s.fly);
     s.fly = outlined(lv_layer_top(), 0, 0, BW, BW, 4);
     s.fly_icon = theme_icon(s.fly, 0, C_TEXT);
     lv_obj_align(s.fly_icon, LV_ALIGN_TOP_MID, 0, 6);
@@ -751,14 +754,14 @@ static void create_bar(lv_obj_t *root)
     lv_obj_set_style_transform_rotation(dia, 450, 0);
     s.jt_name = theme_label(s.jt, &font_body_14, C_TEXT, 0);
     lv_obj_align(s.jt_name, LV_ALIGN_LEFT_MID, 30, 0);
-    static const char *const names[ROUTE_MODES] = { "S\xC3\x89RIE", "PARALELO", "DUAL L/R" };
+    static const uint16_t names[ROUTE_MODES] = { MSG_CHAIN_MODE_SERIAL, MSG_CHAIN_MODE_PARALLEL, MSG_CHAIN_MODE_DUAL };
     static const int widths[ROUTE_MODES] = { 64, 84, 80 };
     int x = UI_W - UI_PAD + 4;
     for (int m = ROUTE_MODES - 1; m >= 0; m--) {
         x -= widths[m] + 4;
         s.modes[m] = outlined(s.jt, x, (h - CHIP_H) / 2, widths[m], CHIP_H, 3);
         s.mode_text[m] = theme_label(s.modes[m], &font_tag_12, C_LABEL, 1);
-        lv_label_set_text(s.mode_text[m], names[m]);
+        lv_label_set_text(s.mode_text[m], T(names[m]));
         lv_obj_center(s.mode_text[m]);
         gesture_bind(s.modes[m], on_mode, m);
     }
@@ -769,7 +772,7 @@ static void create_bar(lv_obj_t *root)
     lv_obj_set_style_transform_pivot_y(td, 3, 0);
     lv_obj_set_style_transform_rotation(td, 450, 0);
     lv_obj_t *tn = theme_label(s.tempo, &font_body_14, C_TEXT, 0);
-    lv_label_set_text(tn, "Tempo e volume");
+    lv_label_set_text(tn, T(MSG_CHAIN_TEMPO_VOLUME));
     lv_obj_align(tn, LV_ALIGN_LEFT_MID, 30, 0);
     lv_obj_t *tap = outlined(s.tempo, UI_W - UI_PAD - TAP_W, (h - CHIP_H) / 2, TAP_W, CHIP_H, 3);
     theme_set_border(tap, C_ACCENT);
@@ -926,11 +929,11 @@ static int drag_message(struct ui_ctx *ui, char *out, unsigned size, uint32_t *c
     if (drag.joint >= 0) {
         *color = C_ACCENT;
         if (drag.joint == 1 && drag.out)
-            lv_snprintf(out, size, "SOLTE PARA SEPARAR AS SA\xC3\x8D" "DAS L / R");
+            lv_snprintf(out, size, "%s", T(MSG_CHAIN_DROP_SPLIT_LR));
         else if (drag.joint == 0)
-            lv_snprintf(out, size, "SPLIT ANTES DO SLOT %d", rt->split + 1);
+            lv_snprintf(out, size, T(MSG_CHAIN_SPLIT_BEFORE), rt->split + 1);
         else
-            lv_snprintf(out, size, "MERGE DEPOIS DO SLOT %d", rt->merge);
+            lv_snprintf(out, size, T(MSG_CHAIN_MERGE_AFTER), rt->merge);
         return 1;
     }
     if (!drag.active)
@@ -942,23 +945,23 @@ static int drag_message(struct ui_ctx *ui, char *out, unsigned size, uint32_t *c
     case T_TRASH:
         ui_slot_name(ui, slot_at(ui, drag.from), name, sizeof name);
         upper(name);
-        lv_snprintf(out, size, "SOLTE PARA EXCLUIR %s", name);
+        lv_snprintf(out, size, T(MSG_CHAIN_DROP_DELETE), name);
         *color = C_BG;
         *bg = C_CLIP;
         break;
     case T_SWAP:
         ui_slot_name(ui, slot_at(ui, o->cell), name, sizeof name);
         upper(name);
-        lv_snprintf(out, size, "TROCAR DE LUGAR COM %s", name);
+        lv_snprintf(out, size, T(MSG_CHAIN_SWAP_WITH), name);
         *color = C_TEXT;
         break;
     case T_PLACE:
         ui_cell_lane(ui, o->cell, lane, sizeof lane);
-        lv_snprintf(out, size, "SOLTAR EM %s", lane);
+        lv_snprintf(out, size, T(MSG_CHAIN_DROP_AT), lane);
         *color = C_ACCENT;
         break;
     default:
-        lv_snprintf(out, size, "ARRASTE AT\xC3\x89 AQUI PARA EXCLUIR \xC2\xB7 FORA CANCELA");
+        lv_snprintf(out, size, "%s", T(MSG_CHAIN_DRAG_HINT));
         break;
     }
     return 1;
@@ -990,9 +993,9 @@ static void refresh_bar(struct ui_ctx *ui)
     } else if (line) {
         if (sel.kind == SEL_CELL) {
             ui_cell_lane(ui, sel.cell, lane, sizeof lane);
-            lv_snprintf(msg, sizeof msg, "SLOT VAZIO \xC2\xB7 %s \xC2\xB7 MENU = ESCOLHER O EFEITO", lane);
+            lv_snprintf(msg, sizeof msg, T(MSG_CHAIN_EMPTY_SLOT), lane);
         } else {
-            lv_snprintf(msg, sizeof msg, "TOQUE NUM BLOCO PARA SELECIONAR \xC2\xB7 + ADICIONA EFEITO");
+            lv_snprintf(msg, sizeof msg, "%s", T(MSG_CHAIN_TAP_HINT));
         }
         theme_set_text(s.message, msg);
     } else if (tempo) {
@@ -1036,8 +1039,8 @@ static void refresh_bar(struct ui_ctx *ui)
         lv_obj_align_to(s.model_caret, s.model_name, LV_ALIGN_OUT_RIGHT_MID, 6, 0);
     } else {
         edge = C_LABEL;
-        static const char *const names[] = { "", "Split", "Merge", "Roteamento" };
-        theme_set_text(s.jt_name, names[sel.kind]);
+        static const uint16_t names[] = { MSG_CHAIN_ROUTING, MSG_CHAIN_SPLIT, MSG_CHAIN_MERGE, MSG_CHAIN_ROUTING };
+        theme_set_text(s.jt_name, T(names[sel.kind]));      /* [SEL_CELL] is never shown */
         for (int m = 0; m < ROUTE_MODES; m++) {
             int act = rt->mode == m;
             theme_set_bg(s.modes[m], act ? C_ACCENT : C_BG);
@@ -1074,7 +1077,7 @@ static void refresh_params(struct ui_ctx *ui)
             int j = joint_param(i);
             char v[8];
             lv_snprintf(v, sizeof v, "%d", route(ui)->joint[j]);
-            param_cell_set(c, joint_labels[sel.kind == SEL_MERGE][i], "", v, route(ui)->joint[j] / 100.0f, C_LABEL,
+            param_cell_set(c, T(joint_labels[sel.kind == SEL_MERGE][i]), "", v, route(ui)->joint[j] / 100.0f, C_LABEL,
                            C_TEXT, C_ACCENT);
             continue;
         }
@@ -1086,7 +1089,8 @@ static void refresh_params(struct ui_ctx *ui)
         }
         ui_param_label(&p, label, sizeof label);
         int scene = rig_scene_param(ui->rig, slot, k);      /* its value is the active scene's */
-        param_cell_set(c, label, scene ? "CENA" : "", p.text, ui_param_frac(&p), C_LABEL, C_TEXT, slot_color(ui, slot));
+        param_cell_set(c, label, scene ? T(MSG_CHAIN_SCENE) : "", p.text, ui_param_frac(&p), C_LABEL, C_TEXT,
+                       slot_color(ui, slot));
         if (scene)
             theme_set_color(c->source, C_ACCENT);
     }
@@ -1193,7 +1197,7 @@ static int input(struct ui_ctx *ui, const struct input_event *ev)
     }
     if (ev->type == IN_HOLD && (1u << ev->id) == BTN_MENU && slot >= 0) {
         if (rig_remove(ui->rig, pos_of(ui, slot)) == 0)
-            ui_toast("Bloco removido");
+            ui_toast(T(MSG_CHAIN_BLOCK_REMOVED));
         ui_changed();
         return 1;
     }

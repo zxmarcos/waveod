@@ -6,6 +6,7 @@
  * Controls: MENU turns = a card, MENU press = open it, EXIT = back. Touch: tap a card = open it.
  */
 #include "ui/images/icons.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -24,15 +25,15 @@
 #define C_FRAME   0x2A2926
 
 static const struct {
-    const char *name;
+    uint16_t name;                          /* message id */
     const lv_image_dsc_t *icon;
     enum screen_id id;
     int tab;                                /* a main screen: shown as a tab (no way back) */
 } items[CARDS] = {
-    { "CADEIA", &icon_m_chain, SCR_CHAIN, 1 },       { "AFINADOR", &icon_g_tuner, SCR_TUNER, 1 },
-    { "PRESETS", &icon_g_presets, SCR_PRESETS, 0 },  { "CONTROLES", &icon_g_controls, SCR_CONTROL_MAP, 0 },
-    { "LOOPER", &icon_m_looper, SCR_LOOPER, 0 },     { "BATERIA", &icon_m_drum, SCR_DRUM, 0 },
-    { "EQ GLOBAL", &icon_g_eq, SCR_EQ, 0 },          { "GLOBAL", &icon_m_global, SCR_SETTINGS, 0 },
+    { MSG_MENU_CHAIN, &icon_m_chain, SCR_CHAIN, 1 },        { MSG_SHARED_FN_TUNER, &icon_g_tuner, SCR_TUNER, 1 },
+    { MSG_MENU_PRESETS, &icon_g_presets, SCR_PRESETS, 0 },  { MSG_MENU_CONTROLS, &icon_g_controls, SCR_CONTROL_MAP, 0 },
+    { MSG_MENU_LOOPER, &icon_m_looper, SCR_LOOPER, 0 },     { MSG_SHARED_FN_DRUM, &icon_m_drum, SCR_DRUM, 0 },
+    { MSG_EQ_TITLE, &icon_g_eq, SCR_EQ, 0 },                { MSG_MENU_GLOBAL, &icon_m_global, SCR_SETTINGS, 0 },
 };
 
 static struct {
@@ -89,7 +90,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
         s.icon[i] = theme_icon(c, items[i].icon, C_LABEL);
         lv_obj_align(s.icon[i], LV_ALIGN_TOP_MID, 0, CARD_H / 2 - 26);
         s.name[i] = theme_label(c, &font_tag_12, C_TEXT, 1);
-        lv_label_set_text_static(s.name[i], items[i].name);
+        lv_label_set_text_static(s.name[i], T(items[i].name));
         lv_obj_align(s.name[i], LV_ALIGN_TOP_MID, 0, CARD_H / 2 + 6);
     }
 }

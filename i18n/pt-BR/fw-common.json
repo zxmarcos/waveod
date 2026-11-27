@@ -1,0 +1,16 @@
+{
+  "fw.common.on": "LIGADO",
+  "fw.common.off": "DESLIGADO",
+  "fw.common.menu_arrow": "MENU »",
+  "fw.common.new_link": "+ NOVA LIGAÇÃO",
+  "fw.common.more": "+%d MAIS",
+  "fw.common.table_full": "Tabela de controles cheia",
+  "fw.common.link_removed": "LIGAÇÃO REMOVIDA",
+  "fw.common.mode_preset": "MODO PRESET",
+  "fw.common.mode_stomp": "MODO STOMP",
+  "fw.common.mode_scenes": "MODO CENAS",
+  "fw.common.when_press": "APERTAR",
+  "fw.common.when_hold": "SEGURAR",
+  "fw.common.when_moment": "ENQUANTO PISA",
+  "fw.common.missing": "AUSENTE"
+}

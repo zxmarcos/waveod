@@ -14,6 +14,7 @@
  * adjustment, at once), EXIT = cancel the steps / back. Touch: the button, EXP 1 / EXP 2.
  */
 #include "model/globals.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -51,7 +52,7 @@
 
 enum step { ST_IDLE, ST_HEEL, ST_TOE, ST_SWITCH };
 
-static const char *const step_names[3] = { "CALCANHAR", "PONTA", "CHAVE DA PONTA" };
+static const uint16_t step_names[3] = { MSG_EXPCAL_HEEL, MSG_EXPCAL_TOE, MSG_EXPCAL_TOE_SWITCH };
 
 static struct {
     lv_obj_t *pill[2], *pill_text[2];
@@ -104,7 +105,7 @@ static void next(struct ui_ctx *ui)
     case ST_TOE:
         s.hi = now;
         if (s.hi - s.lo < MIN_SPAN) {
-            ui_toast("Faixa curta: comece de novo pelo calcanhar");
+            ui_toast(T(MSG_EXPCAL_SHORT_RANGE));
             s.step = ST_HEEL;
             break;
         }
@@ -115,7 +116,7 @@ static void next(struct ui_ctx *ui)
         }
         g->exp_min[n] = (int16_t)s.lo;
         g->exp_max[n] = (int16_t)s.hi;
-        lv_snprintf(text, sizeof text, "EXP %d calibrado", n + 1);
+        lv_snprintf(text, sizeof text, T(MSG_EXPCAL_CALIBRATED), n + 1);
         ui_toast(text);
         s.step = ST_IDLE;
         break;
@@ -124,11 +125,11 @@ static void next(struct ui_ctx *ui)
         g->exp_max[n] = (int16_t)s.hi;
         if (s.peak > s.hi + TOE_MARGIN) {
             g->exp_toe[n] = (int16_t)clamp((s.hi + 3 * s.peak) / 4, s.hi + 1, 255);
-            lv_snprintf(text, sizeof text, "EXP %d calibrado", n + 1);
+            lv_snprintf(text, sizeof text, T(MSG_EXPCAL_CALIBRATED), n + 1);
         } else {
             if (g->exp_toe[n] <= s.hi)
                 g->exp_toe[n] = 255;        /* inside the range it would press itself: none */
-            lv_snprintf(text, sizeof text, "EXP %d calibrado \xC2\xB7 chave n\xC3\xA3o pisada", n + 1);
+            lv_snprintf(text, sizeof text, T(MSG_EXPCAL_CALIBRATED_NO_SWITCH), n + 1);
         }
         ui_toast(text);
         s.step = ST_IDLE;
@@ -217,10 +218,10 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     s.pivot = theme_box(s.art, PIVOT_X - 4, PIVOT_Y - 4, 9, 9, C_LABEL);
     lv_obj_set_style_radius(s.pivot, LV_RADIUS_CIRCLE, 0);
     s.heel_tag = theme_label(s.art, &font_tag_12, C_OFF, 1);
-    lv_label_set_text_static(s.heel_tag, "CALCANHAR");
+    lv_label_set_text_static(s.heel_tag, T(MSG_EXPCAL_HEEL));
     lv_obj_set_pos(s.heel_tag, 6, BASE_Y + 17);
     s.toe_tag = theme_label(s.art, &font_tag_12, C_OFF, 1);
-    lv_label_set_text_static(s.toe_tag, "PONTA");
+    lv_label_set_text_static(s.toe_tag, T(MSG_EXPCAL_TOE));
     lv_obj_align(s.toe_tag, LV_ALIGN_TOP_RIGHT, -6, BASE_Y + 17);
 
     /* the steps */
@@ -232,7 +233,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
         lv_label_set_text_fmt(s.step_no[i], "%d", i + 1);
         lv_obj_set_pos(s.step_no[i], 8, 4);
         s.step_name[i] = theme_label(s.step_box[i], &font_label_12, C_OFF, 1);
-        lv_label_set_text_static(s.step_name[i], step_names[i]);
+        lv_label_set_text_static(s.step_name[i], T(step_names[i]));
         lv_obj_set_pos(s.step_name[i], 24, 4);
         s.step_val[i] = theme_label(s.step_box[i], &font_body_14, C_OFF, 0);
         lv_obj_align(s.step_val[i], LV_ALIGN_TOP_RIGHT, -8, 2);
@@ -275,7 +276,7 @@ static void leave(struct ui_ctx *ui)
 {
     cancel();
     if (globals_save(ui->globals, &ui->rig->src))
-        ui_toast("Falha ao gravar a calibra\xC3\xA7\xC3\xA3o");
+        ui_toast(T(MSG_EXPCAL_SAVE_FAILED));
 }
 
 static void tick(struct ui_ctx *ui)
@@ -324,7 +325,7 @@ static void refresh(struct ui_ctx *ui)
     const struct globals *g = ui->globals;
     int n = ui->exp_cal, now = pedal_now(ui), sw = has_switch(ui);
     s.seen = now;
-    top_bar_sub("CALIBRAR EXP");
+    top_bar_sub(T(MSG_EXPCAL_TITLE));
 
     for (int k = 0; k < 2; k++) {
         int sel = k == n;
@@ -358,7 +359,7 @@ static void refresh(struct ui_ctx *ui)
         if (active && i < 2)
             lv_snprintf(v, sizeof v, "%d", now);
         else if (i == 2 && s.step == ST_IDLE && vals[2] > 254)
-            lv_snprintf(v, sizeof v, "NENHUMA");
+            lv_snprintf(v, sizeof v, "%s", T(MSG_EXPCAL_NONE));
         else if (active || done || s.step == ST_IDLE)
             lv_snprintf(v, sizeof v, "%d", vals[i]);
         else
@@ -378,22 +379,20 @@ static void refresh(struct ui_ctx *ui)
     const char *hint, *button;
     switch (s.step) {
     case ST_HEEL:
-        hint = "Levante o pedal TODO para o calcanhar.";
-        button = "PR\xC3\x93XIMO";
+        hint = T(MSG_EXPCAL_HINT_HEEL);
+        button = T(MSG_EXPCAL_NEXT);
         break;
     case ST_TOE:
-        hint = sw ? "Abaixe o pedal TODO para a ponta, sem pisar na chave." : "Abaixe o pedal TODO para a ponta.";
-        button = sw ? "PR\xC3\x93XIMO" : "SALVAR";
+        hint = T(sw ? MSG_EXPCAL_HINT_TOE_SWITCH : MSG_EXPCAL_HINT_TOE);
+        button = T(sw ? MSG_EXPCAL_NEXT : MSG_SCREENS_SAVE);
         break;
     case ST_SWITCH:
-        hint = "Pise FORTE na ponta, at\xC3\xA9 a chave, e solte. Sem chave? Salve assim.";
-        button = "SALVAR";
+        hint = T(MSG_EXPCAL_HINT_SWITCH);
+        button = T(MSG_SCREENS_SAVE);
         break;
     default:
-        hint = n == 1 && g->exp2_jack != EXP2_PEDAL
-                   ? "O jack EXP 2 est\xC3\xA1 como footswitch (GLOBAL \xC2\xBB EXP 2 / FS EXT.)."
-                   : "Mova o pedal: ele aparece aqui. Os knobs 1-3 ajustam cada ponto.";
-        button = "CALIBRAR";
+        hint = T(n == 1 && g->exp2_jack != EXP2_PEDAL ? MSG_EXPCAL_HINT_JACK : MSG_EXPCAL_HINT_IDLE);
+        button = T(MSG_EXPCAL_CALIBRATE);
         break;
     }
     theme_set_text(s.hint, hint);
@@ -418,11 +417,11 @@ static void refresh(struct ui_ctx *ui)
         lv_obj_add_flag(s.toe_mark, LV_OBJ_FLAG_HIDDEN);
     }
 
-    static const char *const labels[4] = { "AGORA", "K1 CALCANHAR", "K2 PONTA", "K3 CHAVE" };
+    static const uint16_t labels[4] = { MSG_EXPCAL_NOW, MSG_EXPCAL_K1_HEEL, MSG_EXPCAL_K2_TOE, MSG_EXPCAL_K3_SWITCH };
     int nums[4] = { now, g->exp_min[n], g->exp_max[n], g->exp_toe[n] };
     for (int i = 0; i < 4; i++) {
         int shown = i < 3 || sw;
-        theme_set_text(s.label[i], shown ? labels[i] : "");
+        theme_set_text(s.label[i], shown ? T(labels[i]) : "");
         char v[12];
         if (!shown)
             v[0] = 0;

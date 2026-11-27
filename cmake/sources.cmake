@@ -113,6 +113,8 @@ set(WAVEOD_APP_SOURCES
     ui/leds.c
     ui/gesture.c
     ui/midi_control.c
+    ui/i18n.c
+    ui/i18n_msgs.c
     ui/theme.c
     ui/ui.c
     ui/widgets/analyzer.c
@@ -192,7 +194,7 @@ set(WAVEOD_TESTED_SOURCES
     engine/scope.c engine/drums.c model/drum_names.c model/drum_user.c engine/pools.c engine/chain_tail.c
     engine/module_loader.c engine/overload.c model/param_format.c model/param_format_table.c model/route.c model/rig.c
     model/control.c model/modulation.c engine/modulators.c model/expression.c fw/preset_controls.c host/host_flash.c
-    editor/lzo.c fw/ir_fs.c midi/midi.c
+    editor/lzo.c fw/ir_fs.c midi/midi.c ui/i18n.c ui/i18n_msgs.c
 )
 
 # the unit tests (paths relative to tests/)

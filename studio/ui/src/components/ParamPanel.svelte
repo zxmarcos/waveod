@@ -4,6 +4,7 @@
   import MicEditor from './MicEditor.svelte';
   import { menuInfo } from '../lib/menus';
   import { studio } from '../lib/store.svelte';
+  import { t, type MsgKey } from '../lib/i18n.svelte';
   import type { Param } from '../lib/types';
 
   const blk = $derived(studio.selectedBlock);
@@ -15,10 +16,10 @@
   $effect(() => { if (!hasMic) micOpen = false; });
 
   // the routing joints (src/fw/preset_format.h enum route_joint): 0..100 each
-  const JOINTS = {
-    split: [[0, 'Equilíbrio'], [1, 'Nível A'], [2, 'Nível B']],
-    merge: [[3, 'Mistura'], [4, 'Pan A'], [5, 'Pan B']],
-  } as const;
+  const JOINTS: Record<'split' | 'merge', [number, MsgKey][]> = {
+    split: [[0, 'params.balance'], [1, 'params.level_a'], [2, 'params.level_b']],
+    merge: [[3, 'params.mix'], [4, 'params.pan_a'], [5, 'params.pan_b']],
+  };
 
   /** the browser's group next to the menu, when it says more than the menu (not "-", not "Gabinetes") */
   const showType = (menu: number, type: string) =>
@@ -43,15 +44,15 @@
         <h2>{blk.name}</h2>
       </div>
       {#if hasMic}
-        <button class="ghost mic" onclick={() => (micOpen = true)} title="Onde o microfone virtual fica na frente do alto-falante">
-          <Icon name="mic" size={17} stroke={2} /> Microfone
+        <button class="ghost mic" onclick={() => (micOpen = true)} title={t('params.mic_title')}>
+          <Icon name="mic" size={17} stroke={2} /> {t('params.mic')}
         </button>
       {/if}
       <button class="switch" class:on={blk.on} role="switch" aria-checked={blk.on} onclick={() => studio.toggle(blk.slot)}>
-        <Icon name="power" size={16} stroke={2.6} /> {blk.on ? 'Ligado' : 'Desligado'}
+        <Icon name="power" size={16} stroke={2.6} /> {blk.on ? t('params.on') : t('params.off')}
       </button>
-      <button class="ghost" onclick={() => studio.remove(blk.slot)} title="Tirar o bloco da cadeia (Delete)">
-        <Icon name="trash" size={17} stroke={2} /> Remover
+      <button class="ghost" onclick={() => studio.remove(blk.slot)} title={t('params.remove_title')}>
+        <Icon name="trash" size={17} stroke={2} /> {t('common.remove')}
       </button>
     </header>
     <div class="knobs" class:dimmed={!blk.on}>
@@ -61,29 +62,29 @@
               onhold={(h) => (studio.dragging = h)}
               onscene={studio.canEditScenes ? () => studio.sceneParam(blk.slot, p.k) : undefined} />
       {:else}
-        <p class="note">Lendo os parâmetros…</p>
+        <p class="note">{t('params.reading')}</p>
       {/each}
     </div>
   {:else if joint}
     <header>
       <span class="badge joint"></span>
       <div class="what">
-        <span class="menu">Roteamento</span>
-        <h2>{joint === 'split' ? 'Divisão' : 'Junção'}</h2>
+        <span class="menu">{t('preset.routing')}</span>
+        <h2>{joint === 'split' ? t('grid.split') : t('grid.merge')}</h2>
       </div>
     </header>
     <div class="knobs">
       {#each JOINTS[joint] as [k, name] (k)}
-        <Knob param={jointParam(k, name)} color="var(--accent)" onchange={(v) => studio.joint(k, v)}
-              onreset={() => studio.joint(k, jointParam(k, name).default)} onhold={(h) => (studio.dragging = h)} />
+        <Knob param={jointParam(k, t(name))} color="var(--accent)" onchange={(v) => studio.joint(k, v)}
+              onreset={() => studio.joint(k, jointParam(k, t(name)).default)} onhold={(h) => (studio.dragging = h)} />
       {/each}
     </div>
   {:else if studio.selection?.kind === 'cell'}
-    <p class="empty-note">Lugar vazio. Escolha um modelo na lista à esquerda, ou arraste um para cá.</p>
+    <p class="empty-note">{t('params.cell_note')}</p>
   {:else}
     <div class="empty-note">
-      <p>Selecione um bloco para ver os parâmetros.</p>
-      <p class="keys">Duplo clique liga e desliga · arraste para mover · Delete remove</p>
+      <p>{t('params.select_note')}</p>
+      <p class="keys">{t('params.keys')}</p>
     </div>
   {/if}
 </section>

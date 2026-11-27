@@ -10,6 +10,7 @@
  * edit screen, or the key's links (CONTROLES) when it has no block.
  */
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -132,7 +133,8 @@ static void refresh(struct ui_ctx *ui)
             rig_scene_name(r, k->scene, sname);
             lv_snprintf(name, sizeof name, "%s", sname);
         } else if (k->scene != -1) {
-            lv_snprintf(name, sizeof name, "%s", (uint8_t)k->scene == SCENE_NEXT ? "CENA +" : "CENA \xE2\x88\x92");
+            lv_snprintf(name, sizeof name, "%s",
+                        T((uint8_t)k->scene == SCENE_NEXT ? MSG_STOMP_SCENE_NEXT : MSG_STOMP_SCENE_PREV));
         } else if (k->midi >= 0 && k->fn == FSF_NONE) {
             lv_snprintf(name, sizeof name, "%s %d", k->midi & 0x100 ? "PC" : "CC", k->midi & 0x7f);
         } else {
@@ -141,7 +143,7 @@ static void refresh(struct ui_ctx *ui)
         if (used)
             lv_snprintf(tag, sizeof tag, "%s", ui_slot_tag(ui, slot));
         else if (k->scene != -1)
-            lv_snprintf(tag, sizeof tag, "CENA");
+            lv_snprintf(tag, sizeof tag, "%s", T(MSG_STOMP_SCENE_TAG));
         else if (k->midi >= 0 && k->fn == FSF_NONE)
             lv_snprintf(tag, sizeof tag, "MIDI");
         int lit = stateful ? on : k->fn != FSF_NONE || k->scene != -1 || k->midi >= 0;

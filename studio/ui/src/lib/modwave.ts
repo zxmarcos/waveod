@@ -2,6 +2,8 @@
 // (the random ones from the same generator and seed), the sequencer's steps and glides, the envelope follower's
 // attack / release / sensitivity, the synced rates. The drawings of the controls editor (ModWave.svelte) use it.
 
+import { divisions } from './controls';
+import { num, t } from './i18n.svelte';
 import type { ModSettings } from './types';
 
 export const RATE = 44100;
@@ -146,13 +148,13 @@ export function envelope(m: ModSettings, levels: number[]): number[] {
  *  without sensitivity) */
 export const levelPos = (a: number) => Math.min(1, Math.max(0, ((a > 1e-9 ? 20 * Math.log10(a) : -180) + 60) / 60));
 
-/** "1,00 Hz", "250 ms" */
-export function rateText(m: ModSettings, bpm: number, divisions: string[]): string {
+/** "1.00 Hz · cycle of 1.00 s", "1/8 at 120 BPM · 4.00 Hz · step of 250 ms" (in the page's language) */
+export function rateText(m: ModSettings, bpm: number): string {
   const s = period(m, bpm), hz = 1 / s;
-  const f = (v: number, d: number) => v.toFixed(d).replace('.', ',');
-  const what = m.type === 'seq' ? 'passo' : 'ciclo';
-  const ms = s >= 1 ? `${f(s, 2)} s` : `${Math.round(s * 1000)} ms`;
-  return m.sync ? `${divisions[m.sync]} a ${bpm} BPM · ${f(hz, 2)} Hz · ${what} de ${ms}` : `${f(hz, 2)} Hz · ${what} de ${ms}`;
+  const what = t(m.type === 'seq' ? 'mod.word_step' : 'mod.word_cycle');
+  const len = s >= 1 ? `${num(s, 2)} s` : `${Math.round(s * 1000)} ms`;
+  return m.sync ? t('mod.rate_synced', { div: divisions()[m.sync], bpm, hz: num(hz, 2), what, len })
+    : t('mod.rate_free', { hz: num(hz, 2), what, len });
 }
 
 /** an SVG path through points scaled into a w x h box (y up) */

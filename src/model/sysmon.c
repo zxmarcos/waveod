@@ -40,7 +40,7 @@ void sysmon_temp_text(int tenths, char *out, unsigned size)
     if (!size)
         return;
     if (tenths == PLAT_TEMP_NONE) {
-        const char *dash = "\xE2\x80\x94";
+        const char *dash = "\xE2\x80\x93";
         unsigned i = 0;
         for (; dash[i] && i + 1 < size; i++)
             out[i] = dash[i];

@@ -7,6 +7,8 @@ what a newer firmware stored; the known chunks are also decoded into fields.
 """
 import struct
 
+from waveod_studio.i18n import tr
+
 NAME, STYLE, MAIN, SLOT, QK, EXP, CTRL, FS, ROUTE, SCENES, CONTROLS, MODS = range(1, 13)
 SLOTS, KNOBS, NAME_LEN, STYLE_LEN = 12, 15, 17, 10
 SCENE_COUNT = 4
@@ -196,12 +198,12 @@ class Preset:
     def decode(cls, data):
         data = bytes(data)
         if len(data) < 4 or data[:2] != b'WP' or data[2] < 1:
-            raise FormatError('not a waveod preset')
+            raise FormatError(tr('py.preset_not_waveod'))
         p, at = cls(version=data[2], flags=data[3]), 4
         while at + 3 <= len(data):
             tag, n = struct.unpack_from('<BH', data, at)
             if at + 3 + n > len(data):
-                raise FormatError('chunk %d runs past the end' % tag)
+                raise FormatError(tr('py.preset_chunk', tag=tag))
             p.chunks.append((tag, data[at + 3:at + 3 + n]))
             at += 3 + n
         return p

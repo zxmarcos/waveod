@@ -2,6 +2,7 @@
 #include "dsp/fmath.h"
 #include "platform/audio.h"
 #include "platform/sdram.h"
+#include "ui/i18n.h"                       /* the route and status names */
 #include <string.h>
 
 #define RAW             2147483648.0f           /* a converter word's full scale */
@@ -245,10 +246,10 @@ void latency_get(struct latency_result *out)
 const char *latency_route_name(int route)
 {
     switch (route) {
-    case LAT_OUT_L:  return "SA\xC3\x8D" "DA L \xC2\xBB INPUT";
-    case LAT_OUT_R:  return "SA\xC3\x8D" "DA R \xC2\xBB INPUT";
+    case LAT_OUT_L:  return T(MSG_LATENCY_ROUTE_OUT_L);
+    case LAT_OUT_R:  return T(MSG_LATENCY_ROUTE_OUT_R);
     case LAT_SEND:   return "SEND \xC2\xBB RETURN";
-    case LAT_PRESET: return "PRESET (SEM CABO)";
+    case LAT_PRESET: return T(MSG_LATENCY_ROUTE_PRESET);
     default:         return "-";
     }
 }
@@ -256,12 +257,12 @@ const char *latency_route_name(int route)
 const char *latency_status_name(int status)
 {
     switch (status) {
-    case LAT_BUSY:      return "MEDINDO";
+    case LAT_BUSY:      return T(MSG_LATENCY_STATUS_BUSY);
     case LAT_OK:        return "OK";
-    case LAT_UNSTABLE:  return "INST\xC3\x81VEL";
-    case LAT_NO_SIGNAL: return "SEM SINAL";
-    case LAT_CLIPPED:   return "SATUROU";
-    case LAT_CANCELLED: return "CANCELADO";
+    case LAT_UNSTABLE:  return T(MSG_LATENCY_STATUS_UNSTABLE);
+    case LAT_NO_SIGNAL: return T(MSG_LATENCY_STATUS_NO_SIGNAL);
+    case LAT_CLIPPED:   return T(MSG_LATENCY_STATUS_CLIPPED);
+    case LAT_CANCELLED: return T(MSG_LATENCY_STATUS_CANCELLED);
     default:            return "-";
     }
 }

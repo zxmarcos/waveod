@@ -1,6 +1,7 @@
 #include "app/recovery.h"
 #include "platform/controls.h"
 #include "platform/safety.h"
+#include "ui/i18n.h"
 #include "ui/ui.h"
 #include "lvgl.h"                     /* lv_snprintf: there is no printf on the pedal */
 
@@ -27,19 +28,19 @@ int recovery_avoid(void)
 static const char *cause_text(int cause)
 {
     switch (cause) {
-    case CRASH_HARDFAULT:   return "falha grave do processador";
-    case CRASH_MEMMANAGE:   return "acesso proibido \xC3\xA0 mem\xC3\xB3ria";
-    case CRASH_BUSFAULT:    return "erro de barramento";
-    case CRASH_USAGEFAULT:  return "instru\xC3\xA7\xC3\xA3o inv\xC3\xA1lida";
-    case CRASH_NMI:         return "interrup\xC3\xA7\xC3\xA3o n\xC3\xA3o mascar\xC3\xA1vel";
-    case CRASH_IRQ:         return "interrup\xC3\xA7\xC3\xA3o sem tratamento";
-    case CRASH_WATCHDOG:    return "o programa parou de responder";
-    case CRASH_HW_WATCHDOG: return "o watchdog do chip reiniciou o pedal";
-    default:                return "falha desconhecida";
+    case CRASH_HARDFAULT:   return T(MSG_SYS_CAUSE_HARDFAULT);
+    case CRASH_MEMMANAGE:   return T(MSG_SYS_CAUSE_MEMMANAGE);
+    case CRASH_BUSFAULT:    return T(MSG_SYS_CAUSE_BUSFAULT);
+    case CRASH_USAGEFAULT:  return T(MSG_SYS_CAUSE_USAGEFAULT);
+    case CRASH_NMI:         return T(MSG_SYS_CAUSE_NMI);
+    case CRASH_IRQ:         return T(MSG_SYS_CAUSE_IRQ);
+    case CRASH_WATCHDOG:    return T(MSG_SYS_CAUSE_WATCHDOG);
+    case CRASH_HW_WATCHDOG: return T(MSG_SYS_CAUSE_HW_WATCHDOG);
+    default:                return T(MSG_SYS_CAUSE_UNKNOWN);
     }
 }
 
-/* "no preset 12A, bloco 3 (TS808), processando o áudio" */
+/* " in preset 12A, block 3 (TS808), processing audio" */
 static void where_text(const struct rig *r, const struct crash_info *c, char *out, unsigned size)
 {
     out[0] = 0;
@@ -50,12 +51,12 @@ static void where_text(const struct rig *r, const struct crash_info *c, char *ou
     int pos = -1;
     if (c->slot != SAFETY_NONE && rig_slot_name_in(r, c->preset, c->slot, &pos, name, sizeof name) == 0) {
         if (pos >= 0)
-            lv_snprintf(out, size, " no preset %s, bloco %d (%s), %s", label, pos + 1, name,
-                     c->in_audio ? "processando o \xC3\xA1udio" : "ao carregar");
+            lv_snprintf(out, size, T(MSG_SYS_WHERE_BLOCK), label, pos + 1, name,
+                        c->in_audio ? T(MSG_SYS_WHERE_AUDIO) : T(MSG_SYS_WHERE_LOADING));
         else
-            lv_snprintf(out, size, " no preset %s (%s)", label, name);
+            lv_snprintf(out, size, T(MSG_SYS_WHERE_ITEM), label, name);
     } else {
-        lv_snprintf(out, size, " no preset %s", label);
+        lv_snprintf(out, size, T(MSG_SYS_WHERE_PRESET), label);
     }
 }
 
@@ -64,9 +65,8 @@ void recovery_report(const struct rig *r, int started_safe)
     char text[320], where[96], label[8];
     preset_label(r->index, label);
     if (manual) {
-        lv_snprintf(text, sizeof text, "EXIT segurado ao ligar: o preset %s n\xC3\xA3o foi carregado. Escolha um preset "
-                 "para continuar.", label);
-        ui_alert("MODO SEGURO", text);
+        lv_snprintf(text, sizeof text, T(MSG_SYS_SAFE_MANUAL), label);
+        ui_alert(T(MSG_SYS_SAFE_TITLE), text);
         return;
     }
     struct crash_info c;
@@ -74,12 +74,11 @@ void recovery_report(const struct rig *r, int started_safe)
         return;
     where_text(r, &c, where, sizeof where);
     if (started_safe) {
-        lv_snprintf(text, sizeof text, "O pedal reiniciou depois de uma falha%s: %s. Este preset n\xC3\xA3o foi carregado; "
-                 "escolha outro ou corrija este pelo editor.", where, cause_text(c.cause));
-        ui_alert("MODO SEGURO", text);
+        lv_snprintf(text, sizeof text, T(MSG_SYS_SAFE_CRASH), where, cause_text(c.cause));
+        ui_alert(T(MSG_SYS_SAFE_TITLE), text);
     } else {
-        lv_snprintf(text, sizeof text, "O pedal reiniciou depois de uma falha%s: %s.%s", where, cause_text(c.cause),
-                 c.preset != SAFETY_NONE ? " Se acontecer de novo logo, o preset n\xC3\xA3o ser\xC3\xA1 carregado." : "");
-        ui_alert("PEDAL REINICIADO", text);
+        lv_snprintf(text, sizeof text, T(MSG_SYS_CRASH), where, cause_text(c.cause),
+                    c.preset != SAFETY_NONE ? T(MSG_SYS_CRASH_AGAIN) : "");
+        ui_alert(T(MSG_SYS_RESTARTED_TITLE), text);
     }
 }

@@ -8,6 +8,7 @@
 #include "platform/safety.h"
 #include "platform/sdram.h"
 #include "platform/time.h"
+#include "ui/i18n.h"                       /* the notices */
 #include <string.h>
 
 static int knob_param(const struct rig *r, int slot, int knob);
@@ -36,6 +37,30 @@ static void notice(struct rig *r, const char *text)
 {
     strncpy(r->notice, text, RIG_NOTICE_LEN - 1);
     r->notice[RIG_NOTICE_LEN - 1] = 0;
+}
+
+/* fmt (a text of the catalog) with its %d written as v: the model has no printf (the tests build it without LVGL) */
+static void format_int(char *out, unsigned size, const char *fmt, int v)
+{
+    unsigned n = 0;
+    for (const char *f = fmt; *f && n + 1 < size; f++) {
+        if (f[0] != '%' || f[1] != 'd') {
+            out[n++] = *f;
+            continue;
+        }
+        char digits[12];
+        int k = 0;
+        unsigned u = v < 0 ? 0u - (unsigned)v : (unsigned)v;
+        do
+            digits[k++] = (char)('0' + u % 10);
+        while ((u /= 10) && k < (int)sizeof digits);
+        if (v < 0 && n + 1 < size)
+            out[n++] = '-';
+        while (k > 0 && n + 1 < size)
+            out[n++] = digits[--k];
+        f++;
+    }
+    out[n] = 0;
 }
 
 /* FUN_00022230: defaults go to the knob positions the effect uses, the others keep their values; a Cab / IR
@@ -151,8 +176,8 @@ int rig_init(struct rig *r, int avoid)
     presets_open(&r->src);
     presets_global_controls(&r->global);
     if (err) {
-        notice(r, "Biblioteca de efeitos ausente");
-        preset_clear(&r->preset, "SEM BIBLIOTECA");
+        notice(r, T(MSG_RIG_NO_LIBRARY));
+        preset_clear(&r->preset, T(MSG_RIG_NO_LIBRARY_NAME));
         return -1;
     }
     int index = r->src.last_index;
@@ -160,7 +185,7 @@ int rig_init(struct rig *r, int avoid)
         /* safe mode: the place of the power-up preset, an empty chain, nothing of it loaded */
         r->index = index;
         r->origin = presets_origin(&r->src, index);
-        preset_clear(&r->preset, "MODO SEGURO");
+        preset_clear(&r->preset, T(MSG_RIG_SAFE_MODE));
         safety_note_preset(SAFETY_NONE);
         rebuild(r);
         r->loads++;
@@ -206,7 +231,7 @@ void rig_load(struct rig *r, int index)
     memset(r->midi_sent, 0, sizeof r->midi_sent);
     r->dirty = 0;                           /* FUN_00021660: cleared without telling */
     if (rebuild_spill(r))
-        notice(r, "Sem memória para toda a cadeia");
+        notice(r, T(MSG_RIG_NO_MEMORY_CHAIN));
     r->loads++;
     emit(r, RIG_EV_LOAD, index, 0);
 }
@@ -285,7 +310,7 @@ static int scene_capture(struct rig *r, int slot, int idx)
 {
     struct preset_scenes *sc = &r->preset.scenes;
     if (sc->nparams >= SCENE_PARAMS) {
-        notice(r, "Limite de 32 par\xC3\xA2metros de cena");
+        notice(r, T(MSG_RIG_SCENE_LIMIT));
         return -1;
     }
     struct scene_param *sp = &sc->param[sc->nparams];
@@ -578,9 +603,7 @@ void rig_scene_name(const struct rig *r, int n, char out[SCENE_NAME_LEN + 1])
     }
     if (n < 0)
         n = -1 - n;
-    memcpy(out, "CENA ", 5);
-    out[5] = (char)('1' + n % SCENE_COUNT);
-    out[6] = 0;
+    format_int(out, SCENE_NAME_LEN + 1, T(MSG_RIG_SCENE_DEFAULT), n % SCENE_COUNT + 1);
 }
 
 void rig_scene_copy(struct rig *r, int from, int to)
@@ -717,7 +740,7 @@ static int commit(struct rig *r, const struct preset *before, int slot, int assi
     }
     r->preset = *before;
     rebuild(r);
-    notice(r, "Sem memória para esse efeito");
+    notice(r, T(MSG_RIG_NO_MEMORY_BLOCK));
     return -1;
 }
 
@@ -756,7 +779,7 @@ int rig_insert(struct rig *r, int pos, int menu, int index)
         if (p->slot[i].menu < 0)
             slot = i;
     if (slot < 0 || p->count >= PRESET_SLOTS) {
-        notice(r, "Cadeia cheia (12 blocos)");
+        notice(r, T(MSG_RIG_CHAIN_FULL));
         emit(r, RIG_EV_CHAIN_FULL, 0, 0);
         return -1;
     }
@@ -831,7 +854,7 @@ int rig_place(struct rig *r, int cell, int menu, int index)
         if (p->slot[i].menu < 0)
             slot = i;
     if (slot < 0 || p->count >= PRESET_SLOTS) {
-        notice(r, "Cadeia cheia (12 blocos)");
+        notice(r, T(MSG_RIG_CHAIN_FULL));
         emit(r, RIG_EV_CHAIN_FULL, 0, 0);
         return -1;
     }
@@ -895,7 +918,7 @@ void rig_joint(struct rig *r, int k, int value)
 void rig_rebuild(struct rig *r)
 {
     if (rebuild(r))
-        notice(r, "Sem memória para toda a cadeia");
+        notice(r, T(MSG_RIG_NO_MEMORY_CHAIN));
 }
 
 void rig_library_writing(struct rig *r)
@@ -921,14 +944,8 @@ int rig_save(struct rig *r, int index)
         presets_set_startup(&r->src, index);    /* and power up on it */
     engine_flash_end(flash);
     if (err) {
-        char text[RIG_NOTICE_LEN] = "Falha ao gravar (E";
-        unsigned n = 18;
-        int code = -err;
-        if (code >= 10)
-            text[n++] = (char)('0' + code / 10 % 10);
-        text[n++] = (char)('0' + code % 10);
-        static const char tail[] = ") \xC2\xB7 GLOBAL: detalhes";
-        memcpy(text + n, tail, sizeof tail);
+        char text[RIG_NOTICE_LEN];
+        format_int(text, sizeof text, T(MSG_RIG_SAVE_FAILED), -err);
         notice(r, text);
         return -1;
     }
@@ -964,7 +981,7 @@ int rig_swap(struct rig *r, int index)
     int err = presets_store(&r->src, from, &other);
     engine_flash_end(flash);
     if (err) {
-        notice(r, "Falha ao gravar a troca");
+        notice(r, T(MSG_RIG_SWAP_FAILED));
         return -1;
     }
     return 0;

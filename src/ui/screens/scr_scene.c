@@ -13,6 +13,7 @@
  * preset.
  */
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -140,7 +141,7 @@ static void refresh(struct ui_ctx *ui)
     theme_set_text(s.title, r->preset.name);
     int act = rig_scene_active(r);
     rig_scene_name(r, act, name);
-    lv_snprintf(text, sizeof text, "ATIVA \xC2\xB7 %s", name);
+    lv_snprintf(text, sizeof text, T(MSG_SCENE_ACTIVE), name);
     theme_set_text(s.scene, text);
 
     for (int i = 0; i < 4; i++) {
@@ -164,7 +165,7 @@ static void refresh(struct ui_ctx *ui)
         char pname[PRESET_NAME_LEN + 1];
         presets_name(&r->src, index, pname);
         preset_label(index, label);
-        lv_snprintf(text, sizeof text, "%s %s", label, pname[0] ? pname : "(vazio)");
+        lv_snprintf(text, sizeof text, "%s %s", label, pname[0] ? pname : T(MSG_SCREENS_EMPTY));
         theme_set_bg(c->box, C_BG);
         theme_set_border(c->box, 0x2A2926);
         theme_set_color(c->key, C_LABEL);

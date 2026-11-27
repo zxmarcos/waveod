@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import * as W from '../lib/modwave';
-  import { DIVISIONS } from '../lib/controls';
+  import { num, t } from '../lib/i18n.svelte';
   import type { ModSettings } from '../lib/types';
 
   interface Props {
@@ -127,7 +127,7 @@
 {:else}
   <div class="wave" bind:clientWidth={w}>
     <svg bind:this={svg} width={w} height={H} class:edit={m.type === 'seq'} role={m.type === 'seq' ? 'application' : 'img'}
-         aria-label={m.type === 'seq' ? 'Passos da sequência: arraste as barras, ou a roda do mouse sobre uma' : 'Desenho do modulador'}
+         aria-label={t(m.type === 'seq' ? 'mod.seq_aria' : 'mod.drawing')}
          onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onwheel={wheel}>
       <defs>
         <linearGradient id="mw-fill" x1="0" y1="0" x2="0" y2="1">
@@ -146,17 +146,17 @@
           <line class="grid v" x1={X(k / cycles)} x2={X(k / cycles)} y1={PT} y2={PT + ph} />
         {/each}
         {#each Array.from({ length: cycles }, (_, k) => k) as k (k)}
-          <text class="ax" x={X((k + 0.5) / cycles)} y={H - 6} text-anchor="middle">ciclo {k + 1}</text>
+          <text class="ax" x={X((k + 0.5) / cycles)} y={H - 6} text-anchor="middle">{t('mod.cycle_n', { n: k + 1 })}</text>
         {/each}
       {:else if m.type === 'env'}
         {#each [0, 0.5, 1, 1.5] as s (s)}
           <line class="grid v" x1={X(s / ENV_S)} x2={X(s / ENV_S)} y1={PT} y2={PT + ph} />
-          <text class="ax" x={X(s / ENV_S)} y={H - 6} text-anchor="middle">{String(s).replace('.', ',')} s</text>
+          <text class="ax" x={X(s / ENV_S)} y={H - 6} text-anchor="middle">{num(s, s % 1 ? 1 : 0)} s</text>
         {/each}
       {/if}
 
       {#if m.type === 'off'}
-        <text class="empty" x={PL + pw / 2} y={PT + ph / 2 + 5} text-anchor="middle">Desligado: escolha um tipo acima</text>
+        <text class="empty" x={PL + pw / 2} y={PT + ph / 2 + 5} text-anchor="middle">{t('mod.off_hint')}</text>
       {:else if m.type === 'seq'}
         {#each m.step.slice(0, n) as v, i (i)}
           {@const x = X(i / n) + 3}
@@ -171,8 +171,8 @@
       {:else}
         {#if m.type === 'env'}
           <path class="guitar" d={guitar} />
-          <text class="legend g" x={PL + pw - 6} y={PT + 12} text-anchor="end">guitarra</text>
-          <text class="legend" x={PL + pw - 6} y={PT + 24} text-anchor="end">modulador</text>
+          <text class="legend g" x={PL + pw - 6} y={PT + 12} text-anchor="end">{t('mod.guitar')}</text>
+          <text class="legend" x={PL + pw - 6} y={PT + 24} text-anchor="end">{t('mod.modulator')}</text>
         {/if}
         <path class="fill" d={W.path(pts, pw, ph, PL, PT) + ` L${PL + pw} ${PT + ph} L${PL} ${PT + ph} Z`} />
         <path class="line" d={W.path(pts, pw, ph, PL, PT)} />
@@ -189,9 +189,9 @@
 
       <!-- the caption: the rate, the value now -->
       {#if m.type === 'lfo' || m.type === 'seq'}
-        <text class="cap" x={PL} y={14}>{W.rateText(m, bpm, DIVISIONS)}</text>
+        <text class="cap" x={PL} y={14}>{W.rateText(m, bpm)}</text>
       {:else if m.type === 'env'}
-        <text class="cap" x={PL} y={14}>ataque {m.attack} ms · retorno {m.release} ms · sensibilidade {m.sens > 0 ? '+' : ''}{m.sens} dB</text>
+        <text class="cap" x={PL} y={14}>{t('mod.env_caption', { attack: m.attack, release: m.release, sens: (m.sens > 0 ? '+' : '') + m.sens })}</text>
       {/if}
       {#if m.type !== 'off' && !still}
         <text class="now" x={PL + pw} y={14} text-anchor="end">{pct(head[1])}</text>

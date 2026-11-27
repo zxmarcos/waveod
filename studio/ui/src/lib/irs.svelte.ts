@@ -1,6 +1,7 @@
 // The IRs tab's state: the 20 user IR slots (what the pedal's flash holds) and a .wav on its way into one.
 
 import { errorText } from './api';
+import { t } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { IrFile, IrSlot } from './types';
 
@@ -28,7 +29,7 @@ class Irs {
       const f = await studio.call((b) => b.pickIr());
       if (f) this.draft = { slot: this.picked, file: f, name: f.name.slice(0, 16), normalize: false, busy: false };
     } catch (e) {
-      studio.ask({ title: 'Arquivo de IR', text: errorText(e), actions: [{ id: 'ok', label: 'Fechar' }] });
+      studio.ask({ title: t('irs.file_error_title'), text: errorText(e), actions: [{ id: 'ok', label: t('irs.close') }] });
     }
   }
 
@@ -52,7 +53,7 @@ class Irs {
     try {
       this.slots = await studio.call((b) => b.writeIr(d.slot, d.file.path, d.name, d.normalize));
       this.draft = null;
-      studio.say(`IR ${d.slot + 1}: ${d.name.trim()} gravado`);
+      studio.say(t('irs.written', { n: d.slot + 1, name: d.name.trim() }));
     } catch (e) {
       d.busy = false;
       studio.say(errorText(e), 'error');
@@ -66,7 +67,7 @@ class Irs {
     try {
       const names = await studio.call((b) => b.renameIr(s.slot, name));
       if (this.slots) this.slots.forEach((x, i) => { x.name = names[i] ?? x.name; });
-      studio.say(`IR ${s.slot + 1} agora é “${names[s.slot]}”`);
+      studio.say(t('irs.renamed', { n: s.slot + 1, name: names[s.slot] }));
     } catch (e) {
       studio.say(errorText(e), 'error');
     }

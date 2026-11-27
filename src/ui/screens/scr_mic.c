@@ -19,6 +19,7 @@
  */
 #include "dsp/fmath.h"
 #include "engine/cabmic.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -51,7 +52,7 @@ static struct {
     int16_t y[POINTS];
 } s SDRAM_BSS;
 
-static const char *const names[3] = { "POSI\xC3\x87\xC3\x83O", "DIST\xC3\x82NCIA", "\xC3\x82NGULO" };
+static const uint16_t names[3] = { MSG_MIC_POSITION, MSG_MIC_DISTANCE, MSG_MIC_ANGLE };
 
 static int slot_of(const struct ui_ctx *ui)
 {
@@ -262,12 +263,14 @@ static void curve_update(void)
 
 static const char *position_word(float st)
 {
-    return st < 0.5f ? "CENTRO" : st < 1.5f ? "CALOTA" : st < 2.5f ? "CONE" : "BORDA";
+    return T(st < 0.5f ? MSG_MIC_POS_CENTER : st < 1.5f ? MSG_MIC_POS_CAP : st < 2.5f ? MSG_MIC_POS_CONE
+                                                                                      : MSG_MIC_POS_EDGE);
 }
 
 static const char *distance_word(float sd)
 {
-    return sd < 0.5f ? "ENCOSTADO" : sd < 1.5f ? "PERTO" : sd < 3.0f ? "M\xC3\x89" "DIO" : "LONGE";
+    return T(sd < 0.5f ? MSG_MIC_DIST_TOUCHING : sd < 1.5f ? MSG_MIC_DIST_CLOSE : sd < 3.0f ? MSG_MIC_DIST_MID
+                                                                                          : MSG_MIC_DIST_FAR);
 }
 
 static void create(struct ui_ctx *ui, lv_obj_t *root)
@@ -287,7 +290,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     theme_box(root, 0, TEXT_Y - 1, UI_W, 1, C_LINE);
     for (int i = 0; i < 3; i++) {
         s.name[i] = theme_label(root, &font_label_12, C_LABEL, 1);
-        theme_set_text(s.name[i], names[i]);
+        theme_set_text(s.name[i], T(names[i]));
         lv_obj_set_pos(s.name[i], UI_PAD + i * (UI_W - 2 * UI_PAD) / 3, TEXT_Y + 5);
         s.value[i] = theme_label(root, &font_body_14, C_TEXT, 0);
     }

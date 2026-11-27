@@ -6,6 +6,7 @@
 <script lang="ts">
   import { EQ_LEVEL, STAGES, hzText, responseDb } from '../lib/globalset';
   import { globals } from '../lib/globals.svelte';
+  import { num, t } from '../lib/i18n.svelte';
 
   const H = 230, DB = 18, LO = Math.log10(20), HI = Math.log10(20000), PAD = 16;
   let W = $state(1000);                       // the graph's width in pixels: the handles stay round
@@ -55,34 +56,34 @@
   const fmt = (k: number) => {
     const v = p[k];
     if (k === st.f) return hzText(v);
-    if (k === st.q) return v.toFixed(2).replace('.', ',');
+    if (k === st.q) return num(v, 2);
     return `${v > 0 ? '+' : ''}${Math.round(v)} dB`;
   };
   const cells = $derived([
-    { k: st.f, label: 'Frequência' }, { k: st.q, label: 'Largura (Q)' }, ...(st.g >= 0 ? [{ k: st.g, label: 'Ganho' }] : []),
+    { k: st.f, label: t('eq.freq') }, { k: st.q, label: t('eq.width') }, ...(st.g >= 0 ? [{ k: st.g, label: t('eq.gain') }] : []),
   ]);
   /** frequency sliders move on a log scale */
   const toSlider = (k: number, v: number) => (k === st.f ? Math.log10(v) : v);
   const fromSlider = (k: number, v: number) => (k === st.f ? Math.round(Math.pow(10, v)) : v);
 </script>
 
-<section class="eq" class:off={!on} aria-label="EQ global">
+<section class="eq" class:off={!on} aria-label={t('eq.title')}>
   <header>
-    <h2>EQ global</h2>
-    <span class="sub">depois da cadeia, em todos os presets</span>
-    <div class="seg" role="radiogroup" aria-label="EQ global ligado">
-      <button role="radio" aria-checked={!on} class:on={!on} onclick={() => globals.set('eq_on', 0)}>Desligado</button>
-      <button role="radio" aria-checked={on} class:on onclick={() => globals.set('eq_on', 1)}>Ligado</button>
+    <h2>{t('eq.title')}</h2>
+    <span class="sub">{t('eq.sub')}</span>
+    <div class="seg" role="radiogroup" aria-label={t('eq.on_aria')}>
+      <button role="radio" aria-checked={!on} class:on={!on} onclick={() => globals.set('eq_on', 0)}>{t('global.off')}</button>
+      <button role="radio" aria-checked={on} class:on onclick={() => globals.set('eq_on', 1)}>{t('global.on')}</button>
     </div>
     {#if globals.canUndoFlat}
-      <button class="ghost" onclick={() => globals.undoFlat()}>Voltar</button>
+      <button class="ghost" onclick={() => globals.undoFlat()}>{t('eq.undo')}</button>
     {:else}
-      <button class="ghost" onclick={() => globals.flatten()} title="Todos os ganhos em 0 dB, os cortes desligados, o nível em 50">Flat</button>
+      <button class="ghost" onclick={() => globals.flatten()} title={t('eq.flat_title')}>{t('eq.flat')}</button>
     {/if}
   </header>
 
   <svg bind:this={svg} bind:clientWidth={W} viewBox="0 0 {W} {H}" class="graph" role="img"
-       aria-label="Resposta do EQ global" onpointermove={move} onpointerup={up} onpointercancel={up}>
+       aria-label={t('eq.graph_aria')} onpointermove={move} onpointerup={up} onpointercancel={up}>
     {#each [50, 100, 200, 500, 1000, 2000, 5000, 10000] as f (f)}
       <line class="grid" x1={x(f)} x2={x(f)} y1="0" y2={H} />
     {/each}
@@ -105,11 +106,11 @@
     {#each [[100, '100'], [1000, '1k'], [10000, '10k']] as [f, t] (f)}<span style:left="{x(Number(f))}px">{t}</span>{/each}
   </div>
 
-  <div class="strip" role="tablist" aria-label="Estágios do EQ">
+  <div class="strip" role="tablist" aria-label={t('eq.stages_aria')}>
     {#each STAGES as s, i (s.short)}
       <button role="tab" aria-selected={globals.stage === i} class:sel={globals.stage === i} class:lit={!!p[s.on]}
               onclick={() => (globals.stage = i)} ondblclick={() => globals.setEq(s.on, p[s.on] ? 0 : 1)}
-              title="Duplo clique liga / desliga">
+              title={t('eq.toggle_title')}>
         <i></i>{s.short}
       </button>
     {/each}
@@ -120,7 +121,7 @@
       <div class="stage">
         <b>{st.name}</b>
         <button class="pow" class:lit={!!p[st.on]} onclick={() => globals.setEq(st.on, p[st.on] ? 0 : 1)}>
-          {p[st.on] ? 'Ligado' : 'Desligado'}
+          {p[st.on] ? t('global.on') : t('global.off')}
         </button>
       </div>
       {#each cells as c (c.k)}
@@ -134,7 +135,7 @@
         </label>
       {/each}
       <label class="cell level">
-        <span>Nível</span>
+        <span>{t('eq.level')}</span>
         <b>{Math.round(p[EQ_LEVEL])}</b>
         <input type="range" min="0" max="100" step="1" value={p[EQ_LEVEL]}
                oninput={(e) => globals.setEq(EQ_LEVEL, Number(e.currentTarget.value))} />

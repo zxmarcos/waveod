@@ -13,6 +13,7 @@
  * Touch: tap a preset = load it (the list stays), drag the list up / down = scroll it.
  */
 #include "fw/presets.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -140,7 +141,7 @@ static void refresh(struct ui_ctx *ui)
         ui->preset_cursor = r->index;
     }
     follow(ui);
-    top_bar_sub("PRESETS");
+    top_bar_sub(T(MSG_MENU_PRESETS));
     lv_obj_set_y(s.thumb, (ROWS * ROW_H - 4) * s.top / BANKS);
     char text[PRESET_NAME_LEN + 4];
     for (int row = 0; row < ROWS; row++) {
@@ -155,7 +156,7 @@ static void refresh(struct ui_ctx *ui)
             if (name[0])
                 lv_snprintf(text, sizeof text, "%s%s", name, active && r->dirty ? "*" : "");
             else
-                lv_snprintf(text, sizeof text, "(vazio)");
+                lv_snprintf(text, sizeof text, "%s", T(MSG_SCREENS_EMPTY));
             theme_set_text(t, text);
             theme_set_color(t, active ? C_ACCENT : cursor ? C_TEXT : name[0] ? C_LABEL : C_DIM);
             lv_obj_align(t, LV_ALIGN_LEFT_MID, 4, 0);

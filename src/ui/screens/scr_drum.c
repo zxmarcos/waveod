@@ -20,6 +20,7 @@
 #include "model/drum_user.h"
 #include "model/globals.h"
 #include "platform/time.h"
+#include "ui/i18n.h"
 #include "ui/images/icons.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
@@ -75,7 +76,7 @@ static int cur_genre(const struct ui_ctx *ui)
 
 static void no_user_patterns(void)
 {
-    ui_toast("Nenhum ritmo importado \xC2\xB7 use o waveod Studio");
+    ui_toast(T(MSG_DRUM_NO_USER));
 }
 
 /* a pattern of the bank: it plays instead of MEUS RITMOS */
@@ -89,7 +90,7 @@ static void bank_pattern(struct ui_ctx *ui, int p)
 static void play(struct ui_ctx *ui, int on)
 {
     if (!drums_available()) {
-        ui_toast("Bateria: o firmware base n\xC3\xA3o trouxe os ritmos");
+        ui_toast(T(MSG_DRUM_NO_PATTERNS));
         return;
     }
     drums_play(on);
@@ -211,7 +212,7 @@ static void on_row(struct ui_ctx *ui, const struct gesture *g)
         if (l == L_GENRE)
             genre(ui, i - list_sel(ui, L_GENRE));
         else if (user_genre() && drum_user_select(i) != 0)
-            ui_toast("Lugar vazio \xC2\xB7 importe um MIDI pelo waveod Studio");
+            ui_toast(T(MSG_DRUM_EMPTY_SLOT));
         else if (!user_genre())
             bank_pattern(ui, drum_genre_first(ui->globals->drum_genre % DRUM_GENRES) + i);
         ui->rev++;
@@ -275,8 +276,8 @@ static void list_create(lv_obj_t *root, int l, int x, int w, const char *heading
 static void create(struct ui_ctx *ui, lv_obj_t *root)
 {
     (void)ui;
-    list_create(root, L_GENRE, GENRE_X, GENRE_W, "ESTILO");
-    list_create(root, L_PATTERN, PAT_X, PAT_W, "RITMO");
+    list_create(root, L_GENRE, GENRE_X, GENRE_W, T(MSG_DRUM_STYLE));
+    list_create(root, L_PATTERN, PAT_X, PAT_W, T(MSG_DRUM_RHYTHM));
 
     /* play / stop, its state, the bar's beats */
     int bx = SIDE_X + (SIDE_W - BUTTON) / 2;
@@ -318,7 +319,7 @@ static void enter(struct ui_ctx *ui)
 static void leave(struct ui_ctx *ui)
 {
     if (globals_save(ui->globals, &ui->rig->src))
-        ui_toast("Falha ao gravar a bateria");
+        ui_toast(T(MSG_DRUM_SAVE_FAILED));
 }
 
 static void list_refresh(const struct ui_ctx *ui, int l, int playing)
@@ -335,12 +336,12 @@ static void list_refresh(const struct ui_ctx *ui, int l, int playing)
         lv_obj_clear_flag(o->row[r], LV_OBJ_FLAG_HIDDEN);
         int empty = 0;
         if (l == L_GENRE) {
-            theme_set_text(o->text[r], i < DRUM_GENRES ? drum_genre_names[i] : "MEUS RITMOS");
+            theme_set_text(o->text[r], i < DRUM_GENRES ? drum_genre_names[i] : T(MSG_DRUM_MY_RHYTHMS));
         } else if (user_genre()) {
             struct drum_user_info info;
             char text[DRUM_USER_NAME + 8];
             empty = drum_user_info(i, &info) != 0;
-            lv_snprintf(text, sizeof text, "%d  %s", i + 1, empty ? "vazio" : info.name);
+            lv_snprintf(text, sizeof text, "%d  %s", i + 1, empty ? T(MSG_DRUM_SLOT_EMPTY) : info.name);
             theme_set_text(o->text[r], text);
         } else {
             theme_set_text(o->text[r], drum_pattern_names[drum_genre_first(ui->globals->drum_genre % DRUM_GENRES) + i]);
@@ -359,7 +360,7 @@ static void refresh(struct ui_ctx *ui)
 {
     const struct globals *g = ui->globals;
     int p = globals_drum_pattern(g), on = drums_playing(), bpm = bpm_of(ui);
-    top_bar_sub("BATERIA");
+    top_bar_sub(T(MSG_SHARED_FN_DRUM));
     follow(ui, L_GENRE);
     follow(ui, L_PATTERN);
     list_refresh(ui, L_GENRE, on);
@@ -370,7 +371,7 @@ static void refresh(struct ui_ctx *ui)
     theme_set_border(s.button, col);
     theme_set_icon(s.icon, on ? &icon_stop_28 : &icon_play_28, col);
     lv_obj_center(s.icon);
-    theme_set_text(s.state, !drums_available() ? "SEM RITMOS" : on ? "TOCANDO" : "PARADA");
+    theme_set_text(s.state, T(!drums_available() ? MSG_DRUM_NO_RHYTHMS : on ? MSG_DRUM_PLAYING : MSG_DRUM_STOPPED));
     theme_set_color(s.state, on ? C_TUNED : C_LABEL);
     uint32_t beat = on ? time_ms() * (uint32_t)bpm / 60000u : 0;
     for (int i = 0; i < 4; i++)
@@ -382,15 +383,16 @@ static void refresh(struct ui_ctx *ui)
         struct drum_user_info info;
         int once = drum_user_info(user, &info) == 0 && (info.flags & DRUM_USER_ONCE);
         lv_snprintf(v, sizeof v, "M%d", user + 1);
-        param_cell_set(&s.cells[0], "MEU RITMO", once ? "UMA VEZ" : "", v, (float)user / (DRUM_USER_SLOTS - 1),
-                       C_LABEL, C_TEXT, C_ACCENT);
+        param_cell_set(&s.cells[0], T(MSG_DRUM_MY_RHYTHM), once ? T(MSG_DRUM_ONCE) : "", v,
+                       (float)user / (DRUM_USER_SLOTS - 1), C_LABEL, C_TEXT, C_ACCENT);
     } else {
         lv_snprintf(v, sizeof v, "%d", p + 1);
-        param_cell_set(&s.cells[0], "RITMO", "", v, (float)p / (DRUM_PATTERNS - 1), C_LABEL, C_TEXT, C_ACCENT);
+        param_cell_set(&s.cells[0], T(MSG_DRUM_RHYTHM), "", v, (float)p / (DRUM_PATTERNS - 1), C_LABEL, C_TEXT,
+                       C_ACCENT);
     }
     lv_snprintf(v, sizeof v, "%d BPM", bpm);
-    param_cell_set(&s.cells[1], g->drum_sync ? "TEMPO \xC2\xB7 SEGUE" : "TEMPO", "", v, (float)(bpm - 40) / 260.0f,
-                   C_LABEL, C_TEXT, g->drum_sync ? C_OFF : C_ACCENT);
+    param_cell_set(&s.cells[1], T(g->drum_sync ? MSG_DRUM_TEMPO_SYNC : MSG_DRUM_TEMPO), "", v,
+                   (float)(bpm - 40) / 260.0f, C_LABEL, C_TEXT, g->drum_sync ? C_OFF : C_ACCENT);
     lv_snprintf(v, sizeof v, "%d", g->drum_volume);
     param_cell_set(&s.cells[2], "VOLUME", "", v, g->drum_volume / 100.0f, C_LABEL, C_TEXT, C_ACCENT);
 }

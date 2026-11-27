@@ -209,7 +209,7 @@ def main():
         p.load(EMPTY)
         p.load(31)
         _, blocks = p.describe(EDITED)
-        check([b.name for b in blocks] == ['AUSENTE'], 'before installing: %s' % [b.name for b in blocks])
+        check([b.name for b in blocks] in (['AUSENTE'], ['MISSING']), 'before installing: %s' % [b.name for b in blocks])
         p.write_library(img)
         lib = p.library()
         check([(m.id, m.name) for m in lib] == [(a.module_id, 'Stereo Util M')] and lib.pack() == img,
@@ -230,7 +230,7 @@ def main():
         _, blocks = p.describe(31)
         _, kept = p.get(31)
         l, r, _ = play.run(p, 31)
-        check([b.name for b in blocks] == ['AUSENTE'] and len(p.library()) == 0 and
+        check([b.name for b in blocks] in (['AUSENTE'], ['MISSING']) and len(p.library()) == 0 and
               any(s.id == a.module_id for s in wvpreset.Preset.decode(kept).slots()) and l == ref_l and r == ref_r,
               'removed (an empty library): %s, the preset keeps it, the signal passes' % [b.name for b in blocks])
     _, kept = p.get(33)
@@ -238,7 +238,7 @@ def main():
     _, blocks = p.describe(33)
     l, r, _ = play.run(p, 33)
     check(slot is not None and slot.knobs[K_GAIN] == -6 and l == ref_l and r == ref_r and
-          [b.name for b in blocks] == ['AUSENTE'],
+          [b.name for b in blocks] in (['AUSENTE'], ['MISSING']),
           'not installed (%#x): kept with its knobs, shown as %s, the signal passes' % (MISSING, [b.name for b in blocks]))
     _, _, plain = play.run(p, 26, count=True)
     _, _, more = play.run(p, 25, count=True)

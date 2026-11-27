@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "waveod-studio"
-version = "0.1.1"
+version = "0.1.2"
 description = "PC app for the waveod firmware (QME-200): presets in waveod's own format, backups, firmware updates, flash dumps"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -10,6 +10,7 @@
  * Clone: the original's captures under "Capturas", NAM captures under "NAM" with their rate at the row's end
  * ("48k" and the resampler's icon when they run through it, "44.1k" otherwise).
  */
+#include "ui/i18n.h"
 #include "ui/images/icons.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
@@ -76,11 +77,11 @@ static struct {
 static const char *group_of(int menu, const struct catalog_item *item)
 {
     if (menu == MENU_CLONE)                     /* the original's captures, then NAM's (engine/nam_block.c) */
-        return item->block ? "NAM" : "Capturas";
+        return item->block ? "NAM" : T(MSG_BROWSE_CAPTURES);
     if (menu == MENU_IR)
-        return "Usu\xC3\xA1rio";
+        return T(MSG_BROWSE_USER);
     if (catalog_is_special(menu))
-        return "Gabinetes";
+        return T(MSG_BROWSE_CABS);
     return item->engine.category && item->engine.category[0] ? item->engine.category : "-";
 }
 
@@ -551,8 +552,8 @@ static void refresh_foot(struct ui_ctx *ui)
         if (ui->browse_cell >= 0)
             ui_cell_lane(ui, ui->browse_cell, lane, sizeof lane);
         else
-            lv_snprintf(lane, sizeof lane, "NOVO BLOCO");
-        lv_snprintf(hint, sizeof hint, "TOQUE NUM MODELO PARA ADICIONAR EM %s", lane);
+            lv_snprintf(lane, sizeof lane, "%s", T(MSG_BROWSE_NEW_BLOCK));
+        lv_snprintf(hint, sizeof hint, T(MSG_BROWSE_TAP_HINT), lane);
         theme_set_text(s.hint, hint);
         lv_obj_clear_flag(s.hint, LV_OBJ_FLAG_HIDDEN);
         return;
@@ -587,8 +588,8 @@ static void refresh(struct ui_ctx *ui)
     else if (ui->browse_cell >= 0)
         ui_cell_lane(ui, ui->browse_cell, lane, sizeof lane);
     else
-        lv_snprintf(lane, sizeof lane, "NOVO BLOCO");
-    lv_snprintf(title, sizeof title, "SELECIONAR EFEITO \xC2\xB7 %s", lane);
+        lv_snprintf(lane, sizeof lane, "%s", T(MSG_BROWSE_NEW_BLOCK));
+    lv_snprintf(title, sizeof title, T(MSG_BROWSE_TITLE), lane);
     top_bar_sub(title);
     build(ui);
     refresh_columns(ui);

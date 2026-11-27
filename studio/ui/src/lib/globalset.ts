@@ -1,6 +1,7 @@
 // The GLOBAL screen's settings as the pedal shows them (src/ui/screens/scr_settings.c: its cards, names and
 // values) and the global EQ's response (src/dsp/global_eq.c and biquad.c, the same designs).
 
+import { decimal, LANGUAGES, t, type MsgKey } from './i18n.svelte';
 import type { IconName } from './menus';
 
 export type Control =
@@ -11,87 +12,103 @@ export type Control =
   | { kind: 'tempo' }                                           // 0 off, else 40..300 BPM
   | { kind: 'exp'; pedal: 1 | 2 };                              // the calibration (read only)
 
-export interface Row { name: string; title: string; hint?: string; control: Control }
+/** optional: shown only when the pedal reports the setting (an older waveod may not have it) */
+export interface Row { name: string; title: string; hint?: string; control: Control; optional?: boolean }
 export interface Card { id: string; title: string; icon: IconName; rows: Row[]; note?: string }
 
+// the texts are the catalog's (i18n/studio-system.json): getters, so the page shows them in the language now. A text
+// written '=...' is not translated (product terms, the pedal's own labels).
+type Txt = MsgKey | `=${string}`;
+const word = (k: Txt) => (k.startsWith('=') ? k.slice(1) : t(k as MsgKey));
+const choice = (...keys: Txt[]): Control => ({ kind: 'choice', get options() { return keys.map(word); } });
+const toggle = (on: Txt, off: Txt): Control => ({ kind: 'switch', get on() { return word(on); }, get off() { return word(off); } });
+const list = (items: [number, Txt][]): Control => ({ kind: 'list', get options() { return items.map(([v, k]) => [v, word(k)] as [number, string]); } });
+const row = (name: string, title: Txt, control: Control, hint?: MsgKey): Row =>
+  ({ name, get title() { return word(title); }, get hint() { return hint && t(hint); }, control });
+const card = (id: string, title: Txt, icon: IconName, rows: Row[], note?: MsgKey): Card =>
+  ({ id, get title() { return word(title); }, icon, rows, get note() { return note && t(note); } });
+
 /** the footswitch functions of the jack's footswitches, in the pedal's order (model/assign.c functions[]) */
-export const EXT_FUNCTIONS: [number, string][] = [
-  [0, '—'], [1, 'CTRL 1'], [2, 'CTRL 2'], [3, 'CTRL 3'], [4, 'CTRL 4'], [8, 'TAP'], [5, 'LOOPER'], [6, 'BATERIA'],
-  [19, 'RITMO -'], [18, 'RITMO +'], [7, 'AFINADOR'], [20, 'EXP A/B'], [12, 'PRESET -'], [11, 'PRESET +'],
-  [10, 'BANCO -'], [9, 'BANCO +'], [13, 'PRESET A'], [14, 'PRESET B'], [15, 'PRESET C'], [16, 'PRESET D'], [23, 'MODO'],
+const EXT_FUNCTIONS: [number, Txt][] = [
+  [0, '=—'], [1, '=CTRL 1'], [2, '=CTRL 2'], [3, '=CTRL 3'], [4, '=CTRL 4'], [8, 'shared.fn.tap'], [5, 'shared.fn.looper'],
+  [6, 'shared.fn.drum'], [19, 'shared.fn.drum_prev'], [18, 'shared.fn.drum_next'], [7, 'shared.fn.tuner'], [20, 'shared.fn.exp_ab'],
+  [12, 'shared.fn.preset_down'], [11, 'shared.fn.preset_up'], [10, 'shared.fn.bank_down'], [9, 'shared.fn.bank_up'],
+  [13, '=PRESET A'], [14, '=PRESET B'], [15, '=PRESET C'], [16, '=PRESET D'], [23, 'shared.fn.mode'],
 ];
 const CHANNELS: [number, string][] = [[0, 'OMNI'], ...Array.from({ length: 16 }, (_, i) => [i + 1, `${i + 1}`] as [number, string])];
 const signedDb = (v: number) => `${v > 0 ? '+' : ''}${v} dB`;
+/** the pedal's language: the catalog's languages, in the order the pedal stores them (setting 40) */
+const language: Row = { name: 'language', get title() { return t('global.pedal_language'); }, optional: true,
+                        control: { kind: 'choice', options: LANGUAGES.map((l) => l.name) } };
 
 export const CARDS: Card[] = [
-  { id: 'io', title: 'In / Out', icon: 'io', rows: [
-    { name: 'input_mode', title: 'Entrada', control: { kind: 'choice', options: ['Violão', 'Guitarra', 'Linha'] } },
-    { name: 'input_level', title: 'Nível In', control: { kind: 'range', fmt: signedDb } },
-    { name: 'cabs', title: 'Cab nas saídas', hint: 'onde os blocos Cab / IR tocam',
-      control: { kind: 'choice', options: ['L e R', 'Só em R', 'Só em L', 'Nenhuma'] } },
-    { name: 'aux', title: 'Nível AUX In', control: { kind: 'range' } },
-  ] },
-  { id: 'tuner', title: 'Afinador', icon: 'tuner', rows: [
-    { name: 'a4', title: 'Referência A4', control: { kind: 'range', unit: 'Hz' } },
-    { name: 'tuner_mute', title: 'Som ao afinar', control: { kind: 'switch', on: 'Mudo', off: 'Ligado' } },
-    { name: 'tuner_strobe', title: 'Visor', control: { kind: 'switch', on: 'Strobe', off: 'Agulha' } },
-  ] },
-  { id: 'usb', title: 'Áudio USB', icon: 'usb', rows: [
-    { name: 'usb_mode', title: 'Canais', hint: 'o computador vê o pedal de novo com a outra configuração',
-      control: { kind: 'choice', options: ['6 In / 4 Out', '2 In / 2 Out'] } },
-    { name: 'usb_rec', title: 'Nível de gravação', control: { kind: 'range', fmt: signedDb } },
-    { name: 'usb_mon', title: 'Retorno do PC', control: { kind: 'range', fmt: signedDb } },
-    { name: 'usb_wet', title: 'Gravação 1 / 2',
-      control: { kind: 'choice', options: ['Seca / Seca', 'Proc. / Seca', 'Seca / Proc.', 'Proc. / Proc.'] } },
-    { name: 'usb_aux', title: 'AUX na gravação', control: { kind: 'switch', on: 'Ligado', off: 'Desligado' } },
-  ] },
-  { id: 'jack', title: 'EXP 2 / FS externos', icon: 'fs', rows: [
-    { name: 'exp2_jack', title: 'Jack EXP 2', control: { kind: 'choice', options: ['Pedal', '1 footswitch', '2 footswitches'] } },
-    { name: 'ext1', title: 'FS externo 1', control: { kind: 'list', options: EXT_FUNCTIONS } },
-    { name: 'ext2', title: 'FS externo 2', control: { kind: 'list', options: EXT_FUNCTIONS } },
-  ] },
-  { id: 'midi', title: 'MIDI', icon: 'midi', rows: [
-    { name: 'midi_source', title: 'Entrada', control: { kind: 'choice', options: ['Só TRS', 'Só USB', 'TRS e USB'] } },
-    { name: 'midi_trs', title: 'Canal do TRS', control: { kind: 'list', options: CHANNELS } },
-    { name: 'midi_usb', title: 'Canal do USB', control: { kind: 'list', options: CHANNELS } },
-    { name: 'clock_source', title: 'Fonte do tempo',
-      control: { kind: 'list', options: [[0, 'Interno'], [1, 'Clock do TRS'], [2, 'Clock do USB'], [3, 'Clock externo'], [4, 'Interno e clock']] } },
-    { name: 'clock_out', title: 'Enviar clock', control: { kind: 'choice', options: ['Desligado', 'TRS', 'USB', 'TRS e USB'] } },
-  ] },
-  { id: 'presets', title: 'Presets', icon: 'presets', rows: [
-    { name: 'tempo', title: 'Tempo global', hint: 'ligado, os efeitos seguem este tempo em vez do de cada preset', control: { kind: 'tempo' } },
-    { name: 'spill', title: 'Rastro na troca', hint: 'delays e reverbs soando por cima do próximo preset',
-      control: { kind: 'choice', options: ['Desligado', 'Até 2 s', 'Até 5 s', 'Até 10 s', 'Até 20 s'] } },
-    { name: 'scene_manual', title: 'Knobs na cena', hint: 'Auto: um knob girado com as cenas em uso entra nelas',
-      control: { kind: 'switch', on: 'Manual', off: 'Auto' } },
-    { name: 'cab_original', title: 'Motor Cab / IR', hint: 'o preset recarrega no outro motor',
-      control: { kind: 'switch', on: 'Original', off: 'waveod' } },
-  ] },
-  { id: 'screen', title: 'Tela', icon: 'screen', rows: [
-    { name: 'brightness', title: 'Brilho', control: { kind: 'range', unit: '%' } },
-    { name: 'cursor', title: 'Marca de toque', control: { kind: 'switch', on: 'Ligada', off: 'Desligada' } },
-  ] },
-  { id: 'exp', title: 'Pedais EXP', icon: 'pedal', note: 'Calibre no pedal: GLOBAL › PEDAIS EXP › CALIBRAR.', rows: [
-    { name: 'exp1', title: 'EXP 1', control: { kind: 'exp', pedal: 1 } },
-    { name: 'exp2', title: 'EXP 2', control: { kind: 'exp', pedal: 2 } },
-  ] },
+  card('io', 'global.card_io', 'io', [
+    row('input_mode', 'global.input', choice('global.input_acoustic', 'global.input_guitar', 'global.input_line')),
+    row('input_level', 'global.input_level', { kind: 'range', fmt: signedDb }),
+    row('cabs', 'global.cabs', choice('global.cabs_lr', 'global.cabs_r', 'global.cabs_l', 'global.cabs_none'), 'global.cabs_hint'),
+    row('aux', 'global.aux', { kind: 'range' }),
+  ]),
+  card('tuner', 'global.card_tuner', 'tuner', [
+    row('a4', 'global.a4', { kind: 'range', unit: 'Hz' }),
+    row('tuner_mute', 'global.tuner_mute', toggle('global.muted', 'global.on')),
+    row('tuner_strobe', 'global.tuner_display', toggle('=Strobe', 'global.needle')),
+  ]),
+  card('usb', 'global.card_usb', 'usb', [
+    row('usb_mode', 'global.usb_mode', choice('=6 In / 4 Out', '=2 In / 2 Out'), 'global.usb_mode_hint'),
+    row('usb_rec', 'global.usb_rec', { kind: 'range', fmt: signedDb }),
+    row('usb_mon', 'global.usb_mon', { kind: 'range', fmt: signedDb }),
+    row('usb_wet', 'global.usb_wet', choice('global.wet_dd', 'global.wet_pd', 'global.wet_dp', 'global.wet_pp')),
+    row('usb_aux', 'global.usb_aux', toggle('global.on', 'global.off')),
+  ]),
+  card('jack', 'global.card_jack', 'fs', [
+    row('exp2_jack', 'global.exp2_jack', choice('global.jack_pedal', 'global.jack_fs1', 'global.jack_fs2')),
+    row('ext1', 'global.ext1', list(EXT_FUNCTIONS)),
+    row('ext2', 'global.ext2', list(EXT_FUNCTIONS)),
+  ]),
+  card('midi', '=MIDI', 'midi', [
+    row('midi_source', 'global.input', choice('global.trs_only', 'global.usb_only', 'global.trs_usb')),
+    row('midi_trs', 'global.midi_trs', { kind: 'list', options: CHANNELS }),
+    row('midi_usb', 'global.midi_usb', { kind: 'list', options: CHANNELS }),
+    row('clock_source', 'global.clock_source', list([[0, 'global.clock_internal'], [1, 'global.clock_trs'], [2, 'global.clock_usb'],
+                                                    [3, 'global.clock_external'], [4, 'global.clock_both']])),
+    row('clock_out', 'global.clock_out', choice('global.off', '=TRS', '=USB', 'global.trs_usb')),
+  ]),
+  card('presets', 'tab.presets', 'presets', [
+    row('tempo', 'global.tempo', { kind: 'tempo' }, 'global.tempo_hint'),
+    row('spill', 'global.spill', {
+      kind: 'choice', get options() { return [t('global.off'), ...[2, 5, 10, 20].map((n) => t('global.up_to', { n }))]; },
+    }, 'global.spill_hint'),
+    row('scene_manual', 'global.scene_knobs', toggle('global.manual', 'global.auto'), 'global.scene_knobs_hint'),
+    row('cab_original', 'global.cab_engine', toggle('global.original', '=waveod'), 'global.cab_engine_hint'),
+  ]),
+  card('screen', 'global.card_screen', 'screen', [
+    row('brightness', 'global.brightness', { kind: 'range', unit: '%' }),
+    row('cursor', 'global.cursor', toggle('global.on_f', 'global.off_f')),
+    language,
+  ]),
+  card('exp', 'global.card_exp', 'pedal', [
+    row('exp1', '=EXP 1', { kind: 'exp', pedal: 1 }),
+    row('exp2', '=EXP 2', { kind: 'exp', pedal: 2 }),
+  ], 'global.exp_note'),
 ];
 
 // ---------------------------------------------------------------------- the global EQ (fw/globals_format.h)
 export const EQ_LEVEL = 30;
 export interface Stage { short: string; name: string; on: number; f: number; q: number; g: number; kind: 'lowcut' | 'lowshelf' | 'peak' | 'highshelf' | 'highcut' }
+const stage = (short: string, name: MsgKey, on: number, f: number, q: number, g: number, kind: Stage['kind'], n?: number): Stage =>
+  ({ short, get name() { return t(name, n === undefined ? undefined : { n }); }, on, f, q, g, kind });
 export const STAGES: Stage[] = [
-  { short: 'L.CUT', name: 'Corte de graves', on: 0, f: 1, q: 2, g: -1, kind: 'lowcut' },
-  { short: 'L.SHF', name: 'Shelf de graves', on: 3, f: 4, q: 5, g: 6, kind: 'lowshelf' },
-  { short: 'B1', name: 'Banda 1', on: 7, f: 8, q: 9, g: 10, kind: 'peak' },
-  { short: 'B2', name: 'Banda 2', on: 11, f: 12, q: 13, g: 14, kind: 'peak' },
-  { short: 'B3', name: 'Banda 3', on: 15, f: 16, q: 17, g: 18, kind: 'peak' },
-  { short: 'B4', name: 'Banda 4', on: 19, f: 20, q: 21, g: 22, kind: 'peak' },
-  { short: 'H.SHF', name: 'Shelf de agudos', on: 23, f: 24, q: 25, g: 26, kind: 'highshelf' },
-  { short: 'H.CUT', name: 'Corte de agudos', on: 27, f: 28, q: 29, g: -1, kind: 'highcut' },
+  stage('L.CUT', 'eq.stage_lowcut', 0, 1, 2, -1, 'lowcut'),
+  stage('L.SHF', 'eq.stage_lowshelf', 3, 4, 5, 6, 'lowshelf'),
+  stage('B1', 'eq.stage_band', 7, 8, 9, 10, 'peak', 1),
+  stage('B2', 'eq.stage_band', 11, 12, 13, 14, 'peak', 2),
+  stage('B3', 'eq.stage_band', 15, 16, 17, 18, 'peak', 3),
+  stage('B4', 'eq.stage_band', 19, 20, 21, 22, 'peak', 4),
+  stage('H.SHF', 'eq.stage_highshelf', 23, 24, 25, 26, 'highshelf'),
+  stage('H.CUT', 'eq.stage_highcut', 27, 28, 29, -1, 'highcut'),
 ];
 
-export const hzText = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(hz >= 10000 ? 1 : 2).replace('.', ',').replace(/,?0+$/, '')} kHz` : `${Math.round(hz)} Hz`);
+export const hzText = (hz: number) => (hz >= 1000 ? `${decimal((hz / 1000).toFixed(hz >= 10000 ? 1 : 2).replace(/\.?0+$/, ''))} kHz` : `${Math.round(hz)} Hz`);
 
 const FS = 44100;
 

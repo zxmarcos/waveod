@@ -9,6 +9,7 @@
  */
 #include "engine/latency.h"
 #include "platform/audio.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -32,15 +33,12 @@
 #define C_FRAME   0x2A2926
 #define C_SEL_BG  0x161514
 
-static const char *const route_name[LAT_ROUTES] = { "SA\xC3\x8D" "DA L", "SA\xC3\x8D" "DA R", "FX SEND", "PRESET" };
-static const char *const route_sub[LAT_ROUTES] = { "\xC2\xBB INPUT", "\xC2\xBB INPUT", "\xC2\xBB FX RETURN",
-                                                   "SEM CABO" };
+static const uint16_t route_name[LAT_ROUTES] = { MSG_LATENCY_SCR_ROUTE_OUT_L, MSG_LATENCY_SCR_ROUTE_OUT_R, 0, 0 };
+static const char *const route_fixed[LAT_ROUTES] = { 0, 0, "FX SEND", "PRESET" };   /* the same in every language */
+static const char *const route_sub[LAT_ROUTES] = { "\xC2\xBB INPUT", "\xC2\xBB INPUT", "\xC2\xBB FX RETURN", 0 };
 
-static const char *const hints[LAT_ROUTES] = {
-    "Cabo da sa\xC3\xAD" "da L no INPUT. Desligue amplificador e fone: o teste d\xC3\xA1 um clique.",
-    "Cabo da sa\xC3\xAD" "da R no INPUT. Desligue amplificador e fone: o teste d\xC3\xA1 um clique.",
-    "Cabo do FX SEND no FX RETURN. Desligue amplificador e fone: o teste d\xC3\xA1 um clique.",
-    "Sem cabo: o sinal de teste passa pelo preset ativo; as sa\xC3\xAD" "das ficam mudas.",
+static const uint16_t hints[LAT_ROUTES] = {
+    MSG_LATENCY_SCR_HINT_OUT_L, MSG_LATENCY_SCR_HINT_OUT_R, MSG_LATENCY_SCR_HINT_FX, MSG_LATENCY_SCR_HINT_PRESET,
 };
 
 static struct {
@@ -115,10 +113,10 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
         lv_obj_set_style_radius(s.card[i], 3, 0);
         gesture_bind(s.card[i], on_card, i);
         s.card_name[i] = theme_label(s.card[i], &font_body_14, C_TEXT, 0);
-        lv_label_set_text_static(s.card_name[i], route_name[i]);
+        lv_label_set_text_static(s.card_name[i], route_fixed[i] ? route_fixed[i] : T(route_name[i]));
         lv_obj_set_pos(s.card_name[i], 10, 5);
         s.card_sub[i] = theme_label(s.card[i], &font_tag_12, C_OFF, 1);
-        lv_label_set_text_static(s.card_sub[i], route_sub[i]);
+        lv_label_set_text_static(s.card_sub[i], route_sub[i] ? route_sub[i] : T(MSG_LATENCY_SCR_NO_CABLE));
         lv_obj_set_pos(s.card_sub[i], 10, 24);
     }
     s.hint = theme_label(root, &font_body_14, C_LABEL, 0);
@@ -201,10 +199,10 @@ static void show_result(const struct latency_result *r)
     smp[0] = ta[0] = tb[0] = sp[0] = 0;
     switch (r->status) {
     case LAT_BUSY:
-        lv_snprintf(big, sizeof big, "MEDINDO");
+        lv_snprintf(big, sizeof big, "%s", T(MSG_LATENCY_SCR_MEASURING));
         colour = C_LABEL;
         if (cable)
-            lv_snprintf(smp, sizeof smp, "N\xC3\x8DVEL DO SINAL %d dBFS", r->level_db);
+            lv_snprintf(smp, sizeof smp, T(MSG_LATENCY_SCR_SIGNAL_LEVEL), r->level_db);
         break;
     case LAT_OK:
     case LAT_UNSTABLE:
@@ -212,30 +210,28 @@ static void show_result(const struct latency_result *r)
         lv_snprintf(big, sizeof big, "%s ms", a);
         colour = r->status == LAT_OK ? C_ACCENT : C_CLIP;
         decimal(b, sizeof b, r->mean, 0);
-        lv_snprintf(smp, sizeof smp, "%s AMOSTRAS A 44.1 kHz%s", b,
-                    r->status == LAT_UNSTABLE ? " \xC2\xB7 INST\xC3\x81VEL" : "");
+        lv_snprintf(smp, sizeof smp, T(MSG_LATENCY_SCR_SAMPLES), b,
+                    r->status == LAT_UNSTABLE ? T(MSG_LATENCY_SCR_UNSTABLE) : "");
         decimal(a, sizeof a, r->min, 0);
         decimal(b, sizeof b, r->max, 0);
         if (cable)
             lv_snprintf(c, sizeof c, " \xC2\xB7 %d dBFS", r->level_db);
         else
             c[0] = 0;
-        lv_snprintf(sp, sizeof sp, "%d MEDIDAS DE %s A %s%s \xC2\xB7 SEMELHAN\xC3\x87" "A %d%%", r->runs, a, b, c,
-                    (int)(r->match * 100.0f + 0.5f));
+        lv_snprintf(sp, sizeof sp, T(MSG_LATENCY_SCR_RUNS), r->runs, a, b, c, (int)(r->match * 100.0f + 0.5f));
         break;
     case LAT_NO_SIGNAL:
-        lv_snprintf(big, sizeof big, "SEM SINAL");
+        lv_snprintf(big, sizeof big, "%s", T(MSG_LATENCY_SCR_NO_SIGNAL));
         colour = C_CLIP;
-        lv_snprintf(smp, sizeof smp, cable ? "NADA VOLTOU, NEM A -10 dBFS: CONFIRA O CABO"
-                                           : "O PRESET N\xC3\x83O DEIXOU PASSAR (GATE? VOLUME?)");
+        lv_snprintf(smp, sizeof smp, "%s", T(cable ? MSG_LATENCY_SCR_NOTHING_BACK : MSG_LATENCY_SCR_PRESET_BLOCKED));
         break;
     case LAT_CLIPPED:
-        lv_snprintf(big, sizeof big, "SATUROU");
+        lv_snprintf(big, sizeof big, "%s", T(MSG_LATENCY_SCR_CLIPPED));
         colour = C_CLIP;
-        lv_snprintf(smp, sizeof smp, "USE A ENTRADA LINHA (GLOBAL \xC2\xBB IN / OUT)");
+        lv_snprintf(smp, sizeof smp, "%s", T(MSG_LATENCY_SCR_USE_LINE));
         break;
     case LAT_CANCELLED:
-        lv_snprintf(big, sizeof big, "CANCELADO");
+        lv_snprintf(big, sizeof big, "%s", T(MSG_LATENCY_SCR_CANCELLED));
         colour = C_DIM;
         break;
     default:
@@ -252,18 +248,18 @@ static void show_result(const struct latency_result *r)
     /* with a cable, the buffers and the rest (the converters); through the preset all of it is the preset's */
     if (measured && cable) {
         decimal(a, sizeof a, to_ms(LAT_BUFFERS), 1);
-        lv_snprintf(ta, sizeof ta, "BUFFERS %d \xC2\xB7 %s ms", LAT_BUFFERS, a);
+        lv_snprintf(ta, sizeof ta, T(MSG_LATENCY_SCR_BUFFERS), LAT_BUFFERS, a);
         decimal(b, sizeof b, r->mean - LAT_BUFFERS, 0);
         decimal(c, sizeof c, to_ms(r->mean - LAT_BUFFERS), 1);
-        lv_snprintf(tb, sizeof tb, "CONVERSORES %s \xC2\xB7 %s ms", b, c);
+        lv_snprintf(tb, sizeof tb, T(MSG_LATENCY_SCR_CONVERTERS), b, c);
         parts(LAT_BUFFERS, r->mean > LAT_BUFFERS ? r->mean - LAT_BUFFERS : 0, ta, tb);
     } else if (measured) {
         decimal(c, sizeof c, to_ms(r->mean), 1);
-        lv_snprintf(tb, sizeof tb, "O PRESET SOMA %s ms", c);
+        lv_snprintf(tb, sizeof tb, T(MSG_LATENCY_SCR_PRESET_ADDS), c);
         parts(0, r->mean, "", tb);
     } else if (cable) {
         decimal(a, sizeof a, to_ms(LAT_BUFFERS), 1);
-        lv_snprintf(ta, sizeof ta, "S\xC3\x93 OS BUFFERS J\xC3\x81 D\xC3\x83O %d AMOSTRAS \xC2\xB7 %s ms", LAT_BUFFERS, a);
+        lv_snprintf(ta, sizeof ta, T(MSG_LATENCY_SCR_BUFFERS_ALONE), LAT_BUFFERS, a);
         parts(0, 0, ta, "");
     } else {
         parts(0, 0, "", "");
@@ -276,7 +272,7 @@ static void refresh(struct ui_ctx *ui)
     struct latency_result r;
     latency_get(&r);
     int on = r.status == LAT_BUSY, route = on ? r.route : s.route;
-    top_bar_sub("LAT\xC3\x8ANCIA");
+    top_bar_sub(T(MSG_LATENCY_SCR_TITLE));
     for (int i = 0; i < LAT_ROUTES; i++) {
         int sel = i == route;
         theme_set_bg(s.card[i], sel ? C_SEL_BG : C_BG);
@@ -285,8 +281,8 @@ static void refresh(struct ui_ctx *ui)
         theme_set_color(s.card_name[i], sel ? C_TEXT : on ? C_DIM : C_NEUTRAL_ON);
         theme_set_color(s.card_sub[i], sel ? C_ACCENT : C_OFF);
     }
-    theme_set_text(s.hint, hints[route]);
-    theme_set_text(s.button_text, on ? "CANCELAR" : "MEDIR");
+    theme_set_text(s.hint, T(hints[route]));
+    theme_set_text(s.button_text, T(on ? MSG_SCREENS_CANCEL : MSG_LATENCY_SCR_MEASURE));
     lv_obj_center(s.button_text);
     theme_set_border(s.button, on ? C_LABEL : C_ACCENT);
     theme_set_color(s.button_text, on ? C_LABEL : C_ACCENT);

@@ -1,6 +1,7 @@
 // The NAM screen's state: the 10 Clone slots (protocol 6) and a .nam on its way into one of them.
 
 import { errorText } from './api';
+import { t } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { CloneSlot, NamFile } from './types';
 
@@ -30,7 +31,7 @@ class Nam {
       const f = await studio.call((b) => b.pickNam());
       if (!f) return;
       if (!f.lite && !f.convert) {
-        studio.say(`${f.file} (${f.arch}) não tem a rede A2-Lite, e o conversor para o Clone não está compilado`, 'error');
+        studio.say(t('nam.no_lite', { file: f.file, arch: f.arch }), 'error');
         return;
       }
       this.draft = { slot: this.picked, file: f, name: f.name.slice(0, 16), native: false,
@@ -46,10 +47,10 @@ class Nam {
     d.busy = true;
     try {
       this.slots = d.engine === 'clone'
-        ? await studio.callLong(`Convertendo ${d.file.file} para o Clone`, (b) => b.writeCloneFit(d.slot, d.file.path, d.name))
+        ? await studio.callLong(t('nam.converting', { file: d.file.file }), (b) => b.writeCloneFit(d.slot, d.file.path, d.name))
         : await studio.call((b) => b.writeNam(d.slot, d.file.path, d.name, d.native));
       this.draft = null;
-      studio.say(`Slot ${d.slot + 1}: ${d.name.trim()} (${this.slots[d.slot]?.kind_text ?? ''})`);
+      studio.say(t('nam.written', { n: d.slot + 1, name: d.name.trim(), kind: this.slots[d.slot]?.kind_text ?? '' }));
     } catch (e) {
       d.busy = false;
       studio.say(errorText(e), 'error');

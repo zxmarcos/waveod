@@ -7,10 +7,11 @@
   import { menuInfo } from '../lib/menus';
   import { ctl } from '../lib/ctl.svelte';
   import { isVacant, presetLabel, studio } from '../lib/store.svelte';
+  import { t, tn, type MsgKey } from '../lib/i18n.svelte';
   import type { PresetDetail } from '../lib/types';
 
-  const ROUTES = ['Série', 'Paralelo', 'Dual L/R'];
-  const ORIGINS: Record<number, string> = { 0: 'usuário', 1: 'fábrica' };
+  const ROUTES: MsgKey[] = ['preset.route_series', 'preset.route_parallel', 'preset.route_dual'];
+  const ORIGINS: Record<number, MsgKey> = { 0: 'preset.origin_user', 1: 'preset.origin_factory' };
 
   const i = $derived(studio.picked);
   const entry = $derived(i === null ? undefined : studio.presets[i]);
@@ -51,45 +52,45 @@
   }
 </script>
 
-<aside class="detail" aria-label="Detalhes do preset">
+<aside class="detail" aria-label={t('preset.aria')}>
   {#if i === null || !entry}
-    <p class="empty">Escolha um preset na lista.</p>
+    <p class="empty">{t('preset.empty')}</p>
   {:else}
     <div class="scroll">
       <header>
         <span class="label">{presetLabel(i)}</span>
         {#if live}
-          <span class="tag live" class:dirty>{dirty ? 'no pedal · alterado' : 'no pedal'}</span>
+          <span class="tag live" class:dirty>{dirty ? t('preset.tag_live_dirty') : t('preset.tag_live')}</span>
         {/if}
         {#if !vacant}
-          <span class="tag">{entry.place === 1 ? `original · ${ORIGINS[entry.origin] ?? '?'}` : 'waveod'}</span>
+          <span class="tag">{entry.place === 1 ? t('preset.tag_original', { origin: ORIGINS[entry.origin] ? t(ORIGINS[entry.origin]) : '?' }) : 'waveod'}</span>
         {/if}
       </header>
 
       {#if studio.renaming && !vacant}
         <input class="rename" bind:this={input} bind:value={draft} maxlength="17" spellcheck="false"
-               aria-label="Nome do preset (até 17 caracteres)" onkeydown={renameKey} onblur={() => (studio.renaming = false)} />
-        <p class="hint">Enter grava · Esc cancela · até 17 caracteres</p>
+               aria-label={t('preset.name_aria')} onkeydown={renameKey} onblur={() => (studio.renaming = false)} />
+        <p class="hint">{t('preset.rename_hint')}</p>
       {:else}
-        <h2 class:vacant>{vacant ? 'Lugar vazio' : entry.name || 'sem nome'}</h2>
+        <h2 class:vacant>{vacant ? t('preset.vacant_title') : entry.name || t('ctl.unnamed')}</h2>
       {/if}
 
       {#if vacant}
-        <p class="note">Nada guardado aqui. Arraste um preset da lista para este lugar (Ctrl copia) ou importe um arquivo .wvp.</p>
+        <p class="note">{t('preset.vacant_note')}</p>
       {:else if !d}
-        <p class="note">Lendo o preset…</p>
+        <p class="note">{t('preset.reading')}</p>
       {:else}
         {#if dirty}
-          <p class="note warn">O pedal tem alterações deste preset que não foram salvas; aqui está o que está guardado.</p>
+          <p class="note warn">{t('preset.dirty_note')}</p>
         {/if}
         <dl class="facts">
-          <div><dt>Roteamento</dt><dd>{ROUTES[d.route.mode] ?? '?'}</dd></div>
+          <div><dt>{t('preset.routing')}</dt><dd>{ROUTES[d.route.mode] ? t(ROUTES[d.route.mode]) : '?'}</dd></div>
           <div><dt>BPM</dt><dd>{d.bpm ?? '–'}</dd></div>
-          <div><dt>Volume</dt><dd>{d.volume ?? '–'}</dd></div>
-          <div><dt>Estilo</dt><dd>{d.style || '–'}</dd></div>
+          <div><dt>{t('preset.volume')}</dt><dd>{d.volume ?? '–'}</dd></div>
+          <div><dt>{t('preset.style')}</dt><dd>{d.style || '–'}</dd></div>
         </dl>
 
-        <h3>Cadeia <span>{d.blocks.length} {d.blocks.length === 1 ? 'bloco' : 'blocos'}</span></h3>
+        <h3>{t('preset.chain')} <span>{tn('preset.blocks', d.blocks.length)}</span></h3>
         {#if d.blocks.length}
           <MiniGrid detail={d} names={nameOf} />
           <ol class="blocks">
@@ -98,22 +99,22 @@
               <li class:off={!b.on} style:--c={m.color}>
                 <Icon name={m.icon} size={17} stroke={2} />
                 <span class="bn">{nameOf(b)}</span>
-                <span class="bm">{b.on ? m.name : 'desligado'}</span>
+                <span class="bm">{b.on ? m.name : t('preset.block_off')}</span>
               </li>
             {/each}
           </ol>
         {:else}
-          <p class="note">Sem blocos.</p>
+          <p class="note">{t('preset.no_blocks')}</p>
         {/if}
 
-        <h3>Cenas</h3>
+        <h3>{t('preset.scenes')}</h3>
         {#if d.scenes.own}
           <ul class="scenes">
             {#each d.scenes.names as name, n (n)}
               <li class:cur={d.scenes.active === n}>
                 <span class="sn">C{n + 1}</span>
-                <span class="sname">{name || `Cena ${n + 1}`}</span>
-                <span class="marks" aria-label="{d.scenes.on[n].length} blocos ligados">
+                <span class="sname">{name || t('preset.scene_n', { n: n + 1 })}</span>
+                <span class="marks" aria-label={tn('preset.blocks_on', d.scenes.on[n].length)}>
                   {#each d.blocks as b (b.slot)}
                     <i class:lit={d.scenes.on[n].includes(b.slot)} style:--c={menuInfo(b.menu).color}></i>
                   {/each}
@@ -122,19 +123,19 @@
             {/each}
           </ul>
           {#if d.scenes.params}
-            <p class="more">{d.scenes.params} {d.scenes.params === 1 ? 'parâmetro muda' : 'parâmetros mudam'} de valor por cena</p>
+            <p class="more">{tn('preset.scene_params', d.scenes.params)}</p>
           {/if}
         {:else}
-          <p class="note">Sem cenas próprias: as quatro tocam os blocos como estão.</p>
+          <p class="note">{t('preset.no_scenes')}</p>
         {/if}
-        <h3>Controles</h3>
+        <h3>{t('ctl.title')}</h3>
         <div class="ctlrow">
           <p class="note">
-            {d.controls ? 'Tabela própria' : 'Sem tabela própria (campos de footswitch do formato original)'}{d.mods
-              ? ` · ${d.mods} ${d.mods === 1 ? 'modulador' : 'moduladores'}` : ''}
+            {d.controls ? t('preset.own_table') : t('preset.no_own_table')}{d.mods
+              ? ` · ${tn('preset.mods', d.mods)}` : ''}
           </p>
-          <button onclick={() => i !== null && ctl.openPreset(i)} title="Footswitches, pedais, MIDI e moduladores deste preset">
-            <Icon name="link" size={15} stroke={2.1} /> Editar controles…
+          <button onclick={() => i !== null && ctl.openPreset(i)} title={t('preset.controls_title')}>
+            <Icon name="link" size={15} stroke={2.1} /> {t('preset.edit_controls')}
           </button>
         </div>
       {/if}
@@ -142,19 +143,19 @@
 
     <footer class="actions">
       {#if vacant}
-        <button class="primary wide" onclick={() => studio.importPreset(i)}>Importar .wvp para cá…</button>
+        <button class="primary wide" onclick={() => studio.importPreset(i)}>{t('preset.import_here')}</button>
       {:else}
         <button class="primary wide" onclick={edit}>
-          <Icon name="grid" size={16} stroke={2.1} /> {live ? 'Editar na grade' : 'Ativar e editar'}
+          <Icon name="grid" size={16} stroke={2.1} /> {live ? t('preset.edit_grid') : t('preset.activate_edit')}
         </button>
         {#if !live}
-          <button class="wide" onclick={() => studio.activate(i)} title="Duplo clique na lista faz o mesmo">Ativar no pedal</button>
+          <button class="wide" onclick={() => studio.activate(i)} title={t('preset.activate_title')}>{t('preset.activate')}</button>
         {/if}
-        <button onclick={() => (studio.renaming = true)} title="F2">Renomear</button>
-        <button onclick={() => place('move')}>Mover para…</button>
-        <button onclick={() => place('copy')} title="Ctrl+C e Ctrl+V na lista fazem o mesmo">Copiar para…</button>
-        <button onclick={() => studio.exportPreset(i)}>Exportar .wvp…</button>
-        <button class="wide" onclick={() => studio.importPreset(i)}>Importar .wvp por cima…</button>
+        <button onclick={() => (studio.renaming = true)} title="F2">{t('preset.rename')}</button>
+        <button onclick={() => place('move')}>{t('preset.move_to')}</button>
+        <button onclick={() => place('copy')} title={t('preset.copy_title')}>{t('preset.copy_to')}</button>
+        <button onclick={() => studio.exportPreset(i)}>{t('preset.export')}</button>
+        <button class="wide" onclick={() => studio.importPreset(i)}>{t('preset.import_over')}</button>
       {/if}
     </footer>
   {/if}

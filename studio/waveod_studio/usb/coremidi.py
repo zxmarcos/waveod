@@ -11,7 +11,9 @@ import platform
 import threading
 import time
 
-from .htmidi import PORT_HINTS, _pick          # noqa: F401  (PORT_HINTS: htmidi's, re-exported)
+from waveod_studio.i18n import tr
+
+from .htmidi import PORT_HINTS, PortError, _pick          # noqa: F401  (PORT_HINTS: htmidi's, re-exported)
 
 _UTF8 = 0x08000100                              # kCFStringEncodingUTF8
 _ARM = platform.machine().startswith('arm')     # MIDIPacketNext aligns packets to 4 bytes on Arm
@@ -111,17 +113,17 @@ class Port:
         try:
             r = cm.MIDIClientCreate(names[0], None, None, ctypes.byref(self.client))
             if r:
-                raise RuntimeError('MIDIClientCreate falhou (%d)' % r)
+                raise PortError(tr('py.midi_call_failed', call='MIDIClientCreate', code=r))
             r = cm.MIDIOutputPortCreate(self.client, names[1], ctypes.byref(self.outp))
             if r:
-                raise RuntimeError('MIDIOutputPortCreate falhou (%d)' % r)
+                raise PortError(tr('py.midi_call_failed', call='MIDIOutputPortCreate', code=r))
             r = cm.MIDIInputPortCreate(self.client, names[2], ctypes.cast(self._read, ctypes.c_void_p), None,
                                        ctypes.byref(self.inp))
             if r:
-                raise RuntimeError('MIDIInputPortCreate falhou (%d)' % r)
+                raise PortError(tr('py.midi_call_failed', call='MIDIInputPortCreate', code=r))
             r = cm.MIDIPortConnectSource(self.inp, self.src, None)
             if r:
-                raise RuntimeError('MIDIPortConnectSource falhou (%d)' % r)
+                raise PortError(tr('py.midi_call_failed', call='MIDIPortConnectSource', code=r))
         except Exception:
             if self.client.value:
                 cm.MIDIClientDispose(self.client)
@@ -150,13 +152,13 @@ class Port:
         req = _SysexRequest(self.dst, ctypes.cast(data, ctypes.c_void_p), len(sysex), False, (0, 0, 0), _sent, None)
         r = cm.MIDISendSysex(ctypes.byref(req))
         if r:
-            raise RuntimeError('MIDISendSysex falhou (%d)' % r)
+            raise PortError(tr('py.midi_call_failed', call='MIDISendSysex', code=r))
         t0 = time.time()
         while not req.complete and time.time() - t0 < 2:
             time.sleep(0.001)
         if not req.complete:
             req.complete = True                  # gives up on the rest; CoreMIDI then calls the completion
-            raise RuntimeError('a SysEx não foi enviada em 2 s')
+            raise PortError(tr('py.midi_send_timeout'))
 
     def receive(self):
         """complete SysEx messages received so far"""

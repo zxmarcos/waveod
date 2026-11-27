@@ -86,6 +86,11 @@ jobs:
           $version = 'v' + (Get-Content VERSION -TotalCount 1).Trim()
           if ($version -ne $env:TAG) { throw "tag $env:TAG, but VERSION says $version" }
 
+      - name: Translations (docs/i18n.md)
+        run: |
+          python tools/i18n.py check --strict
+          if ($LASTEXITCODE) { throw 'the translation catalog has errors, or its generated tables are stale' }
+
       - name: Build
         run: |
           cmake --preset fw

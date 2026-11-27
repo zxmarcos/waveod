@@ -10,6 +10,7 @@
   import { CARDS, type Card, type Row } from '../lib/globalset';
   import type { IconName } from '../lib/menus';
   import { globals } from '../lib/globals.svelte';
+  import { i18n, num, t, type MsgKey } from '../lib/i18n.svelte';
   import { studio } from '../lib/store.svelte';
 
   $effect(() => {
@@ -22,18 +23,14 @@
   });
 
   /** what each section is for, under its title */
-  const ABOUT: Record<string, string> = {
-    eq: 'O equalizador depois da cadeia, em todos os presets.',
-    io: 'O tipo e o nível da entrada, a entrada AUX e em quais saídas tocam os blocos de gabinete.',
-    tuner: 'A referência do afinador, o som enquanto se afina e o tipo de visor.',
-    usb: 'Os canais de áudio USB, os níveis de gravação e de retorno e o que vai para cada canal gravado.',
-    jack: 'O que se liga no jack EXP 2 e a função de cada footswitch externo.',
-    midi: 'De onde o pedal recebe MIDI, em que canais, e o clock de tempo.',
-    presets: 'O que vale para todos os presets: tempo global, rastro na troca, knobs nas cenas e o motor de gabinete.',
-    screen: 'O brilho da tela e a marca de toque.',
-    exp: 'A faixa calibrada de cada pedal de expressão.',
-    system: 'A temperatura do processador do pedal, como em GLOBAL › SISTEMA.',
+  const ABOUT: Record<string, MsgKey> = {
+    eq: 'global.about_eq', io: 'global.about_io', tuner: 'global.about_tuner', usb: 'global.about_usb',
+    jack: 'global.about_jack', midi: 'global.about_midi', presets: 'global.about_presets', screen: 'global.about_screen',
+    exp: 'global.about_exp', system: 'global.about_system',
   };
+  const about = (id: string) => (ABOUT[id] ? t(ABOUT[id]) : '');
+  /** a card's rows the pedal has (an optional one only when the pedal reports it) */
+  const rowsOf = (c: Card) => c.rows.filter((r) => !r.optional || !!globals.values?.[r.name]);
 
   // SISTEMA: read every two seconds while open
   $effect(() => {
@@ -42,7 +39,7 @@
     return () => globals.stopSystem();
   });
   const TEMP_LO = 20, TEMP_HI = 95;           // the bar: room to the part's limit (consumer grade, 95 °C)
-  const deg = (t: number | null, n = 1) => (t === null ? '—' : `${t.toFixed(n).replace('.', ',')} °C`);
+  const deg = (c: number | null, n = 1) => (c === null ? '—' : `${num(c, n)} °C`);
   const at = (t: number) => Math.min(100, Math.max(0, ((t - TEMP_LO) / (TEMP_HI - TEMP_LO)) * 100));
   const now = $derived(globals.temp('cpu_temp'));
   const tmax = $derived(globals.temp('cpu_temp_max'));
@@ -91,21 +88,22 @@
       case 'switch': return n ? c.on : c.off;
       case 'list': return c.options.find(([x]) => x === n)?.[1] ?? '–';
       case 'range': return c.fmt ? c.fmt(n) : `${n}${c.unit ? ` ${c.unit}` : ''}`;
-      case 'tempo': return n ? `${n} BPM` : 'Desligado';
+      case 'tempo': return n ? `${n} BPM` : t('global.off');
       case 'exp': return `${v(`exp${c.pedal}_min`)} – ${v(`exp${c.pedal}_max`)}`;
     }
   }
   function summary(id: string): string {
-    if (id === 'eq') return v('eq_on') ? 'Ligado' : 'Desligado';
+    if (id === 'eq') return v('eq_on') ? t('global.on') : t('global.off');
     if (id === 'system') return globals.hasTemp ? `CPU ${deg(globals.temp('cpu_temp'))}` : `waveod ${studio.hello?.version ?? ''}`;
     const card = CARDS.find((c) => c.id === id)!;
     return (id === 'exp' ? card.rows : card.rows.slice(0, 2)).map(valueText).join(' · ');
   }
 
+  // getters: the titles follow the language
   const SECTIONS: { id: string; title: string; icon: IconName }[] = [
-    { id: 'eq', title: 'EQ global', icon: 'sliders' },
-    ...CARDS.map((c) => ({ id: c.id, title: c.title, icon: c.icon })),
-    { id: 'system', title: 'Sistema', icon: 'chip' },
+    { id: 'eq', get title() { return t('eq.title'); }, icon: 'sliders' },
+    ...CARDS.map((c) => ({ id: c.id, get title() { return c.title; }, icon: c.icon })),
+    { id: 'system', get title() { return t('global.sec_system'); }, icon: 'chip' },
   ];
   const card = $derived<Card | undefined>(CARDS.find((c) => c.id === globals.section));
   const current = $derived(SECTIONS.find((x) => x.id === globals.section) ?? SECTIONS[0]);
@@ -124,22 +122,22 @@
 <div class="screen">
   <header class="tools">
     <div class="title">
-      <h1>Global</h1>
-      <span class="sub">Os ajustes da tela GLOBAL do pedal: soam na hora, e o pedal os guarda dois segundos depois da última mudança.</span>
+      <h1>{t('tab.global')}</h1>
+      <span class="sub">{t('global.sub')}</span>
     </div>
-    {#if globals.sending}<span class="busy">enviando…</span>{/if}
+    {#if globals.sending}<span class="busy">{t('global.sending')}</span>{/if}
   </header>
 
   {#if globals.error}
     <div class="old">
       <p>{globals.error}</p>
-      <button class="primary" onclick={() => studio.show('pedal')}>Ir à aba Pedal</button>
+      <button class="primary" onclick={() => studio.show('pedal')}>{t('global.go_pedal')}</button>
     </div>
   {:else if !globals.values}
-    <p class="loading">Lendo os ajustes do pedal…</p>
+    <p class="loading">{t('global.loading')}</p>
   {:else}
     <div class="body">
-      <div class="sections" role="tablist" aria-label="Seções" aria-orientation="vertical" tabindex="-1" onkeydown={navKey}>
+      <div class="sections" role="tablist" aria-label={t('global.sections')} aria-orientation="vertical" tabindex="-1" onkeydown={navKey}>
         {#each SECTIONS as x (x.id)}
           <button class="sec" class:on={globals.section === x.id} data-id={x.id} role="tab" aria-selected={globals.section === x.id}
                   tabindex={globals.section === x.id ? 0 : -1}
@@ -155,33 +153,33 @@
           <EqPanel />
         {:else if globals.section === 'system'}
           <header class="head">
-            <h2><Icon name="chip" size={22} stroke={1.9} /> Sistema</h2>
-            <p>{ABOUT.system}</p>
+            <h2><Icon name="chip" size={22} stroke={1.9} /> {t('global.sec_system')}</h2>
+            <p>{about('system')}</p>
           </header>
           {#if !globals.hasTemp}
-            <p class="note">O waveod do pedal ({studio.hello?.version ?? '?'}) ainda não mede a temperatura: grave um firmware mais novo.</p>
+            <p class="note">{t('global.no_temp', { version: studio.hello?.version ?? '?' })}</p>
           {:else}
             <div class="temp {tone}">
-              <div class="big"><b>{deg(now)}</b><span>processador agora</span></div>
+              <div class="big"><b>{deg(now)}</b><span>{t('global.cpu_now')}</span></div>
               <dl>
-                <div><dt>Máxima</dt><dd>{deg(tmax)}</dd></div>
-                <div><dt>Mínima</dt><dd>{deg(tmin)}</dd></div>
+                <div><dt>{t('global.temp_max')}</dt><dd>{deg(tmax)}</dd></div>
+                <div><dt>{t('global.temp_min')}</dt><dd>{deg(tmin)}</dd></div>
               </dl>
             </div>
-            <div class="tbar {tone}" role="meter" aria-label="Temperatura do processador" aria-valuemin={TEMP_LO} aria-valuemax={TEMP_HI}
+            <div class="tbar {tone}" role="meter" aria-label={t('global.cpu_temp')} aria-valuemin={TEMP_LO} aria-valuemax={TEMP_HI}
                  aria-valuenow={now ?? undefined}>
-              {#if tmin !== null && tmax !== null}<span class="span" style:left="{at(tmin)}%" style:width="{Math.max(0.5, at(tmax) - at(tmin))}%" title="Mínima a máxima desde que o pedal ligou"></span>{/if}
+              {#if tmin !== null && tmax !== null}<span class="span" style:left="{at(tmin)}%" style:width="{Math.max(0.5, at(tmax) - at(tmin))}%" title={t('global.span_title')}></span>{/if}
               {#if now !== null}<span class="fill" style:width="{at(now)}%"></span>{/if}
-              <i class="limit" style:left="{at(85)}%" title="85 °C: perto do limite"></i>
+              <i class="limit" style:left="{at(85)}%" title={t('global.limit_title')}></i>
             </div>
             <div class="tscale" aria-hidden="true"><span>{TEMP_LO} °C</span><span class="mark" style:left="{at(85)}%">85</span><span>{TEMP_HI} °C</span></div>
-            <p class="hint">Máxima e mínima desde que o pedal ligou. A temperatura vem do sensor do próprio processador (i.MX RT1062), calibrado de fábrica; é a do chip, mais quente que a da caixa.</p>
+            <p class="hint">{t('global.temp_hint')}</p>
 
             <figure class="hist">
-              <figcaption>Desde que esta seção abriu{hist ? ` · ${Math.max(1, Math.round(hist.mins))} min` : ''}</figcaption>
+              <figcaption>{t('global.since_open')}{hist ? ` · ${Math.max(1, Math.round(hist.mins))} min` : ''}</figcaption>
               <div class="plot" bind:clientWidth={histW}>
               {#if hist}
-                <svg width={Math.max(100, histW)} height={HH} role="img" aria-label="Temperatura nas últimas leituras"
+                <svg width={Math.max(100, histW)} height={HH} role="img" aria-label={t('global.hist_aria')}
                      onpointermove={histMove} onpointerleave={() => (hover = null)}>
                   <line class="grid" x1={HP.l} x2={HP.l + hist.w} y1={hist.y(hist.hi)} y2={hist.y(hist.hi)} />
                   <line class="grid" x1={HP.l} x2={HP.l + hist.w} y1={hist.y(hist.lo)} y2={hist.y(hist.lo)} />
@@ -196,10 +194,10 @@
                 </svg>
                 {#if hover !== null && globals.history[hover]}
                   {@const p = globals.history[hover]}
-                  <span class="htip" style:left="{Math.min(hist.x(p.t), Math.max(100, histW) - 160)}px">{new Date(p.t).toLocaleTimeString('pt-BR')} · {deg(p.v)}</span>
+                  <span class="htip" style:left="{Math.min(hist.x(p.t), Math.max(100, histW) - 160)}px">{new Date(p.t).toLocaleTimeString(i18n.lang)} · {deg(p.v)}</span>
                 {/if}
               {:else}
-                <p class="hint">Lendo… (uma leitura a cada 2 s)</p>
+                <p class="hint">{t('global.reading')}</p>
               {/if}
               </div>
             </figure>
@@ -207,10 +205,10 @@
         {:else if card}
           <header class="head">
             <h2><Icon name={card.icon} size={22} stroke={1.9} /> {card.title}</h2>
-            <p>{ABOUT[card.id]}</p>
+            <p>{about(card.id)}</p>
           </header>
           <div class="rows">
-            {#each card.rows as r (r.name)}
+            {#each rowsOf(card) as r (r.name)}
               {@const c = r.control}
               <div class="row">
                 <div class="what">
@@ -248,8 +246,8 @@
                   {:else if c.kind === 'tempo'}
                     <div class="range">
                       <div class="seg" role="radiogroup" aria-label={r.title}>
-                        <button role="radio" aria-checked={!v('tempo')} class:on={!v('tempo')} onclick={() => tempo(false)}>Desligado</button>
-                        <button role="radio" aria-checked={!!v('tempo')} class:on={!!v('tempo')} onclick={() => tempo(true)}>Ligado</button>
+                        <button role="radio" aria-checked={!v('tempo')} class:on={!v('tempo')} onclick={() => tempo(false)}>{t('global.off')}</button>
+                        <button role="radio" aria-checked={!!v('tempo')} class:on={!!v('tempo')} onclick={() => tempo(true)}>{t('global.on')}</button>
                       </div>
                       {#if v('tempo')}
                         <input type="range" min="40" max="300" step="1" value={v('tempo')} aria-label="BPM"

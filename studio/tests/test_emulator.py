@@ -18,10 +18,12 @@ sys.path.insert(0, HERE)
 
 import check_editor as ce                           # noqa: E402
 from waveod_studio.usb import htmidi                # noqa: E402
-from waveod_studio import backup, controls, drums, wvpreset  # noqa: E402
+from waveod_studio import backup, controls, drums, i18n, wvpreset  # noqa: E402
 import test_drums                                   # noqa: E402  (its MIDI file writer)
 from waveod_studio import protocol as PR            # noqa: E402
 from waveod_studio.protocol import DESCRIBE, LAT_ROUTES, Pedal, PedalError  # noqa: E402
+
+i18n.set_language('pt-BR')                          # the messages checked below are the Portuguese ones
 
 ce.htmidi = htmidi
 failed = 0

@@ -19,6 +19,7 @@ struct stored {
     uint8_t tuner_strobe;                   /* added: 0 (older records) = the needle */
     uint8_t scene_manual;                   /* added: 0 (older records) = AUTO */
     uint8_t drum_user;                      /* added: 0 (older records) = the bank's pattern */
+    uint8_t language;                       /* added: 0 (older records) = English */
 };
 
 #define STORED_V1 6                         /* the first layout, up to a4 */
@@ -26,7 +27,7 @@ struct stored {
 
 const uint16_t settings_spill_ms[SETTINGS_SPILL_CHOICES] = { 0, 2000, 5000, 10000, 20000 };
 
-static const struct settings defaults = { 60, 440, 1, 0, 0, 0, SPILL_DEFAULT, 0, 0, 0 };
+static const struct settings defaults = { 60, 440, 1, 0, 0, 0, SPILL_DEFAULT, 0, 0, 0, 0 };
 
 #define SAVE_AFTER_MS 2000
 
@@ -52,6 +53,7 @@ static void to_stored(const struct settings *s, struct stored *o)
     o->tuner_strobe = s->tuner_strobe;
     o->scene_manual = s->scene_manual;
     o->drum_user = s->drum_user;
+    o->language = s->language;
 }
 
 void settings_load(struct settings *s, const struct preset_source *src)
@@ -73,6 +75,7 @@ void settings_load(struct settings *s, const struct preset_source *src)
     s->tuner_strobe = o.tuner_strobe == 1;
     s->scene_manual = o.scene_manual == 1;
     s->drum_user = o.drum_user <= DRUM_USER_SLOTS ? o.drum_user : 0;
+    s->language = o.language < SETTINGS_LANGUAGES ? o.language : 0;
 }
 
 void settings_apply(const struct settings *s)
@@ -94,7 +97,8 @@ int settings_save(const struct settings *s, struct preset_source *src)
         s->tuner_mute == defaults.tuner_mute && s->touch_cursor == defaults.touch_cursor &&
         s->scene_mode == defaults.scene_mode && s->cab_original == defaults.cab_original &&
         s->spill == defaults.spill && s->tuner_strobe == defaults.tuner_strobe &&
-        s->scene_manual == defaults.scene_manual && s->drum_user == defaults.drum_user)
+        s->scene_manual == defaults.scene_manual && s->drum_user == defaults.drum_user &&
+        s->language == defaults.language)
         return 0;                           /* nothing stored and nothing to store */
     int flash = engine_flash_begin();     /* the audio plays on: nothing in it reads the flash */
     int err = settings_record_write(src, &now, sizeof now);

@@ -6,6 +6,7 @@
   import { menuInfo } from '../lib/menus';
   import { wirePaths } from '../lib/wires';
   import { studio } from '../lib/store.svelte';
+  import { t } from '../lib/i18n.svelte';
   import type { Block } from '../lib/types';
 
   const PITCH = 120, X0 = 112, Y1 = 98, Y2 = 300, BUS = 199, BLOCK = 84;
@@ -95,8 +96,8 @@
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
   }
   function dragOver(e: DragEvent, cell: number) {
-    const t = e.dataTransfer?.types ?? [];
-    if (t.includes('application/x-waveod-slot') || t.includes('application/x-waveod-model')) {
+    const types = e.dataTransfer?.types ?? [];
+    if (types.includes('application/x-waveod-slot') || types.includes('application/x-waveod-model')) {
       e.preventDefault();
       over = cell;
     }
@@ -134,7 +135,7 @@
       {#if !byCell.has(cell)}
         <button class="empty" class:selected={selCell === cell} class:over={over === cell}
                 style:left="{cx(cell) - BLOCK / 2}px" style:top="{cy(cell) - BLOCK / 2}px"
-                aria-label="Lugar vazio {cell < 6 ? 1 : 2}.{(cell % 6) + 1}"
+                aria-label={t('grid.empty_aria', { row: cell < 6 ? 1 : 2, col: (cell % 6) + 1 })}
                 onclick={() => studio.select({ kind: 'cell', cell })}
                 ondragover={(e) => dragOver(e, cell)} ondragleave={() => (over = -1)} ondrop={(e) => drop(e, cell)}>
           <span class="mark"></span>
@@ -153,7 +154,7 @@
               ondragover={(e) => dragOver(e, b.cell)} ondragleave={() => (over = -1)} ondrop={(e) => drop(e, b.cell)}
               onclick={() => studio.select({ kind: 'block', slot: b.slot })}
               ondblclick={() => studio.toggle(b.slot)}
-              aria-label="{m.name}: {b.name}{b.on ? '' : ' (desligado)'}" aria-pressed={selSlot === b.slot}>
+              aria-label="{m.name}: {b.name}{b.on ? '' : t('grid.off_suffix')}" aria-pressed={selSlot === b.slot}>
         <span class="face"><Icon name={m.icon} size={36} stroke={1.9} /></span>
         <span class="label">{b.name}</span>
       </button>
@@ -162,20 +163,20 @@
     {#if route.mode !== 0}
       <button class="joint" class:selected={selJoint === 'split'} class:dragging={drag?.which === 'split'}
               style:left="{xs - 9}px" style:top="{Y1 - 9}px"
-              aria-label="Divisão" title="Divisão: equilíbrio entre os caminhos (arraste para mudar o lugar)"
+              aria-label={t('grid.split')} title={t('grid.split_title')}
               onpointerdown={(e) => jointDown(e, 'split')} onpointermove={jointMove} onpointerup={jointUp}
               onpointercancel={() => (drag = null)} onkeydown={(e) => jointKey(e, 'split')}
               onclick={() => studio.select({ kind: 'joint', which: 'split' })}></button>
       {#if route.mode === 1}
         <button class="joint" class:selected={selJoint === 'merge'} class:dragging={drag?.which === 'merge'}
                 style:left="{xm - 9}px" style:top="{Y1 - 9}px"
-                aria-label="Junção" title="Junção: mistura e pan dos caminhos (arraste para mudar o lugar)"
+                aria-label={t('grid.merge')} title={t('grid.merge_title')}
                 onpointerdown={(e) => jointDown(e, 'merge')} onpointermove={jointMove} onpointerup={jointUp}
                 onpointercancel={() => (drag = null)} onkeydown={(e) => jointKey(e, 'merge')}
                 onclick={() => studio.select({ kind: 'joint', which: 'merge' })}></button>
       {/if}
-      <span class="lane" style:left="{xs + 12}px" style:top="{Y1 - 66}px">CAMINHO A</span>
-      <span class="lane" style:left="{X0 + 12}px" style:top="{Y2 - 66}px">CAMINHO B</span>
+      <span class="lane" style:left="{xs + 12}px" style:top="{Y1 - 66}px">{t('grid.path_a')}</span>
+      <span class="lane" style:left="{X0 + 12}px" style:top="{Y2 - 66}px">{t('grid.path_b')}</span>
     {/if}
   </div>
 </div>

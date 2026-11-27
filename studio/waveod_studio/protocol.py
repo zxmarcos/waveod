@@ -8,6 +8,8 @@ import struct
 import time
 
 from waveod_studio import controls, irs, wvlib
+from waveod_studio.i18n import tr
+from waveod_studio.i18n_lazy import TextList, Texts
 from waveod_studio.usb import htmidi
 
 FLASH, INFO, LIST, GET, PUT, LOAD, MOVE, COPY, DESCRIBE, GLOBAL, GLOBAL_PUT, LATENCY, LATENCY_GET = \
@@ -20,8 +22,8 @@ CLONE_SLOTS = 10
 IR_NAMES, IR_DATA, IR_RENAME, IR_ACK = 0x14000000, 0x14000001, 0x14000002, 0x14000003   # user IRs (irs.py)
 CLONES = 0x1F000010                                                 # protocol 6: what each Clone slot holds
 CLONE_EMPTY, CLONE_ORIGINAL, CLONE_NAM, CLONE_NAM_48K, CLONE_NAM_BROKEN = range(5)
-CLONE_KINDS = {CLONE_EMPTY: 'vazio', CLONE_ORIGINAL: 'captura do Clone original', CLONE_NAM: 'NAM a 44,1 kHz',
-               CLONE_NAM_48K: 'NAM a 48 kHz (reamostrado)', CLONE_NAM_BROKEN: 'NAM com erro (CRC)'}
+CLONE_KINDS = Texts({CLONE_EMPTY: 'py.empty', CLONE_ORIGINAL: 'py.clone_original', CLONE_NAM: 'py.clone_nam',
+                     CLONE_NAM_48K: 'py.clone_nam48', CLONE_NAM_BROKEN: 'py.clone_broken'})
 DRUMS, DRUM_GET, DRUM_PUT, DRUM_PLAY = range(0x1F000011, 0x1F000015)   # protocol 7: MEUS RITMOS (drums.py)
 DRUM_BANK = 0xFFFFFFFF
 RIG, BLOCK, CATALOG, EDIT = range(0x1F000015, 0x1F000019)          # protocol 8: the chain screen (wv_rig_msgs.c)
@@ -32,31 +34,32 @@ RIG, BLOCK, CATALOG, EDIT = range(0x1F000015, 0x1F000019)          # protocol 8:
 SETTINGS, SETTINGS_PUT = 0x1F000019, 0x1F00001A                     # protocol 9: the GLOBAL screen (wv_settings_msgs.c)
 FLASH_STATUS = 0x1F00001E                                           # protocol 13: the flash chip's status registers
 LOCK_TEST = 0x1F00001F                                              # test builds only (WAVEOD_LOCK_TEST)
-FLASH_LOCKS = ('sem trava', 'travada', 'trava falhou', 'trava não suportada')   # enum flash_lock
+FLASH_LOCKS = TextList(('py.lock_none', 'py.lock_locked', 'py.lock_failed', 'py.lock_unsupported'))  # enum flash_lock
 SETTING_IDS = dict(
     input_mode=1, input_level=2, aux=3, cabs=4, usb_mode=5, usb_rec=6, usb_mon=7, usb_wet=8, usb_aux=9,
     midi_source=10, midi_trs=11, midi_usb=12, clock_source=13, clock_out=14, eq_on=15, tempo=16, exp2_jack=17,
     ext1=18, ext2=19, exp1_min=20, exp1_max=21, exp2_min=22, exp2_max=23,
-    a4=32, tuner_mute=33, tuner_strobe=34, brightness=35, cursor=36, cab_original=37, spill=38, scene_manual=39,
+    a4=32, tuner_mute=33, tuner_strobe=34, brightness=35, cursor=36, cab_original=37, spill=38, scene_manual=39, language=40,
     cpu_temp=48, cpu_temp_max=49, cpu_temp_min=50)                  # read only: degrees C, None = unknown
 SETTING_NAMES = {v: k for k, v in SETTING_IDS.items()}
 SETTING_EQ = 64                                                     # + enum eq_param
 SETTING_FLOATS = {48, 49, 50}                                       # the system's: tenths of a degree, NaN unknown
-SETTING_ERRORS = {-10: 'ajuste desconhecido', -11: 'só se ajusta no pedal', -12: 'valor fora do que o pedal aceita'}
+SETTING_ERRORS = Texts({-10: 'py.setting_unknown', -11: 'py.setting_pedal_only', -12: 'py.setting_range'})
 ITEM_KINDS = ('library', 'builtin', 'module', 'missing', 'routing')
 P_SYNCED, P_SCENE, P_LIST = 1, 2, 4
 EDITED = 0xFFFF
 # the latency test (src/engine/latency.h, protocol 4)
 LAT_ROUTES = {'L': 0, 'R': 1, 'SEND': 2, 'PRESET': 3}
-LAT_ROUTE_NAMES = ['saída L → input', 'saída R → input', 'FX send → FX return', 'preset (sem cabo)']
+LAT_ROUTE_NAMES = TextList(('py.lat_route_l', 'py.lat_route_r', 'py.lat_route_send', 'py.lat_route_preset'))
 LAT_BUSY = 1
-LAT_STATUS = {0: 'sem medição', 1: 'medindo', 2: 'ok', 3: 'instável', 4: 'sem sinal', 5: 'saturou', 6: 'cancelado'}
+LAT_STATUS = Texts({0: 'py.lat_none', 1: 'py.lat_busy', 2: 'py.lat_ok', 3: 'py.lat_unstable', 4: 'py.lat_no_signal',
+                    5: 'py.lat_clipped', 6: 'py.cancelled'})
 CHUNK = 0x2000
 FLASH_SIZE = 0x800000
-ORIGINS = {0: 'usuário', 1: 'fábrica', 2: 'vazio'}
-PLACES = {0: 'waveod', 1: 'original', 2: 'vazio'}
-ERRORS = {-10: 'posição inválida', -11: 'falha na flash', -12: 'preset inválido', -21: 'argumentos inválidos',
-          -22: 'armazenamento cheio', -23: 'falha na flash'}
+ORIGINS = Texts({0: 'py.origin_user', 1: 'py.origin_factory', 2: 'py.empty'})
+PLACES = Texts({0: 'py.place_waveod', 1: 'py.place_original', 2: 'py.empty'})
+ERRORS = Texts({-10: 'py.err_position', -11: 'py.err_flash', -12: 'py.err_preset', -21: 'py.err_args',
+                -22: 'py.err_full', -23: 'py.err_flash'})
 
 
 class PedalError(RuntimeError):
@@ -67,8 +70,12 @@ class NotWaveod(PedalError):
     """the pedal answers nothing in group 0xF: it runs another firmware"""
 
 
+class Cancelled(PedalError):
+    """a long request (a flash dump) stopped by its cancel()"""
+
+
 def error_text(err):
-    return ERRORS.get(err, 'erro %d' % err)
+    return ERRORS.get(err) or tr('py.err_n', n=err)
 
 
 def _settings(r):
@@ -160,7 +167,7 @@ class Pedal:
                                        timeout=timeout or self.timeout, gap=0.0, log=lambda *a: None)
             except TimeoutError:
                 if attempt == retries:
-                    raise NotWaveod('o pedal não respondeu (%#010x): está com o firmware waveod?' % cmd) from None
+                    raise NotWaveod(tr('py.no_answer', cmd='%#010x' % cmd)) from None
 
     # ------------------------------------------------------------------ queries
     def info(self):
@@ -168,7 +175,7 @@ class Pedal:
         # reading its USB MIDI (an older firmware queues its notifications), so it gets a second try
         r = self.request(INFO, retries=1)
         if len(r) < 52 or r[:4] != b'WVOD':
-            raise NotWaveod('resposta inesperada ao pedido de informações')
+            raise NotWaveod(tr('py.bad_info'))
         proto, presets, active, dirty = struct.unpack_from('<HHHB', r, 4)
         sectors, used, free, live = struct.unpack_from('<4I', r, 12)
         return dict(protocol=proto, presets=presets, active=active, modified=bool(dirty),
@@ -181,7 +188,7 @@ class Pedal:
         (protocol 13; 14 tells the start-up values from the last read)"""
         r = self.request(FLASH_STATUS, retries=1)
         if len(r) < 12:
-            raise PedalError('resposta curta ao pedido do estado da flash (protocolo 13?)')
+            raise PedalError(tr('py.flash_status_short'))
         jedec, = struct.unpack_from('<I', r)
         sr = [None if v < 0 else v for v in struct.unpack_from('<3h', r, 4)]
         head = r[11] or 12
@@ -195,7 +202,7 @@ class Pedal:
         status registers 1-3 read 8 times right before"""
         r = self.request(LOCK_TEST, struct.pack('<I', 0x4B434F4C), timeout=20)
         if len(r) < 24:
-            raise PedalError('resposta curta ao teste da trava')
+            raise PedalError(tr('py.lock_test_short'))
         state, erase, prog, diff, restored, spot = struct.unpack_from('<iiiIiI', r)
         reads = [tuple(r[24 + 3 * k:27 + 3 * k]) for k in range((len(r) - 24) // 3)]
         return dict(state=state, erase=erase, program=prog, changed_at=None if diff == 0xFFFFFFFF else diff,
@@ -216,7 +223,7 @@ class Pedal:
         r = self.request(GET, struct.pack('<I', index))
         idx, origin, n = struct.unpack_from('<IiI', r)
         if idx != index or origin < 0:
-            raise PedalError('o pedal não devolveu o preset %d' % index)
+            raise PedalError(tr('py.get_failed', n=index))
         return origin, r[12:12 + n]
 
     def describe(self, index):
@@ -226,14 +233,14 @@ class Pedal:
         r = self.request(DESCRIBE, struct.pack('<I', index))
         idx, origin, table, blocks = controls.parse_describe(r)
         if idx != index or origin < 0 or table is None:
-            raise PedalError('o pedal não descreveu o preset %d' % index)
+            raise PedalError(tr('py.describe_failed', n=index))
         return table, blocks
 
     def global_controls(self):
         """the global control table (controls.Table); needs protocol 3"""
         t = controls.Table.from_chunk(self.request(GLOBAL))
         if t is None:
-            raise PedalError('o pedal não mandou os controles globais')
+            raise PedalError(tr('py.global_failed'))
         return t
 
     def latency_result(self):
@@ -256,7 +263,7 @@ class Pedal:
             cable(route)
         err, = struct.unpack_from('<i', self.request(LATENCY, struct.pack('<I', route)))
         if err:
-            raise PedalError('teste de latência não iniciado: %s' % error_text(err))
+            raise PedalError(tr('py.lat_not_started', error=error_text(err)))
         wait = getattr(self.port, 'wait', time.sleep)
         waited = 0.0                                # the pedal's time (the emulator's runs slower than the clock)
         while True:
@@ -269,8 +276,7 @@ class Pedal:
                 return res
             if (cancel and cancel()) or waited > timeout:
                 self.request(LATENCY, struct.pack('<I', 0xFFFFFFFF))
-                raise PedalError('teste de latência cancelado' if cancel and cancel() else
-                                 'o teste de latência não terminou')
+                raise PedalError(tr('py.lat_cancelled') if cancel and cancel() else tr('py.lat_unfinished'))
 
     # ------------------------------------------------------------------ changes
     def set_global_controls(self, table):
@@ -280,13 +286,13 @@ class Pedal:
         r = self.request(GLOBAL_PUT, struct.pack('<I', len(body)) + body, timeout=8.0)
         err, = struct.unpack_from('<i', r)
         if err:
-            raise PedalError('controles globais não gravados: %s' % error_text(err))
+            raise PedalError(tr('py.global_not_written', error=error_text(err)))
 
     def put(self, index, data):
         r = self.request(PUT, struct.pack('<II', index, len(data)) + bytes(data), timeout=8.0)
         idx, err = struct.unpack_from('<Ii', r)
         if err:
-            raise PedalError('preset %d não gravado: %s' % (index, error_text(err)))
+            raise PedalError(tr('py.put_failed', n=index, error=error_text(err)))
 
     def load(self, index):
         self.request(LOAD, struct.pack('<I', index))
@@ -319,18 +325,18 @@ class Pedal:
         which reads it again and rebuilds the edited preset (its edits kept)"""
         cap = self.library_info()['capacity']
         if len(img) > cap:
-            raise PedalError('a biblioteca (%d KB) não cabe no pedal (%d KB)' % (len(img) // 1024, cap // 1024))
+            raise PedalError(tr('py.lib_too_big', size=len(img) // 1024, capacity=cap // 1024))
         for off in range(0, len(img), LIB_SECTOR):
             chunk = img[off:off + LIB_SECTOR]
             got, err = struct.unpack_from('<Ii', self.request(LIB_WRITE, struct.pack('<II', off, len(chunk)) + chunk,
                                                               timeout=10.0))
             if got != off or err:
-                raise PedalError('biblioteca não gravada em %#x: %s' % (off, error_text(err)))
+                raise PedalError(tr('py.lib_write_failed', offset='%#x' % off, error=error_text(err)))
             if progress:
                 progress(off + len(chunk), len(img))
         err, = struct.unpack_from('<i', self.request(LIB_COMMIT, struct.pack('<I', len(img)), timeout=20.0))
         if err:
-            raise PedalError('biblioteca gravada mas não confere: %s' % error_text(err))
+            raise PedalError(tr('py.lib_check_failed', error=error_text(err)))
 
     # ------------------------------------------------------------------ Clone slots (the original's group 8)
     def clone_names(self):
@@ -356,14 +362,14 @@ class Pedal:
         """store `data` (up to 0x2000 - 48 bytes: a capture from nam.capture) in Clone slot `slot` (0..9) under
         `name`; the pedal rebuilds the chain. This replaces what the slot held."""
         if not 0 <= slot < CLONE_SLOTS:
-            raise PedalError('slot do Clone inválido: %d' % slot)
+            raise PedalError(tr('py.clone_slot_bad', n=slot))
         nb = name.encode('latin-1', 'replace')[:16]
         payload = struct.pack('<III', slot, 0, sum(data) & 0xffffffff) + nb.ljust(20, b'\0') + bytes(data)
         r = htmidi.transact(self.port, CLONE_DATA, payload, flag=htmidi.FLAG_DATA, want=CLONE_ACK, timeout=10.0,
                             gap=0.0, log=lambda *a: None)
         got, ok = struct.unpack_from('<II', r)
         if got != slot or not ok:
-            raise PedalError('o pedal não gravou o slot %d do Clone' % (slot + 1))
+            raise PedalError(tr('py.clone_not_written', n=slot + 1))
 
     # ------------------------------------------------------------------ user IRs (the original editor's group 4)
     def ir_names(self):
@@ -380,21 +386,21 @@ class Pedal:
         """store `data` (4096 bytes: irs.pack) in user IR slot `slot` (0..19) under `name`; the pedal rebuilds
         the chain. This replaces what the slot held."""
         if not 0 <= slot < irs.SLOTS:
-            raise PedalError('slot de IR inválido: %d' % slot)
+            raise PedalError(tr('py.ir_slot_bad', n=slot))
         if len(data) != irs.DATA_SIZE:
-            raise PedalError('o IR tem %d bytes (precisa ter %d)' % (len(data), irs.DATA_SIZE))
+            raise PedalError(tr('py.ir_size', size=len(data), need=irs.DATA_SIZE))
         nb = name.encode('latin-1', 'replace')[:irs.NAME_MAX]
         payload = struct.pack('<III', slot, 0, sum(data) & 0xffffffff) + nb.ljust(20, b'\0') + bytes(data)
         r = htmidi.transact(self.port, IR_DATA, payload, flag=htmidi.FLAG_DATA, want=IR_ACK, timeout=10.0,
                             gap=0.0, log=lambda *a: None)
         got, ok = struct.unpack_from('<II', r)
         if got != slot or not ok:
-            raise PedalError('o pedal não gravou o slot de IR %d' % (slot + 1))
+            raise PedalError(tr('py.ir_not_written', n=slot + 1))
 
     def rename_ir(self, slot, name):
         """a slot under a new name (the pedal does not answer: the names are read again to see it)"""
         if not 0 <= slot < irs.SLOTS:
-            raise PedalError('slot de IR inválido: %d' % slot)
+            raise PedalError(tr('py.ir_slot_bad', n=slot))
         nb = name.encode('latin-1', 'replace')[:irs.NAME_MAX]
         for p in htmidi.packets(htmidi.message(IR_RENAME, struct.pack('<I', slot) + nb.ljust(20, b'\0')),
                                 htmidi.FLAG_DATA):
@@ -419,7 +425,7 @@ class Pedal:
         r = self.request(DRUM_GET, struct.pack('<I', place))
         got, n = struct.unpack_from('<II', r)
         if got != place:
-            raise PedalError('o pedal não devolveu o ritmo %d' % (place + 1))
+            raise PedalError(tr('py.drum_get_failed', n=place + 1))
         return r[8:8 + n]
 
     def drum_put(self, place, rec):
@@ -427,14 +433,15 @@ class Pedal:
         r = self.request(DRUM_PUT, struct.pack('<II', place, len(rec)) + bytes(rec), timeout=8.0)
         got, err = struct.unpack_from('<Ii', r)
         if err:
-            raise PedalError('ritmo %d não gravado: %s' % (place + 1, 'ritmo inválido' if err == -12 else error_text(err)))
+            raise PedalError(tr('py.drum_put_failed', n=place + 1,
+                                error=tr('py.drum_invalid') if err == -12 else error_text(err)))
 
     def drum_play(self, place, on=True):
         """choose place (None: the bank's pattern) and start (on) or stop the drum machine"""
         r = self.request(DRUM_PLAY, struct.pack('<II', DRUM_BANK if place is None else place, 1 if on else 0))
         err, = struct.unpack_from('<i', r)
         if err:
-            raise PedalError('o ritmo %d está vazio' % (place + 1))
+            raise PedalError(tr('py.drum_empty', n=place + 1))
 
     # ------------------------------------------------------------------ the chain screen (protocol 8)
     def rig(self):
@@ -464,7 +471,7 @@ class Pedal:
         r = _Reader(self.request(BLOCK, struct.pack('<I', slot)))
         got, err = r.u32(), r.i32()
         if got != slot or err:
-            raise PedalError('o bloco %d não está na cadeia' % slot)
+            raise PedalError(tr('py.block_missing', n=slot))
         return [_param(r, k) for k in range(r.u8())]
 
     def catalog(self, menu):
@@ -510,7 +517,7 @@ class Pedal:
                 pairs += [(SETTING_EQ + int(k), float(x)) for k, x in dict(v).items()]
             else:
                 if name not in SETTING_IDS:
-                    raise PedalError('ajuste desconhecido: %s' % name)
+                    raise PedalError(tr('py.setting_unknown_name', name=name))
                 pairs.append((SETTING_IDS[name], float(v)))
         payload = struct.pack('<I', len(pairs)) + b''.join(struct.pack('<If', i, v) for i, v in pairs)
         r = self.request(SETTINGS_PUT, payload, timeout=8.0)
@@ -518,7 +525,7 @@ class Pedal:
         out = _settings(r[8:])
         if err:
             what = 'EQ %d' % (bad - SETTING_EQ) if bad >= SETTING_EQ else SETTING_NAMES.get(bad, bad)
-            raise PedalError('o pedal recusou %s: %s' % (what, SETTING_ERRORS.get(err, 'erro %d' % err)))
+            raise PedalError(tr('py.setting_refused', what=what, error=SETTING_ERRORS.get(err) or tr('py.err_n', n=err)))
         return out
 
     # ------------------------------------------------------------------ flash
@@ -534,13 +541,13 @@ class Pedal:
             got_off, got_n = struct.unpack_from('<II', r)
             if got_off == off and got_n == n and len(r) == 8 + n:
                 return r[8:]
-        raise PedalError('leitura da flash em %#08x falhou' % off)
+        raise PedalError(tr('py.flash_read_failed', offset='%#08x' % off))
 
     def dump(self, start, length, progress=None, cancel=None):
         out = bytearray()
         for off in range(start, start + length, CHUNK):
             if cancel and cancel():
-                raise PedalError('cancelado')
+                raise Cancelled(tr('py.cancelled'))
             out += self.read_flash(off, min(CHUNK, start + length - off))
             if progress:
                 progress(len(out), length)

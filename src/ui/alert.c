@@ -1,9 +1,10 @@
 #include "ui/alert.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 
 #define BOX_W 360
 
-static lv_obj_t *veil, *title, *text;
+static lv_obj_t *veil, *title, *text, *hint;
 
 static void hide(void)
 {
@@ -37,8 +38,7 @@ static void create(void)
     text = theme_label(box, &font_body_14, C_TEXT, 0);
     lv_obj_set_width(text, BOX_W - 32);
     lv_label_set_long_mode(text, LV_LABEL_LONG_WRAP);
-    lv_obj_t *hint = theme_label(box, &font_label_12, C_LABEL, 1);
-    lv_label_set_text(hint, "TOQUE OU APERTE UM BOT\xC3\x83O");
+    hint = theme_label(box, &font_label_12, C_LABEL, 1);
 }
 
 void alert_show(const char *t, const char *body)
@@ -47,6 +47,7 @@ void alert_show(const char *t, const char *body)
         create();
     theme_set_text(title, t);
     theme_set_text(text, body);
+    theme_set_text(hint, T(MSG_SYS_ALERT_HINT));       /* here: the language may have changed since create() */
     lv_obj_clear_flag(veil, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(veil);
 }

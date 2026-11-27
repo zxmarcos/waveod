@@ -20,8 +20,10 @@ struct settings {
                                                are in play becomes a scene parameter; rig.scene_auto) */
     uint8_t drum_user;                      /* the drum machine plays MEUS RITMOS place drum_user - 1 (0 = the bank's
                                                pattern, chosen in the globals shared with the original) */
+    uint8_t language;                       /* the screens' language: ui/i18n.h enum i18n_lang (0 = English) */
 };
 
+#define SETTINGS_LANGUAGES 32                /* stored indices kept (ui/i18n_msgs.h has how many exist) */
 #define SETTINGS_SPILL_CHOICES 5
 extern const uint16_t settings_spill_ms[SETTINGS_SPILL_CHOICES];     /* 0 (off), 2, 5, 10, 20 s */
 

@@ -4,6 +4,7 @@
 #include "platform/sdram.h"
 #include "platform/time.h"
 #include "ui/gesture.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include <string.h>
 #include "ui/sdram_code.h"           /* last: main-loop code, SDRAM */
@@ -126,8 +127,8 @@ static void draw(void)
 
 static void legend(void)
 {
-    theme_set_text(a.legend_b, a.mode == ANALYZER_PRESET ? "ENTRADA" : "ANTES");
-    theme_set_text(a.legend_a, a.mode == ANALYZER_PRESET ? "SA\xC3\x8D" "DA" : "DEPOIS");
+    theme_set_text(a.legend_b, T(a.mode == ANALYZER_PRESET ? MSG_WIDGET_INPUT : MSG_WIDGET_BEFORE));
+    theme_set_text(a.legend_a, T(a.mode == ANALYZER_PRESET ? MSG_WIDGET_OUTPUT : MSG_WIDGET_AFTER));
     theme_set_color(a.legend_a, a.color);
     lv_obj_update_layout(a.legend_a);
     lv_obj_align(a.legend_a, LV_ALIGN_TOP_RIGHT, -6, 3);
@@ -148,10 +149,11 @@ static void readout(void)
         else
             lv_snprintf(hz, sizeof hz, "%d Hz", (int)(f + 0.5f));
         int lb = (int)(a.show_b[a.cursor] - 0.5f), la = (int)(a.show_a[a.cursor] - 0.5f);
-        lv_snprintf(text, sizeof text, "%s%s  %d / %d dB", a.frozen ? "PAUSA \xC2\xB7 " : "", hz,
+        lv_snprintf(text, sizeof text, "%s%s%s  %d / %d dB", a.frozen ? T(MSG_WIDGET_PAUSED) : "",
+                    a.frozen ? " \xC2\xB7 " : "", hz,
                     lb < (int)BOT_DB ? (int)BOT_DB : lb, la < (int)BOT_DB ? (int)BOT_DB : la);
     } else {
-        lv_snprintf(text, sizeof text, "PAUSA");
+        lv_snprintf(text, sizeof text, "%s", T(MSG_WIDGET_PAUSED));
     }
     theme_set_text(a.readout, text);
     lv_obj_clear_flag(a.readout, LV_OBJ_FLAG_HIDDEN);

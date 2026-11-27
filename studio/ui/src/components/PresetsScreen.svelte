@@ -9,6 +9,7 @@
   import { menuInfo } from '../lib/menus';
   import { ctl } from '../lib/ctl.svelte';
   import { isVacant, presetLabel, studio } from '../lib/store.svelte';
+  import { t } from '../lib/i18n.svelte';
   import type { PresetEntry } from '../lib/types';
 
   let query = $state('');
@@ -64,7 +65,7 @@
       studio.placing = null;
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isVacant(studio.presets[i])) {
       clip = i;
-      studio.say(`${presetLabel(i)} copiado: Ctrl+V cola no preset escolhido`);
+      studio.say(t('presets.clip', { label: presetLabel(i) }));
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && clip >= 0 && studio.picked !== null) {
       void studio.copyPreset(clip, studio.picked);
     }
@@ -98,38 +99,39 @@
 </script>
 
 <div class="screen">
-  <section class="browse" aria-label="Presets do pedal">
+  <section class="browse" aria-label={t('presets.aria')}>
     <header class="tools">
       <div class="title">
-        <h1>Presets</h1>
-        <span class="count">{counts.stored} guardados · {counts.vacant} vazios</span>
+        <h1>{t('tab.presets')}</h1>
+        <span class="count">{t('presets.count', { stored: counts.stored, vacant: counts.vacant })}</span>
       </div>
       <label class="search">
         <Icon name="search" size={17} stroke={2} />
-        <input type="search" placeholder="Buscar nome ou posição (05B)" bind:value={query} />
+        <input type="search" placeholder={t('presets.search')} bind:value={query} />
       </label>
-      <button class="ghost" onclick={() => ctl.openGlobal()} title="O que as teclas fazem nos presets que não têm ligação própria nelas">
-        <Icon name="globe" size={16} stroke={2} /> Controles globais…
+      <button class="ghost" onclick={() => ctl.openGlobal()} title={t('presets.global_title')}>
+        <Icon name="globe" size={16} stroke={2} /> {t('presets.global')}
       </button>
-      <button class="ghost" onclick={() => studio.restore()} title="Grava no pedal os presets de um arquivo .wvbak">
-        Restaurar…
+      <button class="ghost" onclick={() => studio.restore()} title={t('presets.restore_title')}>
+        {t('presets.restore')}
       </button>
-      <button class="primary" onclick={() => studio.backup()} title="Salva todos os presets do pedal num arquivo .wvbak">
-        <Icon name="save" size={16} stroke={2.1} /> Backup
+      <button class="primary" onclick={() => studio.backup()} title={t('presets.backup_title')}>
+        <Icon name="save" size={16} stroke={2.1} /> {t('store.backup')}
       </button>
     </header>
 
     {#if studio.placing}
       {@const pl = studio.placing}
       <div class="placing" role="status">
-        <span><b>{pl.op === 'move' ? 'Mover' : 'Copiar'} {presetLabel(pl.src)}</b> “{studio.presets[pl.src]?.name || 'sem nome'}”:
-          clique no lugar de destino{pl.op === 'move' ? '; os presets entre os dois andam uma casa' : ''}.</span>
-        <button onclick={() => (studio.placing = null)}>Cancelar <kbd>Esc</kbd></button>
+        <span><b>{t(pl.op === 'move' ? 'presets.place_move' : 'presets.place_copy', { label: presetLabel(pl.src) })}</b>
+          “{studio.presets[pl.src]?.name || t('ctl.unnamed')}”:
+          {t(pl.op === 'move' ? 'presets.place_hint_move' : 'presets.place_hint')}</span>
+        <button onclick={() => (studio.placing = null)}>{t('common.cancel')} <kbd>Esc</kbd></button>
       </div>
     {:else if dragFrom >= 0}
       <div class="placing hint" role="status">
-        <span>Solte para <b>{copying ? 'copiar' : 'mover'}</b> {presetLabel(dragFrom)}{copying ? '' : ' (os presets entre os dois andam uma casa)'}
-          · segure <kbd>Ctrl</kbd> para copiar</span>
+        <span>{t('presets.drop')} <b>{t(copying ? 'presets.drop_copy' : 'presets.drop_move')}</b> {presetLabel(dragFrom)}{copying ? '' : t('presets.drop_slide')}
+          · {t('presets.hold')} <kbd>Ctrl</kbd> {t('presets.hold_copy')}</span>
       </div>
     {/if}
 
@@ -143,7 +145,7 @@
             {@const vacant = isVacant(p)}
             <button class="card" data-i={p.index} class:vacant class:active={p.active} class:picked={studio.picked === p.index}
                     class:dim={!matches(p)} class:over={over === p.index} class:from={dragFrom === p.index}
-                    aria-label="{presetLabel(p.index)} {vacant ? 'vazio' : p.name || 'sem nome'}{p.active ? ', ativo no pedal' : ''}"
+                    aria-label="{presetLabel(p.index)} {vacant ? t('presets.vacant') : p.name || t('ctl.unnamed')}{p.active ? t('presets.active_suffix') : ''}"
                     aria-current={studio.picked === p.index ? 'true' : undefined}
                     tabindex={studio.picked === p.index || (studio.picked === null && p.index === 0) ? 0 : -1}
                     draggable={!vacant} ondragstart={(e) => dragStart(e, p.index)} ondragend={dragEnd}
@@ -151,9 +153,9 @@
                     onclick={() => choose(p.index)} ondblclick={() => !studio.placing && studio.activate(p.index)}>
               <span class="top">
                 <span class="fs">{'ABCD'[p.index % 4]}</span>
-                <span class="name">{vacant ? 'vazio' : p.name || 'sem nome'}</span>
+                <span class="name">{vacant ? t('presets.vacant') : p.name || t('ctl.unnamed')}</span>
                 {#if p.active}
-                  <span class="live" title={studio.rig?.dirty ? 'No pedal, com alterações não salvas' : 'No pedal'}
+                  <span class="live" title={studio.rig?.dirty ? t('presets.live_dirty') : t('presets.live')}
                         class:dirty={studio.rig?.dirty}></span>
                 {/if}
               </span>
@@ -170,7 +172,7 @@
           {/each}
         </div>
       {:else}
-        <p class="none">Nenhum preset com “{query}”.</p>
+        <p class="none">{t('presets.none', { query })}</p>
       {/each}
     </div>
   </section>

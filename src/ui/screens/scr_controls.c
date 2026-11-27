@@ -26,6 +26,7 @@
 #include "platform/sdram.h"
 #include "platform/time.h"
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/row_list.h"
@@ -52,13 +53,14 @@ static struct {
 
 static const char *key_name(int key)
 {
-    return key == CK_AGAIN ? "PRESET ATIVO DE NOVO" : ui_key_name(key);
+    return key == CK_AGAIN ? T(MSG_CTL_AGAIN) : ui_key_name(key);
 }
 
-static const char *const curve_names[CC_COUNT] = { "LINEAR", "LENTA", "R\xC3\x81PIDA" };
+static const uint16_t curve_names[CC_COUNT] = { MSG_SHARED_CURVE_LINEAR, MSG_SHARED_CURVE_SLOW, MSG_SHARED_CURVE_FAST };
 
-static const char *const colour_names[8] = {
-    "AUTOM\xC3\x81TICA", "VERMELHO", "VERDE", "AMARELO", "AZUL", "MAGENTA", "CIANO", "BRANCO",
+static const uint16_t colour_names[8] = {
+    MSG_SHARED_COLOUR_AUTO, MSG_SHARED_COLOUR_RED, MSG_SHARED_COLOUR_GREEN, MSG_SHARED_COLOUR_YELLOW,
+    MSG_SHARED_COLOUR_BLUE, MSG_SHARED_COLOUR_MAGENTA, MSG_SHARED_COLOUR_CYAN, MSG_SHARED_COLOUR_WHITE,
 };
 
 static int pedal(void)
@@ -162,7 +164,7 @@ static int copy_group(struct ui_ctx *ui, int hold, int which)
         struct control l = g->c[i];
         l.modes = (uint8_t)key_modes();
         if (preset_control_add(c, &l) != 0) {
-            ui_toast("Tabela de controles cheia");
+            ui_toast(T(MSG_COMMON_TABLE_FULL));
             return -1;
         }
         if (i == which)
@@ -190,7 +192,7 @@ static int own(struct ui_ctx *ui, int row)
         return -1;
     if (c->c[i].modes != s.mode && s.key < CK_TOE) {   /* the toe switch and the pedals are the same in every mode */
         if (c->count >= CONTROL_MAX) {
-            ui_toast("Tabela de controles cheia");
+            ui_toast(T(MSG_COMMON_TABLE_FULL));
             return -1;
         }
         /* the copy right after it: the rows keep their order */
@@ -231,7 +233,7 @@ static void add_link(struct ui_ctx *ui)
     struct control l = { .key = (uint8_t)s.key, .modes = (uint8_t)key_modes(),
                          .when = CW_PRESS, .action = CA_FN, .slot = -1, .arg = FSF_NONE };
     if (preset_control_add(table(ui), &l) != 0) {
-        ui_toast("Tabela de controles cheia");
+        ui_toast(T(MSG_COMMON_TABLE_FULL));
         return;
     }
     collect(ui);
@@ -248,11 +250,11 @@ static void remove_link(struct ui_ctx *ui, int row)
                                 .when = (uint8_t)(g->when == CW_HOLD ? CW_HOLD : CW_PRESS), .action = CA_NOTHING,
                                 .slot = -1 };
         if (preset_control_add(c, &none) != 0) {
-            ui_toast("Tabela de controles cheia");
+            ui_toast(T(MSG_COMMON_TABLE_FULL));
             return;
         }
         collect(ui);
-        ui_toast("SEM AS GLOBAIS NESTE PRESET");
+        ui_toast(T(MSG_CTL_NO_GLOBALS));
         edited(ui);
         return;
     }
@@ -264,7 +266,7 @@ static void remove_link(struct ui_ctx *ui, int row)
     else
         preset_control_remove(c, i);
     collect(ui);
-    ui_toast("LIGA\xC3\x87\xC3\x83O REMOVIDA");
+    ui_toast(T(MSG_COMMON_LINK_REMOVED));
     edited(ui);
 }
 
@@ -292,7 +294,7 @@ static void activate(struct ui_ctx *ui, int row)
     } else if (row_global(row)) {               /* made the preset's own (with the rest of its group) */
         int i = copy_group(ui, row_control(ui, row)->when == CW_HOLD, s.links[row - s.first]);
         if (i >= 0) {
-            ui_toast("COPIADA PARA O PRESET");
+            ui_toast(T(MSG_CTL_COPIED));
             edited(ui);
             ui_target(i, 0);
         }
@@ -309,27 +311,27 @@ static void activate(struct ui_ctx *ui, int row)
 
 static const char *when_text(int when)
 {
-    return when == CW_HOLD ? "SEGURAR" : when == CW_MOMENT ? "ENQUANTO PISA" : "APERTAR";
+    return T(when == CW_HOLD ? MSG_COMMON_WHEN_HOLD : when == CW_MOMENT ? MSG_COMMON_WHEN_MOMENT : MSG_COMMON_WHEN_PRESS);
 }
 
 void ui_link_text(struct ui_ctx *ui, const struct control *l, char *out, unsigned size)
 {
     char name[24] = "?";
     if (l->action == CA_NOTHING) {
-        lv_snprintf(out, size, "NADA (SEM AS GLOBAIS)");
+        lv_snprintf(out, size, "%s", T(MSG_CTL_NOTHING));
     } else if (l->action == CA_MIDI) {
         if (l->flags & CF_PC)
-            lv_snprintf(out, size, "MIDI PC %d \xC2\xB7 CANAL %d", l->arg, (l->slot & 15) + 1);
+            lv_snprintf(out, size, T(MSG_CTL_MIDI_PC), l->arg, (l->slot & 15) + 1);
         else
-            lv_snprintf(out, size, "MIDI CC %d %d \xC2\xBB %d \xC2\xB7 CANAL %d", l->arg, (int)l->off, (int)l->on,
+            lv_snprintf(out, size, T(MSG_CTL_MIDI_CC), l->arg, (int)l->off, (int)l->on,
                         (l->slot & 15) + 1);
     } else if (CK_IS_PEDAL(l->key) && l->action == CA_BLOCK) {
         ui_slot_name(ui, l->slot, name, sizeof name);
         lv_snprintf(out, size, "%s %s \xC2\xB7 %s", ui_slot_tag(ui, l->slot), name,
-                    l->arg ? "LIGA AO MOVER" : "COM O GRUPO");
+                    T(l->arg ? MSG_CTL_ON_MOVE : MSG_CTL_WITH_GROUP));
     } else if (l->action == CA_BLOCK) {
         ui_slot_name(ui, l->slot, name, sizeof name);
-        lv_snprintf(out, size, "%s %s \xC2\xB7 %s", ui_slot_tag(ui, l->slot), name, l->arg ? "DESLIGA" : "LIGA");
+        lv_snprintf(out, size, "%s %s \xC2\xB7 %s", ui_slot_tag(ui, l->slot), name, T(l->arg ? MSG_CTL_BLOCK_OFF : MSG_CTL_BLOCK_ON));
     } else if (l->action == CA_PARAM) {
         struct rig_param p;
         char lo[16], hi[16];
@@ -342,15 +344,15 @@ void ui_link_text(struct ui_ctx *ui, const struct control *l, char *out, unsigne
         param_format(&p.def, l->on, 0, hi, sizeof hi);
         if (CK_SWEEPS(l->key) && l->curve != CC_LINEAR)
             lv_snprintf(out, size, "%s %s %s \xC2\xBB %s \xC2\xB7 %s", ui_slot_tag(ui, l->slot), name, lo, hi,
-                        curve_names[l->curve % CC_COUNT]);
+                        T(curve_names[l->curve % CC_COUNT]));
         else
             lv_snprintf(out, size, "%s %s %s \xC2\xBB %s", ui_slot_tag(ui, l->slot), name, lo, hi);
     } else if (l->action == CA_SCENE) {
         if (l->arg < SCENE_COUNT) {
             rig_scene_name(ui->rig, l->arg, name);
-            lv_snprintf(out, size, "CENA %d \xC2\xB7 %s", l->arg + 1, name);
+            lv_snprintf(out, size, T(MSG_CTL_SCENE), l->arg + 1, name);
         } else {
-            lv_snprintf(out, size, l->arg == SCENE_NEXT ? "PR\xC3\x93XIMA CENA" : "CENA ANTERIOR");
+            lv_snprintf(out, size, "%s", T(l->arg == SCENE_NEXT ? MSG_SHARED_SCENE_NEXT : MSG_SHARED_SCENE_PREV));
         }
     } else {
         lv_snprintf(out, size, "%s", assign_fn_name(l->arg));
@@ -362,16 +364,16 @@ static void value_text(void *ctx, int row, char *out, unsigned size)
     struct ui_ctx *ui = ctx;
     const struct preset_controls *c = table(ui);
     if (row == R_KEY && ui->learned == learned) {
-        lv_snprintf(out, size, "PISE, MEXA UM PEDAL OU MANDE UM CC");
+        lv_snprintf(out, size, "%s", T(MSG_CTL_LEARNING));
     } else if (row == R_KEY) {
         lv_snprintf(out, size, "%s \xC2\xB7 %d", key_name(s.key), s.nlinks);
     } else if (row == R_NAME) {
         lv_snprintf(out, size, "%s", s.key >= CK_KEYS ? "-" :
-                                     c->label[s.key][0] ? c->label[s.key] : "(AUTOM\xC3\x81TICO)");
+                                     c->label[s.key][0] ? c->label[s.key] : T(MSG_CTL_AUTOMATIC));
     } else if (row == R_COLOUR) {
-        lv_snprintf(out, size, "%s", s.key >= CK_KEYS ? "-" : colour_names[c->colour[s.key] & 7]);
+        lv_snprintf(out, size, "%s", s.key >= CK_KEYS ? "-" : T(colour_names[c->colour[s.key] & 7]));
     } else if (row == row_add()) {
-        lv_snprintf(out, size, "MENU \xC2\xBB");
+        lv_snprintf(out, size, "%s", T(MSG_COMMON_MENU_ARROW));
     } else if (row_control(ui, row)) {
         ui_link_text(ui, row_control(ui, row), out, size);
     } else {
@@ -442,15 +444,16 @@ static void enter(struct ui_ctx *ui)
 
 static void refresh(struct ui_ctx *ui)
 {
-    static const char *const modes[] = { "", "MODO PRESET", "MODO STOMP", "", "MODO CENAS" };
+    static const uint16_t modes[] = { 0, MSG_COMMON_MODE_PRESET, MSG_COMMON_MODE_STOMP, 0, MSG_COMMON_MODE_SCENES };
     char title[48];
-    const char *pre = s.global ? "GLOBAIS \xC2\xB7 " : "";
+    const char *pre = s.global ? T(MSG_CTL_PREFIX_GLOBAL) : "";
     if (CK_IS_MIDI(s.key))
-        lv_snprintf(title, sizeof title, "%sMIDI \xC2\xB7 TODOS OS MODOS", pre);
+        lv_snprintf(title, sizeof title, T(MSG_CTL_TITLE_MIDI), pre);
     else if (s.key >= CK_TOE)
-        lv_snprintf(title, sizeof title, "%sPEDAIS \xC2\xB7 TODOS OS MODOS", pre);
+        lv_snprintf(title, sizeof title, T(MSG_CTL_TITLE_PEDALS), pre);
     else
-        lv_snprintf(title, sizeof title, "%s%s \xC2\xB7 %s", pre, s.global ? "TECLAS" : "FOOTSWITCHES", modes[s.mode]);
+        lv_snprintf(title, sizeof title, "%s%s \xC2\xB7 %s", pre, T(s.global ? MSG_CTL_KEYS : MSG_CTL_FOOTSWITCHES),
+                    T(modes[s.mode]));
     top_bar_sub(title);
     collect(ui);
     struct row_list *l = &s.list;
@@ -461,14 +464,14 @@ static void refresh(struct ui_ctx *ui)
     l->last_stop = n - 1;
     if (l->sel >= n)
         l->sel = n - 1;
-    lv_snprintf(s.titles[R_KEY], sizeof s.titles[0], "TECLA");
-    lv_snprintf(s.titles[R_NAME], sizeof s.titles[0], "NOME NO CARD");
-    lv_snprintf(s.titles[R_COLOUR], sizeof s.titles[0], "COR");
+    lv_snprintf(s.titles[R_KEY], sizeof s.titles[0], "%s", T(MSG_CTL_ROW_KEY));
+    lv_snprintf(s.titles[R_NAME], sizeof s.titles[0], "%s", T(MSG_CTL_ROW_NAME));
+    lv_snprintf(s.titles[R_COLOUR], sizeof s.titles[0], "%s", T(MSG_CTL_ROW_COLOUR));
     for (int k = 0; k < s.nlinks; k++)
-        lv_snprintf(s.titles[s.first + k], sizeof s.titles[0], "%s%s", s.from_global[k] ? "GLOBAL \xC2\xB7 " : "",
+        lv_snprintf(s.titles[s.first + k], sizeof s.titles[0], "%s%s", s.from_global[k] ? T(MSG_CTL_ROW_GLOBAL) : "",
                     pedal() ? "PEDAL" : CK_IS_MIDI(s.key) ? "MIDI" :
-                    s.key == CK_TOE ? "APERTAR" : when_text(row_control(ui, s.first + k)->when));
-    lv_snprintf(s.titles[row_add()], sizeof s.titles[0], "+ NOVA LIGA\xC3\x87\xC3\x83O");
+                    s.key == CK_TOE ? T(MSG_COMMON_WHEN_PRESS) : when_text(row_control(ui, s.first + k)->when));
+    lv_snprintf(s.titles[row_add()], sizeof s.titles[0], "%s", T(MSG_COMMON_NEW_LINK));
     for (int r = 0; r < n; r++)
         row_list_title(l, r, s.titles[r]);
     row_list_refresh(l, value_text, ui);

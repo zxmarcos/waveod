@@ -1,0 +1,16 @@
+{
+  "fw.common.on": "ON",
+  "fw.common.off": "OFF",
+  "fw.common.menu_arrow": "MENU »",
+  "fw.common.new_link": "+ NUEVO ENLACE",
+  "fw.common.more": "+%d MÁS",
+  "fw.common.table_full": "Tabla de controles llena",
+  "fw.common.link_removed": "ENLACE ELIMINADO",
+  "fw.common.mode_preset": "MODO PRESET",
+  "fw.common.mode_stomp": "MODO STOMP",
+  "fw.common.mode_scenes": "MODO ESCENAS",
+  "fw.common.when_press": "PULSAR",
+  "fw.common.when_hold": "MANTENER",
+  "fw.common.when_moment": "MIENTRAS PISA",
+  "fw.common.missing": "AUSENTE"
+}

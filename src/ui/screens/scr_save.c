@@ -8,6 +8,7 @@
  * Touch: SALVAR / TROCAR / NOME / CANCELAR, the < > buttons, swipe the destination sideways (one preset) or up / down (bank);
  * ‹ = cancel.
  */
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -40,36 +41,36 @@ static void leave(struct ui_ctx *ui)
 static void save(struct ui_ctx *ui)
 {
     char label[8], text[48];
-    theme_set_text(s.save_text, "GRAVANDO...");
+    theme_set_text(s.save_text, T(MSG_SAVE_WRITING));
     lv_refr_now(NULL);                      /* the write blocks the loop for a moment */
     preset_label(ui->save_target, label);
     if (rig_save(ui->rig, ui->save_target) == 0) {
-        lv_snprintf(text, sizeof text, "Preset salvo em %s", label);
+        lv_snprintf(text, sizeof text, T(MSG_SAVE_SAVED), label);
         ui_changed();
         ui_toast(text);
         leave(ui);
     }
-    theme_set_text(s.save_text, "SALVAR");
+    theme_set_text(s.save_text, T(MSG_SCREENS_SAVE));
 }
 
 static void swap(struct ui_ctx *ui)
 {
     char from[8], to[8], text[48];
     if (ui->save_target == ui->rig->index) {
-        ui_toast("Escolha outra posi\xC3\xA7\xC3\xA3o para trocar");
+        ui_toast(T(MSG_SAVE_PICK_OTHER));
         return;
     }
     preset_label(ui->rig->index, from);
     preset_label(ui->save_target, to);
-    theme_set_text(s.save_text, "GRAVANDO...");
+    theme_set_text(s.save_text, T(MSG_SAVE_WRITING));
     lv_refr_now(NULL);
     if (rig_swap(ui->rig, ui->save_target) == 0) {
-        lv_snprintf(text, sizeof text, "Trocados: %s \xC2\xB7 %s", from, to);
+        lv_snprintf(text, sizeof text, T(MSG_SAVE_SWAPPED), from, to);
         ui_changed();
         ui_toast(text);
         leave(ui);
     }
-    theme_set_text(s.save_text, "SALVAR");
+    theme_set_text(s.save_text, T(MSG_SCREENS_SAVE));
 }
 
 /* ---------------------------------------------------------------- touch */
@@ -128,7 +129,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     s.body = theme_box(root, 0, BODY_Y, UI_W, BODY_H, C_BG);
     gesture_bind(s.body, on_body, 0);
     s.caption = theme_label(root, &font_label_12, C_LABEL, 1);
-    lv_label_set_text(s.caption, "SALVAR EM");
+    lv_label_set_text(s.caption, T(MSG_SAVE_SAVE_TO));
     lv_obj_set_pos(s.caption, UI_PAD, BODY_Y + 12);
     s.number = theme_label(root, &font_hero_76, C_ACCENT, -1);
     lv_obj_set_pos(s.number, UI_PAD, BODY_Y + 32);
@@ -139,7 +140,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     s.as = theme_label(root, &font_body_14, C_TEXT, 0);
     lv_label_set_long_mode(s.as, LV_LABEL_LONG_DOT);
     s.hint = theme_label(root, &font_label_12, C_OFF, 1);
-    lv_label_set_text(s.hint, "MENU \xC2\xB7 DESTINO   KNOB 2 \xC2\xB7 BANCO   CTRL \xC2\xB7 NOME   EFX \xC2\xB7 TROCAR");
+    lv_label_set_text(s.hint, T(MSG_SAVE_HINT));
     lv_obj_set_pos(s.hint, UI_PAD, BODY_Y + BODY_H - 22);
     for (int i = 0; i < 2; i++) {
         s.arrows[i] = theme_box(root, UI_W - UI_PAD - (2 - i) * ARROW - (1 - i) * 8, BODY_Y + BODY_H - 30 - ARROW,
@@ -154,10 +155,10 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     }
     theme_box(root, 0, UI_H - BUTTONS_H, UI_W, 1, C_LINE);
     int bw = (UI_W - 2 * UI_PAD - 3 * 8) / 4;
-    s.cancel = button(root, UI_PAD, bw, "CANCELAR", C_BG, C_LABEL, 0, 0);
-    button(root, UI_PAD + bw + 8, bw, "NOME", C_BG, C_TEXT, 2, 0);
-    button(root, UI_PAD + 2 * (bw + 8), bw, "TROCAR", C_BG, C_TEXT, 3, 0);
-    s.save = button(root, UI_PAD + 3 * (bw + 8), bw, "SALVAR", C_ACCENT, C_BG, 1, &s.save_text);
+    s.cancel = button(root, UI_PAD, bw, T(MSG_SCREENS_CANCEL), C_BG, C_LABEL, 0, 0);
+    button(root, UI_PAD + bw + 8, bw, T(MSG_SAVE_NAME), C_BG, C_TEXT, 2, 0);
+    button(root, UI_PAD + 2 * (bw + 8), bw, T(MSG_SAVE_SWAP), C_BG, C_TEXT, 3, 0);
+    s.save = button(root, UI_PAD + 3 * (bw + 8), bw, T(MSG_SCREENS_SAVE), C_ACCENT, C_BG, 1, &s.save_text);
 }
 
 static void refresh(struct ui_ctx *ui)
@@ -165,7 +166,7 @@ static void refresh(struct ui_ctx *ui)
     const struct rig *r = ui->rig;
     char title[48], cur[40], label[8], name[PRESET_NAME_LEN + 1];
     ui_preset_title(ui, cur, sizeof cur);
-    lv_snprintf(title, sizeof title, "SALVAR \xC2\xB7 %s", cur);
+    lv_snprintf(title, sizeof title, T(MSG_SAVE_TITLE), cur);
     top_bar_sub(title);
 
     int t = ui->save_target;
@@ -174,14 +175,14 @@ static void refresh(struct ui_ctx *ui)
     enum preset_origin origin = presets_origin(&r->src, t);
     presets_name(&r->src, t, name);
     if (t == r->index)
-        theme_set_text(s.name, r->preset.name[0] ? r->preset.name : "(sem nome)");
+        theme_set_text(s.name, r->preset.name[0] ? r->preset.name : T(MSG_SCREENS_UNNAMED));
     else
-        theme_set_text(s.name, origin == PRESET_EMPTY ? "(vazio)" : name);
-    const char *state = t == r->index ? "Mesmo preset: grava as alterações"
-                        : origin == PRESET_USER    ? "Preset do usuário: será substituído"
-                        : origin == PRESET_FACTORY ? "Preset de fábrica: será substituído"
-                                                   : "Posição livre";
-    theme_set_text(s.state, state);
+        theme_set_text(s.name, origin == PRESET_EMPTY ? T(MSG_SCREENS_EMPTY) : name);
+    enum i18n_msg state = t == r->index ? MSG_SAVE_STATE_SAME
+                         : origin == PRESET_USER    ? MSG_SAVE_STATE_USER
+                         : origin == PRESET_FACTORY ? MSG_SAVE_STATE_FACTORY
+                                                    : MSG_SAVE_STATE_FREE;
+    theme_set_text(s.state, T(state));
     lv_obj_update_layout(s.number);
     int x = UI_PAD + lv_obj_get_width(s.number) + 19;
     int name_h = lv_font_get_line_height(&font_title_40);
@@ -190,7 +191,7 @@ static void refresh(struct ui_ctx *ui)
     lv_obj_set_pos(s.state, x + 2, BODY_Y + 40 + name_h + 2);
     lv_obj_set_width(s.state, UI_W - UI_PAD - x);
     char as[48];
-    lv_snprintf(as, sizeof as, "Salvar como: %s", r->preset.name[0] ? r->preset.name : "(sem nome)");
+    lv_snprintf(as, sizeof as, T(MSG_SAVE_SAVE_AS), r->preset.name[0] ? r->preset.name : T(MSG_SCREENS_UNNAMED));
     theme_set_text(s.as, as);
     lv_obj_set_pos(s.as, x + 2, BODY_Y + 40 + name_h + 22);
     lv_obj_set_width(s.as, UI_W - UI_PAD - x - 2 * ARROW - 16);

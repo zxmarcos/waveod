@@ -2,6 +2,7 @@
   import type { Param } from '../lib/types';
   import { fraction } from '../lib/format';
   import { floating, moveFocus } from '../lib/floating';
+  import { t } from '../lib/i18n.svelte';
 
   let { param, color, onchange, onreset, onhold, onscene }: {
     param: Param;
@@ -20,8 +21,8 @@
   let held = $state(false);
 
   function pt(a: number, r = R) {
-    const t = (a * Math.PI) / 180;
-    return [C + r * Math.sin(t), C - r * Math.cos(t)];
+    const rad = (a * Math.PI) / 180;
+    return [C + r * Math.sin(rad), C - r * Math.cos(rad)];
   }
   function arc(a0: number, a1: number) {
     const [x0, y0] = pt(a0), [x1, y1] = pt(a1);
@@ -105,12 +106,12 @@
       <circle cx={C} cy={C} r={R - 8} class="cap" />
       <line x1={pt(angle, R - 18)[0]} y1={pt(angle, R - 18)[1]} x2={pt(angle, R - 9)[0]} y2={pt(angle, R - 9)[1]}
             class="pointer" />
-      {#if param.scene && !onscene}<circle cx={C} cy={SIZE - 6} r="2.5" fill="var(--accent)"><title>Parâmetro de cena</title></circle>{/if}
+      {#if param.scene && !onscene}<circle cx={C} cy={SIZE - 6} r="2.5" fill="var(--accent)"><title>{t('params.scene_param')}</title></circle>{/if}
     </svg>
     {#if onscene}
       <button class="scene" class:on={param.scene} aria-pressed={param.scene} onclick={onscene}
               onpointerdown={(e) => e.stopPropagation()}
-              title={param.scene ? 'Um valor por cena: clique para voltar ao valor do preset' : 'Um valor por cena (KNOBS NA CENA)'}>C</button>
+              title={param.scene ? t('params.scene_on_title') : t('params.scene_off_title')}>C</button>
     {/if}
   </div>
   {#if listed}

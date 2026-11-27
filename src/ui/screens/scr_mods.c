@@ -23,6 +23,7 @@
 #include "model/param_format.h"
 #include "platform/sdram.h"
 #include "platform/time.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/mod_graph.h"
@@ -60,11 +61,12 @@ static struct {
     int drag_start;
 } s SDRAM_BSS;
 
-static const char *const type_names[MOD_TYPES] = { "DESLIGADO", "LFO", "ENVELOPE", ("SEQU\xC3\x8A" "NCIA") };
-static const char *const type_short[MOD_TYPES] = { "\xE2\x80\x93", "LFO", "ENV", "SEQ" };
-static const char *const shape_names[MS_SHAPES] = {
-    "SENOIDE", "TRI\xC3\x82NGULO", "QUADRADA", "DENTE SUBINDO", "DENTE DESCENDO", "ALEAT\xC3\x93RIA",
-    "ALEAT\xC3\x93RIA SUAVE",
+static const uint16_t type_names[MOD_TYPES] = { MSG_MOD_TYPE_OFF, MSG_MOD_TYPE_LFO, MSG_MOD_TYPE_ENV, MSG_MOD_TYPE_SEQ };
+static const uint16_t type_short[MOD_TYPES] = { MSG_MOD_SHORT_OFF, MSG_MOD_SHORT_LFO, MSG_MOD_SHORT_ENV,
+                                                MSG_MOD_SHORT_SEQ };
+static const uint16_t shape_names[MS_SHAPES] = {
+    MSG_MOD_SHAPE_SINE, MSG_MOD_SHAPE_TRIANGLE, MSG_MOD_SHAPE_SQUARE, MSG_MOD_SHAPE_SAW_UP, MSG_MOD_SHAPE_SAW_DOWN,
+    MSG_MOD_SHAPE_RANDOM, MSG_MOD_SHAPE_SMOOTH,
 };
 
 static struct preset_mod *mod_of(struct ui_ctx *ui, int i)
@@ -226,7 +228,7 @@ static void add_link(struct ui_ctx *ui)
     struct control l = { .key = (uint8_t)(CK_MOD1 + s.mod), .modes = CM_ALL, .when = CW_PRESS, .action = CA_FN,
                          .slot = -1, .arg = FSF_NONE };
     if (preset_control_add(table(ui), &l) != 0) {
-        ui_toast("Tabela de controles cheia");
+        ui_toast(T(MSG_COMMON_TABLE_FULL));
         return;
     }
     collect(ui);
@@ -241,7 +243,7 @@ static void remove_link(struct ui_ctx *ui, int row)
         return;
     preset_control_remove(table(ui), i);
     collect(ui);
-    ui_toast("LIGA\xC3\x87\xC3\x83O REMOVIDA");
+    ui_toast(T(MSG_COMMON_LINK_REMOVED));
     edited(ui);
 }
 
@@ -259,14 +261,14 @@ static void activate(struct ui_ctx *ui, int row)
 
 static void field_title(int field, char *buf, unsigned size)
 {
-    static const char *const titles[MF_STEP] = {
-        "TIPO", "FORMA", "SINCRONIA", "VELOCIDADE", "FASE INICIAL", "SENSIBILIDADE", "ATAQUE", "RETORNO", "PASSOS",
-        "DESLIZE",
+    static const uint16_t titles[MF_STEP] = {
+        MSG_MOD_FIELD_TYPE, MSG_MOD_FIELD_SHAPE, MSG_MOD_FIELD_SYNC, MSG_MOD_FIELD_RATE, MSG_MOD_FIELD_PHASE,
+        MSG_MOD_FIELD_SENS, MSG_MOD_FIELD_ATTACK, MSG_MOD_FIELD_RELEASE, MSG_MOD_FIELD_STEPS, MSG_MOD_FIELD_GLIDE,
     };
     if (field >= MF_STEP)
-        lv_snprintf(buf, size, "PASSO %d", field - MF_STEP + 1);
+        lv_snprintf(buf, size, T(MSG_MOD_FIELD_STEP), field - MF_STEP + 1);
     else
-        lv_snprintf(buf, size, "%s", field >= 0 ? titles[field] : "");
+        lv_snprintf(buf, size, "%s", field >= 0 ? T(titles[field]) : "");
 }
 
 static void rate_text(const struct preset_mod *m, char *out, unsigned size)
@@ -282,9 +284,9 @@ static void field_text(struct ui_ctx *ui, int field, char *out, unsigned size)
 {
     const struct preset_mod *m = the_mod(ui);
     switch (field) {
-    case MF_TYPE:    lv_snprintf(out, size, "%s", type_names[m->type % MOD_TYPES]); break;
-    case MF_SHAPE:   lv_snprintf(out, size, "%s", shape_names[m->shape % MS_SHAPES]); break;
-    case MF_SYNC:    lv_snprintf(out, size, "%s", m->sync ? param_sync_divisions[(m->sync - 1) % 11] : "LIVRE"); break;
+    case MF_TYPE:    lv_snprintf(out, size, "%s", T(type_names[m->type % MOD_TYPES])); break;
+    case MF_SHAPE:   lv_snprintf(out, size, "%s", T(shape_names[m->shape % MS_SHAPES])); break;
+    case MF_SYNC:    lv_snprintf(out, size, "%s", m->sync ? param_sync_divisions[(m->sync - 1) % 11] : T(MSG_MOD_FREE)); break;
     case MF_RATE:    rate_text(m, out, size); break;
     case MF_PHASE:   lv_snprintf(out, size, "%d%%", m->phase); break;
     case MF_SENS:    lv_snprintf(out, size, "%+d dB", m->sens); break;
@@ -304,7 +306,7 @@ static void value_text(void *ctx, int row, char *out, unsigned size)
     else if (row_link(row) >= 0)
         ui_link_text(ui, &table(ui)->c[row_link(row)], out, size);
     else if (row == row_add())
-        lv_snprintf(out, size, "MENU \xC2\xBB");
+        lv_snprintf(out, size, "%s", T(MSG_COMMON_MENU_ARROW));
     else
         out[0] = 0;
 }
@@ -316,11 +318,11 @@ static void caption(struct ui_ctx *ui)
     char text[64], rate[16];
     rate_text(m, rate, sizeof rate);
     if (m->type == MOD_LFO)
-        lv_snprintf(text, sizeof text, "%s \xC2\xB7 %s", shape_names[m->shape % MS_SHAPES], rate);
+        lv_snprintf(text, sizeof text, "%s \xC2\xB7 %s", T(shape_names[m->shape % MS_SHAPES]), rate);
     else if (m->type == MOD_ENV)
-        lv_snprintf(text, sizeof text, "ENVELOPE \xC2\xB7 %+d dB \xC2\xB7 %d / %d ms", m->sens, m->attack, m->release);
+        lv_snprintf(text, sizeof text, T(MSG_MOD_CAPTION_ENV), m->sens, m->attack, m->release);
     else if (m->type == MOD_SEQ)
-        lv_snprintf(text, sizeof text, "PASSO %d / %d \xC2\xB7 %s",
+        lv_snprintf(text, sizeof text, T(MSG_MOD_CAPTION_SEQ),
                     (int)(mods_cycle(s.mod) % (m->steps ? m->steps : 1)) + 1, m->steps, rate);
     else
         text[0] = 0;
@@ -339,7 +341,7 @@ static void tabs(struct ui_ctx *ui)
     for (int i = 0; i < MOD_COUNT; i++) {
         const struct preset_mod *m = mod_of(ui, i);
         char text[24];
-        lv_snprintf(text, sizeof text, "MOD %d  %s", i + 1, type_short[m->type % MOD_TYPES]);
+        lv_snprintf(text, sizeof text, "MOD %d  %s", i + 1, T(type_short[m->type % MOD_TYPES]));
         theme_set_text(s.tab_text[i], text);
         theme_set_color(s.tab_text[i], m->type == MOD_OFF ? C_OFF : C_TEXT);
         theme_set_border(s.tabs[i], i == s.mod ? C_ACCENT : C_BORDER_OFF);
@@ -460,7 +462,7 @@ static void enter(struct ui_ctx *ui)
 static void refresh(struct ui_ctx *ui)
 {
     const struct preset_mod *m = the_mod(ui);
-    top_bar_sub("MODULADORES \xC2\xB7 DESTE PRESET");
+    top_bar_sub(T(MSG_MODS_TITLE));
     collect(ui);
     struct row_list *l = &s.list;
     int n = row_add() + 1;
@@ -473,15 +475,15 @@ static void refresh(struct ui_ctx *ui)
     for (int r = 0; r < s.nfields; r++)
         field_title(s.fields[r], s.titles[r], sizeof s.titles[0]);
     for (int k = 0; k < s.nlinks; k++)
-        lv_snprintf(s.titles[s.nfields + k], sizeof s.titles[0], "PARA");
-    lv_snprintf(s.titles[row_add()], sizeof s.titles[0], "+ NOVA LIGA\xC3\x87\xC3\x83O");
+        lv_snprintf(s.titles[s.nfields + k], sizeof s.titles[0], "%s", T(MSG_MODS_LINK));
+    lv_snprintf(s.titles[row_add()], sizeof s.titles[0], "%s", T(MSG_COMMON_NEW_LINK));
     for (int r = 0; r < n; r++)
         row_list_title(l, r, s.titles[r]);
     row_list_refresh(l, value_text, ui);
 
     tabs(ui);
     caption(ui);
-    theme_set_text(s.empty, m->type == MOD_OFF ? "DESLIGADO \xC2\xB7 GIRE O KNOB 1 EM TIPO" : "");
+    theme_set_text(s.empty, m->type == MOD_OFF ? T(MSG_MODS_OFF_HINT) : "");
     lv_obj_center(s.empty);
     s.graph.outline_step = selected_step();
     lv_obj_invalidate(s.graph.box);

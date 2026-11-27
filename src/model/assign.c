@@ -1,5 +1,6 @@
 #include "model/assign.h"
 #include "model/control.h"
+#include "ui/i18n.h"                       /* the functions' names (assign_fn_name) */
 
 /* the parameter (library order) at knob position `knob` of `slot`, or -1 */
 static int knob_k(const struct rig *r, int slot, int knob)
@@ -47,22 +48,25 @@ void assign_build(const struct rig *r, struct assign *a)
 
 const char *assign_fn_name(int fn)
 {
-    static const char *const names[] = {
-        [FSF_NONE] = "-", [FSF_LOOPER] = "LOOPER", [FSF_DRUM] = "BATERIA", [FSF_TUNER] = "AFINADOR",
-        [FSF_TAP] = "TAP", [FSF_BANK_UP] = "BANCO +", [FSF_BANK_DOWN] = "BANCO -", [FSF_PRESET_UP] = "PRESET +",
-        [FSF_PRESET_DOWN] = "PRESET -", [FSF_BANK_MENU] = "BANCOS", [FSF_DRUM_NEXT] = "RITMO +",
-        [FSF_DRUM_PREV] = "RITMO -", [FSF_EXP_AB] = "EXP A/B", [FSF_MODE] = "MODO",
+    static const uint16_t names[] = {             /* the shared catalog's (the Studio shows the same) */
+        [FSF_LOOPER] = MSG_SHARED_FN_LOOPER, [FSF_DRUM] = MSG_SHARED_FN_DRUM, [FSF_TUNER] = MSG_SHARED_FN_TUNER,
+        [FSF_TAP] = MSG_SHARED_FN_TAP, [FSF_BANK_UP] = MSG_SHARED_FN_BANK_UP, [FSF_BANK_DOWN] = MSG_SHARED_FN_BANK_DOWN,
+        [FSF_PRESET_UP] = MSG_SHARED_FN_PRESET_UP, [FSF_PRESET_DOWN] = MSG_SHARED_FN_PRESET_DOWN,
+        [FSF_BANK_MENU] = MSG_SHARED_FN_BANK_MENU, [FSF_DRUM_NEXT] = MSG_SHARED_FN_DRUM_NEXT,
+        [FSF_DRUM_PREV] = MSG_SHARED_FN_DRUM_PREV, [FSF_EXP_AB] = MSG_SHARED_FN_EXP_AB, [FSF_MODE] = MSG_SHARED_FN_MODE,
     };
     static const char *const ctrl[] = { "CTRL 1", "CTRL 2", "CTRL 3", "CTRL 4" };
     static const char *const preset[] = { "PRESET A", "PRESET B", "PRESET C", "PRESET D" };
+    if (fn == FSF_NONE)
+        return "-";
     if (fn >= FSF_CTRL1 && fn <= FSF_CTRL4)
         return ctrl[fn - FSF_CTRL1];
     if (fn >= FSF_PRESET_A && fn <= FSF_PRESET_D)
         return preset[fn - FSF_PRESET_A];
     if (fn >= FSF_SLOT1 && fn <= FSF_SLOT12)
-        return "BLOCO";
-    if (fn >= 0 && fn < (int)(sizeof names / sizeof names[0]) && names[fn])
-        return names[fn];
+        return T(MSG_SHARED_FN_BLOCK);
+    if (fn > 0 && fn < (int)(sizeof names / sizeof names[0]) && names[fn])
+        return T(names[fn]);
     return "?";
 }
 

@@ -2,6 +2,7 @@
 // files on their way in.
 
 import { errorText } from './api';
+import { num, t } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { FxLibrary, FxModule, ModulePick } from './types';
 
@@ -20,7 +21,7 @@ class Effects {
     const c = studio.link?.connections ?? 0;
     if (this.lib && this.readFor === c) return;
     try {
-      this.take(await studio.callLong('Lendo os efeitos', (b) => b.library()));
+      this.take(await studio.callLong(t('fx.reading'), (b) => b.library()));
       this.readFor = c;
     } catch (e) {
       studio.say(errorText(e), 'error');
@@ -52,9 +53,9 @@ class Effects {
     if (!good.length) return;
     this.picks = null;
     try {
-      this.take(await studio.callLong('Gravando os efeitos', (b) => b.installModules(good.map((p) => p.path))));
+      this.take(await studio.callLong(t('fx.writing'), (b) => b.installModules(good.map((p) => p.path))));
       this.picked = good[good.length - 1].id ?? this.picked;
-      studio.say(`${good.map((p) => p.name).join(', ')} no pedal`);
+      studio.say(t('fx.installed', { names: good.map((p) => p.name).join(', ') }));
     } catch (e) {
       studio.say(errorText(e), 'error');
     }
@@ -62,15 +63,14 @@ class Effects {
 
   async remove(m: FxModule) {
     const id = await studio.ask({
-      title: `Remover ${m.name}?`,
-      text: `Tira ${m.name} do pedal. Os presets que usam esse efeito guardam o bloco (aparece como AUSENTE e o som ` +
-            'passa direto) até ele ser instalado de novo.',
-      actions: [{ id: 'go', label: 'Remover', kind: 'danger' }, { id: 'cancel', label: 'Cancelar' }],
+      title: t('fx.remove_title', { name: m.name }),
+      text: t('fx.remove_text', { name: m.name }),
+      actions: [{ id: 'go', label: t('common.remove'), kind: 'danger' }, { id: 'cancel', label: t('common.cancel') }],
     });
     if (id !== 'go') return;
     try {
-      this.take(await studio.callLong('Gravando os efeitos', (b) => b.removeModules([m.id])));
-      studio.say(`${m.name} removido`);
+      this.take(await studio.callLong(t('fx.writing'), (b) => b.removeModules([m.id])));
+      studio.say(t('fx.removed', { name: m.name }));
     } catch (e) {
       studio.say(errorText(e), 'error');
     }
@@ -84,7 +84,7 @@ export function fxValue(unit: string, v: number) {
 }
 
 export function kb(n: number) {
-  return n < 1024 ? `${n} B` : n < 100 * 1024 ? `${(n / 1024).toFixed(1).replace('.', ',')} KB` : `${Math.round(n / 1024)} KB`;
+  return n < 1024 ? `${n} B` : n < 100 * 1024 ? `${num(n / 1024, 1)} KB` : `${Math.round(n / 1024)} KB`;
 }
 
 export const effects = new Effects();

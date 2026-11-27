@@ -9,6 +9,7 @@ import json
 import zipfile
 
 from waveod_studio import controls, wvpreset
+from waveod_studio.i18n import tr
 from waveod_studio.protocol import PLACES
 
 FORMAT = 'waveod-backup'
@@ -28,7 +29,7 @@ def save(pedal, path, progress=None, cancel=None):
             manifest['global_controls'] = dict(file=GLOBAL_FILE, links=len(glob.links))
         for k, e in enumerate(keep):
             if cancel and cancel():
-                raise RuntimeError('cancelado')
+                raise RuntimeError(tr('py.cancelled'))
             origin, data = pedal.get(e['index'])
             name = 'presets/%03d.wvp' % e['index']
             z.writestr(name, data)
@@ -45,7 +46,7 @@ def read(path):
     with zipfile.ZipFile(path) as z:
         manifest = json.loads(z.read('manifest.json'))
         if manifest.get('format') != FORMAT:
-            raise ValueError('%s não é um backup do waveod' % path)
+            raise ValueError(tr('py.backup_not_waveod', path=path))
         data = {}
         for e in manifest['presets']:
             b = z.read(e['file'])
@@ -63,7 +64,7 @@ def read_global(path):
             return None
         t = controls.Table.from_chunk(z.read(g['file']))
     if t is None:
-        raise ValueError('%s: controles globais ilegíveis' % path)
+        raise ValueError(tr('py.backup_global_bad', path=path))
     return t
 
 
@@ -79,7 +80,7 @@ def restore(pedal, path, progress=None, cancel=None, only=None, global_controls=
     items = sorted(i for i in data if only is None or i in only)
     for k, i in enumerate(items):
         if cancel and cancel():
-            raise RuntimeError('cancelado')
+            raise RuntimeError(tr('py.cancelled'))
         pedal.put(i, data[i])
         if progress:
             progress(k + 1, len(items))

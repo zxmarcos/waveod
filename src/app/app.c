@@ -18,9 +18,11 @@
 #include "platform/platform.h"
 #include "platform/safety.h"
 #include "platform/touch.h"
+#include "ui/i18n.h"
 #include "ui/ui.h"
 #include "usb/usb_device.h"
 #include "editor/editor.h"
+#include "lvgl.h"                     /* lv_snprintf: there is no printf on the pedal */
 #include <string.h>
 #include "platform/sdram.h"
 
@@ -32,6 +34,24 @@ static struct globals globals;
 
 static const struct midi_handlers midi_handlers = { ui_midi_program, ui_midi_control, ui_midi_tempo, editor_feed };
 
+/*
+ * rig_init runs before the settings are read (they live in its preset source), so its texts are in the reference
+ * language (English): the notice it left and, when it started without a preset (boot != 0: safe mode, no
+ * library), the name it gave the empty one. Written again here in the language of the settings.
+ */
+static void boot_texts(int boot)
+{
+    static const uint16_t msgs[] = { MSG_RIG_NO_LIBRARY, MSG_RIG_NO_MEMORY_CHAIN, MSG_RIG_NO_LIBRARY_NAME,
+                                     MSG_RIG_SAFE_MODE };
+    for (unsigned i = 0; i < sizeof msgs / sizeof msgs[0]; i++) {
+        const char *ref = i18n_texts[LANG_EN][msgs[i]];
+        if (strcmp(rig.notice, ref) == 0)
+            lv_snprintf(rig.notice, sizeof rig.notice, "%s", T(msgs[i]));
+        if (boot && strcmp(rig.preset.name, ref) == 0)
+            lv_snprintf(rig.preset.name, sizeof rig.preset.name, "%s", T(msgs[i]));
+    }
+}
+
 void app_init(void)
 {
     plat_init();
@@ -40,8 +60,11 @@ void app_init(void)
     looper_init();
     drums_init(plat_drum_pack());
     input_init();
-    int started_safe = rig_init(&rig, recovery_avoid()) == 1;
+    int boot = rig_init(&rig, recovery_avoid());
+    int started_safe = boot == 1;
     settings_load(&settings, &rig.src);
+    i18n_set(settings.language);
+    boot_texts(boot);
     settings_apply(&settings);
     if (!cabir_in_use())
         rig_rebuild(&rig);                  /* the preset was loaded with waveod's Cab / IR engine */
@@ -60,15 +83,9 @@ void app_init(void)
     /* the core clock (600 MHz, set like the original when the bootloader left less) and the touch panel */
     uint32_t mhz = (plat_core_hz() + 500000u) / 1000000u;
     if (mhz) {
-        char text[48] = "waveod \xC2\xB7 CPU ";
-        char *p = text + strlen(text);
-        if (mhz >= 100)
-            *p++ = (char)('0' + mhz / 100 % 10);
-        if (mhz >= 10)
-            *p++ = (char)('0' + mhz / 10 % 10);
-        *p++ = (char)('0' + mhz % 10);
-        const char *tail = touch_ready() ? " MHz \xC2\xB7 toque OK" : " MHz \xC2\xB7 sem toque";
-        memcpy(p, tail, strlen(tail) + 1);
+        char text[64];
+        lv_snprintf(text, sizeof text, T(touch_ready() ? MSG_SYS_BOOT_TOUCH_OK : MSG_SYS_BOOT_NO_TOUCH),
+                    (unsigned)mhz);
         ui_notice(text);
     }
     safety_arm();                           /* from here on the main loop must keep running */

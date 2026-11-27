@@ -7,6 +7,7 @@
   import Icon from './Icon.svelte';
   import { menuInfo } from '../lib/menus';
   import { effects, fxValue, kb } from '../lib/fx.svelte';
+  import { t, tn } from '../lib/i18n.svelte';
 
   $effect(() => { untrack(() => void effects.enter()); });
 
@@ -35,30 +36,30 @@
 <div class="screen">
   <header class="tools">
     <div class="title">
-      <h1>Efeitos</h1>
-      <span class="sub">módulos do waveod na flash do pedal</span>
+      <h1>{t('tab.effects')}</h1>
+      <span class="sub">{t('fx.sub')}</span>
     </div>
     {#if lib}
-      <div class="usage" title="{kb(lib.used)} de {kb(lib.capacity)}">
+      {@const usage = t('fx.usage', { used: kb(lib.used), total: kb(lib.capacity) })}
+      <div class="usage" title={usage}>
         <div class="meter"><span style:width="{Math.max(usedPct, lib.used ? 1 : 0)}%"></span></div>
-        <span>{kb(lib.used)} de {kb(lib.capacity)}</span>
+        <span>{usage}</span>
       </div>
     {/if}
-    <button class="primary" onclick={() => effects.pick()}><Icon name="file" size={16} stroke={2.1} /> Instalar módulos…</button>
+    <button class="primary" onclick={() => effects.pick()}><Icon name="file" size={16} stroke={2.1} /> {t('fx.install')}</button>
   </header>
 
   {#if !lib}
-    <p class="note">Lendo os efeitos do pedal…</p>
+    <p class="note">{t('fx.loading')}</p>
   {:else if !lib.modules.length}
     <div class="empty">
-      <h2>Nenhum módulo instalado</h2>
-      <p>Módulos são efeitos do waveod compilados à parte (arquivos .elf feitos com tools/wvfx.py). Instalados, eles
-        aparecem no pedal e na grade, em cada categoria, depois dos efeitos originais.</p>
-      <button class="primary" onclick={() => effects.pick()}><Icon name="file" size={16} stroke={2.1} /> Instalar módulos…</button>
+      <h2>{t('fx.empty_title')}</h2>
+      <p>{t('fx.empty_text')}</p>
+      <button class="primary" onclick={() => effects.pick()}><Icon name="file" size={16} stroke={2.1} /> {t('fx.install')}</button>
     </div>
   {:else}
     <div class="body">
-      <nav class="list" aria-label="Módulos instalados">
+      <nav class="list" aria-label={t('fx.list_aria')}>
         {#each groups as [menu, mods] (menu)}
           {@const mi = menuInfo(menu)}
           <h3 style:--c={mi.color}>{mi.name}</h3>
@@ -82,30 +83,30 @@
               <span class="menu">{mi.name}{m.category ? ` · ${m.category}` : ''}</span>
               <h2>{m.name}</h2>
             </div>
-            <button class="danger" onclick={() => effects.remove(m)}><Icon name="trash" size={15} stroke={2} /> Remover</button>
+            <button class="danger" onclick={() => effects.remove(m)}><Icon name="trash" size={15} stroke={2} /> {t('common.remove')}</button>
           </div>
           <dl class="facts">
-            <div><dt>Id</dt><dd>{m.hex}</dd></div>
-            <div><dt>Módulo</dt><dd>{kb(m.size)}</dd></div>
-            <div><dt>Memória por bloco</dt><dd>{kb(m.state)}{m.buffer ? ` + ${kb(m.buffer)} de buffer` : ''}</dd></div>
-            <div><dt>Knobs</dt><dd>{m.params.length}</dd></div>
+            <div><dt>{t('fx.fact_id')}</dt><dd>{m.hex}</dd></div>
+            <div><dt>{t('fx.fact_module')}</dt><dd>{kb(m.size)}</dd></div>
+            <div><dt>{t('fx.fact_memory')}</dt><dd>{m.buffer ? t('fx.memory_buffer', { state: kb(m.state), buffer: kb(m.buffer) }) : kb(m.state)}</dd></div>
+            <div><dt>{t('fx.fact_knobs')}</dt><dd>{m.params.length}</dd></div>
           </dl>
-          <p class="where">No pedal e na grade: {mi.name} › depois dos efeitos originais.</p>
+          <p class="where">{t('fx.where', { menu: mi.name })}</p>
           {#if m.params.length}
             <table>
-              <thead><tr><th>Parâmetro</th><th>Faixa</th><th>Padrão</th><th>Valores</th></tr></thead>
+              <thead><tr><th>{t('fx.col_param')}</th><th>{t('fx.col_range')}</th><th>{t('fx.col_default')}</th><th>{t('fx.col_values')}</th></tr></thead>
               <tbody>
                 {#each m.params as q, k (k)}
                   <tr>
                     <td class="pn">{q.name}{#if q.sync}<span class="tag">sync</span>{/if}</td>
                     {#if q.options.length}
-                      <td class="mono">{q.options.length} opções</td>
+                      <td class="mono">{tn('fx.options', q.options.length)}</td>
                       <td class="mono">{q.options[Math.round(q.default)] ?? fxValue('', q.default)}</td>
                       <td class="opts">{#each q.options.filter(Boolean) as o (o)}<span>{o}</span>{/each}</td>
                     {:else}
                       <td class="mono">{range(q.unit, q.min, q.max)}</td>
                       <td class="mono">{fxValue(q.unit, q.default)}</td>
-                      <td class="mono dim">passo {fxValue(q.unit.replace(/^[^%]*/, ''), q.step)}</td>
+                      <td class="mono dim">{t('fx.step', { v: fxValue(q.unit.replace(/^[^%]*/, ''), q.step) })}</td>
                     {/if}
                   </tr>
                 {/each}
@@ -121,7 +122,7 @@
 {#if effects.picks}
   <div class="veil" role="presentation" onclick={() => (effects.picks = null)}></div>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="fx-title" tabindex="-1" onkeydown={key} use:take>
-    <h3 id="fx-title">Instalar no pedal?</h3>
+    <h3 id="fx-title">{t('fx.confirm_title')}</h3>
     <ul>
       {#each effects.picks as p (p.path)}
         {@const mi = p.menu !== undefined ? menuInfo(p.menu) : null}
@@ -130,18 +131,18 @@
           <span class="ic">{#if mi}<Icon name={mi.icon} size={18} stroke={2} />{:else}<Icon name="close" size={18} stroke={2} />{/if}</span>
           <div class="txt">
             <b>{p.error ? p.file : p.name}</b>
-            <small>{p.error ? p.error : `${mi?.name}${p.category ? ` · ${p.category}` : ''} · ${p.params?.length ?? 0} knobs · ${kb(p.size ?? 0)} · ${p.file}`}</small>
+            <small>{p.error ? p.error : t('fx.pick_info', { menu: `${mi?.name}${p.category ? ` · ${p.category}` : ''}`,
+                                                            knobs: p.params?.length ?? 0, size: kb(p.size ?? 0), file: p.file })}</small>
           </div>
-          {#if !p.error}<span class="state" class:replace={!!old}>{old ? 'substitui o instalado' : 'novo'}</span>{/if}
+          {#if !p.error}<span class="state" class:replace={!!old}>{old ? t('fx.replaces') : t('fx.new')}</span>{/if}
         </li>
       {/each}
     </ul>
-    <p class="hint">Grava na flash do pedal; o som some por instantes enquanto grava. Um módulo com o mesmo id substitui
-      o instalado. {#if good.length < (effects.picks?.length ?? 0)}Os arquivos com erro ficam de fora.{/if}</p>
+    <p class="hint">{t('fx.hint')} {#if good.length < (effects.picks?.length ?? 0)}{t('fx.hint_errors')}{/if}</p>
     <footer>
-      <button onclick={() => (effects.picks = null)}>Cancelar</button>
+      <button onclick={() => (effects.picks = null)}>{t('common.cancel')}</button>
       <button class="primary" disabled={!good.length} onclick={() => effects.install()}>
-        Instalar {good.length} {good.length === 1 ? 'módulo' : 'módulos'}
+        {tn('fx.install_n', good.length)}
       </button>
     </footer>
   </div>

@@ -7,6 +7,7 @@
   import Icon from './Icon.svelte';
   import { studio } from '../lib/store.svelte';
   import { pedal } from '../lib/pedal.svelte';
+  import { t, type MsgKey } from '../lib/i18n.svelte';
 
   let { overlay = false }: { overlay?: boolean } = $props();
 
@@ -16,17 +17,17 @@
   const emu = $derived(s?.transport === 'emulador');
   const tone = $derived(phase === 'old' || phase === 'failed' ? 'bad' : phase === 'busy' || phase === 'silent' ? 'warn' : 'look');
 
-  const TITLES: Record<string, string> = {
-    starting: 'Procurando o pedal…',
-    searching: 'Esperando o pedal',
-    busy: 'A porta do pedal está em uso',
-    silent: 'O pedal não respondeu',
-    old: 'Atualize o waveod do pedal',
-    failed: 'O emulador não iniciou',
-    connected: 'Lendo o pedal…',
-    updating: 'Gravando o firmware…',
+  const TITLES: Record<string, MsgKey> = {
+    starting: 'connect.starting',
+    searching: 'connect.searching',
+    busy: 'connect.busy',
+    silent: 'connect.silent',
+    old: 'connect.old',
+    failed: 'connect.failed',
+    connected: 'connect.connected',
+    updating: 'connect.updating',
   };
-  const title = $derived(overlay && phase === 'searching' ? 'Pedal desconectado' : TITLES[phase] ?? 'Esperando o pedal');
+  const title = $derived(t(overlay && phase === 'searching' ? 'connect.lost' : TITLES[phase] ?? 'connect.searching'));
   let retrying = $state(false);
   async function retry() {
     retrying = true;
@@ -44,43 +45,40 @@
     <h1>{title}</h1>
 
     {#if loading}
-      <p class="lead">{s?.name || 'Pedal'} encontrado · waveod {s?.version}. Lendo o preset, a lista e os efeitos.</p>
+      <p class="lead">{t('connect.found', { name: s?.name || t('connect.pedal'), version: s?.version ?? '' })}</p>
     {:else if phase === 'starting' && emu}
-      <p class="lead">O firmware está iniciando no emulador; leva alguns segundos.</p>
+      <p class="lead">{t('connect.emu_starting')}</p>
     {:else if phase === 'searching' || phase === 'starting'}
       <p class="lead">
-        {overlay ? 'O Studio parou de ver o pedal. Assim que ele voltar, tudo é lido de novo; as telas continuam aqui.'
-                 : 'O Studio conecta sozinho assim que o pedal aparecer. Não precisa fechar o programa.'}
+        {overlay ? t('connect.lost_lead') : t('connect.wait_lead')}
       </p>
       <ol class="steps">
-        <li><b>Ligue o pedal</b> na fonte e espere a tela inicial.</li>
-        <li><b>Conecte o cabo USB</b> no computador: um cabo de dados, não só de carga.</li>
-        <li><b>Feche outros programas</b> que usam o pedal (o editor original, o Studio clássico).</li>
+        <li><b>{t('connect.power_b')}</b> {t('connect.power')}</li>
+        <li><b>{t('connect.usb_b')}</b> {t('connect.usb')}</li>
+        <li><b>{t('connect.close_b')}</b> {t('connect.close')}</li>
       </ol>
     {:else if phase === 'busy'}
-      <p class="lead">O pedal está conectado ({s?.name}), mas outro programa está com a porta MIDI dele aberta. Só um
-        programa por vez pode usá-la.</p>
+      <p class="lead">{t('connect.busy_lead', { name: s?.name ?? '' })}</p>
       <ol class="steps">
-        <li><b>Feche o editor original</b> do pedal, ou o Studio clássico (waveod-studio.bat).</li>
-        <li>O Studio conecta sozinho quando a porta ficar livre.</li>
+        <li><b>{t('connect.busy_close_b')}</b> {t('connect.busy_close')}</li>
+        <li>{t('connect.busy_free')}</li>
       </ol>
     {:else if phase === 'silent'}
-      <p class="lead">A porta {s?.name} abriu, mas o pedal não respondeu aos pedidos do waveod.</p>
+      <p class="lead">{t('connect.silent_lead', { name: s?.name ?? '' })}</p>
       <ol class="steps">
-        <li>Se você <b>acabou de ligar</b> o pedal, espere ele terminar de iniciar.</li>
-        <li>Se ele está com <b>outro firmware</b> (o original) ou parado no <b>modo de atualização</b>, grave o waveod.</li>
+        <li>{t('connect.silent_boot_a')} <b>{t('connect.silent_boot_b')}</b> {t('connect.silent_boot_c')}</li>
+        <li>{t('connect.silent_fw_a')} <b>{t('connect.silent_fw_b')}</b> {t('connect.silent_fw_c')} <b>{t('connect.silent_fw_d')}</b>{t('connect.silent_fw_e')}</li>
       </ol>
-      <button class="fw" onclick={() => pedal.pickFirmware()}><Icon name="file" size={15} stroke={2} /> Gravar firmware…</button>
+      <button class="fw" onclick={() => pedal.pickFirmware()}><Icon name="file" size={15} stroke={2} /> {t('connect.write_fw')}</button>
     {:else if phase === 'old'}
-      <p class="lead">O pedal tem o waveod {s?.version} (protocolo {s?.protocol}). Esta interface precisa do protocolo 8
-        ou mais novo.</p>
+      <p class="lead">{t('connect.old_lead', { version: s?.version ?? '', protocol: s?.protocol ?? '' })}</p>
       <ol class="steps">
-        <li>Grave um waveod novo: um .bin feito com o protocolo 8 ou mais novo.</li>
-        <li>Quando o pedal reiniciar com ele, o Studio conecta sozinho.</li>
+        <li>{t('connect.old_step1')}</li>
+        <li>{t('connect.old_step2')}</li>
       </ol>
-      <button class="fw" onclick={() => pedal.pickFirmware()}><Icon name="file" size={15} stroke={2} /> Gravar firmware…</button>
+      <button class="fw" onclick={() => pedal.pickFirmware()}><Icon name="file" size={15} stroke={2} /> {t('connect.write_fw')}</button>
     {:else if phase === 'updating'}
-      <p class="lead">Não desligue o pedal nem tire o cabo. Quando terminar, ele reinicia e o Studio conecta sozinho.</p>
+      <p class="lead">{t('connect.updating_lead')}</p>
     {:else if phase === 'failed'}
       <p class="lead">{s?.message}</p>
     {/if}
@@ -88,9 +86,9 @@
     {#if !loading && phase !== 'failed' && phase !== 'updating'}
       <div class="foot">
         <span class="mono">
-          {s?.message && phase === 'searching' && s.message !== 'Nenhum pedal conectado.' ? s.message + ' · ' : ''}tentativa {s?.attempts ?? 0}
+          {s?.message && phase === 'searching' && s.code !== 'py.link_none' ? s.message + ' · ' : ''}{t('connect.attempt', { n: s?.attempts ?? 0 })}
         </span>
-        <button onclick={retry} disabled={retrying || (phase === 'starting' && emu)}>Tentar agora</button>
+        <button onclick={retry} disabled={retrying || (phase === 'starting' && emu)}>{t('connect.retry')}</button>
       </div>
     {/if}
   </div>

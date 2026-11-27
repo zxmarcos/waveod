@@ -8,6 +8,7 @@
   import Icon from './Icon.svelte';
   import { studio } from '../lib/store.svelte';
   import * as M from '../lib/cabmic';
+  import { t } from '../lib/i18n.svelte';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -20,7 +21,7 @@
                                 angle: P.angle?.value ?? 0, type: P.type?.value ?? 0 });
   const st = $derived(M.step(mic.position, M.POSITIONS));
   const sd = $derived(M.step(mic.distance, M.DISTANCES));
-  const t = $derived(M.micType(mic.type));
+  const mt = $derived(M.micType(mic.type));
   const typeNames = $derived(P.type?.options.length ? P.type.options : ['Original', ...Array.from({ length: M.TYPES }, (_, i) => `${i + 1}`)]);
 
   function set(which: keyof typeof P, v: number) {
@@ -118,24 +119,24 @@
 <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mic-title" tabindex="-1" onkeydown={key} use:take>
   <header>
     <div class="title">
-      <span class="kicker">Microfone virtual</span>
+      <span class="kicker">{t('mic.kicker')}</span>
       <h3 id="mic-title">{blk?.name ?? ''}</h3>
     </div>
-    <div class="seg" role="radiogroup" aria-label="Tipo do microfone">
+    <div class="seg" role="radiogroup" aria-label={t('mic.type_aria')}>
       {#each typeNames as name, n (n)}
-        <button role="radio" aria-checked={t === n} class:on={t === n} onclick={() => set('type', n)}>{name}</button>
+        <button role="radio" aria-checked={mt === n} class:on={mt === n} onclick={() => set('type', n)}>{name}</button>
       {/each}
     </div>
-    <button class="ghost" onclick={neutral} title="Posição, distância e ângulo em 0: o som do IR como foi capturado">
-      <Icon name="loop" size={15} stroke={2} /> Onde o IR foi capturado
+    <button class="ghost" onclick={neutral} title={t('mic.neutral_title')}>
+      <Icon name="loop" size={15} stroke={2} /> {t('mic.neutral')}
     </button>
-    <button class="close" onclick={onclose} aria-label="Fechar (Esc)"><Icon name="close" size={18} stroke={2.2} /></button>
+    <button class="close" onclick={onclose} aria-label={t('mic.close')}><Icon name="close" size={18} stroke={2.2} /></button>
   </header>
 
   <div class="views">
     <figure class="front">
-      <figcaption>De frente <span>arraste: do centro à borda do cone</span></figcaption>
-      <svg bind:this={front} viewBox="-80 -80 160 160" role="slider" tabindex="-1" aria-label="Posição no cone"
+      <figcaption>{t('mic.front')} <span>{t('mic.front_hint')}</span></figcaption>
+      <svg bind:this={front} viewBox="-80 -80 160 160" role="slider" tabindex="-1" aria-label={t('mic.front_aria')}
            aria-valuenow={mic.position} onpointerdown={(e) => down(e, 'front')} onpointermove={(e) => move(e, 'front')}
            onpointerup={up} onpointercancel={up}>
         <circle r={M.R_SURROUND} class="surround" />
@@ -148,8 +149,8 @@
       </svg>
     </figure>
     <figure class="side">
-      <figcaption>De lado <span>arraste o microfone: distância e altura · a alça de trás: o ângulo</span></figcaption>
-      <svg bind:this={side} viewBox="0 {-TOP} 300 {VH}" role="slider" tabindex="-1" aria-label="Distância e ângulo"
+      <figcaption>{t('mic.side')} <span>{t('mic.side_hint')}</span></figcaption>
+      <svg bind:this={side} viewBox="0 {-TOP} 300 {VH}" role="slider" tabindex="-1" aria-label={t('mic.side_aria')}
            aria-valuenow={mic.distance} onpointerdown={(e) => down(e, 'side')} onpointermove={(e) => move(e, 'side')}
            onpointerup={up} onpointercancel={up}>
         <line x1={GX - 4} y1="-70" x2={GX - 30} y2={-M.R_CAP} class="spk" />
@@ -161,7 +162,7 @@
         {#each Array.from({ length: M.DISTANCES }, (_, i) => i) as i (i)}
           <line x1={GX + D0 + (i / (M.DISTANCES - 1)) * DW} x2={GX + D0 + (i / (M.DISTANCES - 1)) * DW} y1="74" y2="78" class="tick" />
         {/each}
-        {#if t === 1}
+        {#if mt === 1}
           <line x1={tipX} y1={tipY} x2={tipX + (BODY + 8) * Math.cos(an)} y2={tipY - (BODY + 8) * Math.sin(an)} class="body slim" />
           <line x1={tipX} y1={tipY} x2={tipX + 18 * Math.cos(an)} y2={tipY - 18 * Math.sin(an)} class="head" />
         {:else}
@@ -175,9 +176,9 @@
 
   <div class="values">
     {#each [
-      { which: 'position', name: 'Posição', word: M.positionWord(st), v: mic.position, min: -100, max: 100, unit: '' },
-      { which: 'distance', name: 'Distância', word: M.distanceWord(sd), v: mic.distance, min: -100, max: 100, unit: '' },
-      { which: 'angle', name: 'Ângulo', word: mic.angle ? 'inclinado' : 'no eixo', v: mic.angle, min: 0, max: 45, unit: '°' },
+      { which: 'position', name: t('mic.position'), word: M.positionWord(st), v: mic.position, min: -100, max: 100, unit: '' },
+      { which: 'distance', name: t('mic.distance'), word: M.distanceWord(sd), v: mic.distance, min: -100, max: 100, unit: '' },
+      { which: 'angle', name: t('mic.angle'), word: mic.angle ? t('mic.tilted') : t('mic.on_axis'), v: mic.angle, min: 0, max: 45, unit: '°' },
     ] as x (x.which)}
       <label class="val">
         <span class="n">{x.name}</span>
@@ -189,8 +190,8 @@
   </div>
 
   <figure class="curve">
-    <figcaption>O que muda no som <span>em relação ao IR como foi capturado</span></figcaption>
-    <svg viewBox="0 0 {CW} {CH}" preserveAspectRatio="none" role="img" aria-label="Mudança na resposta">
+    <figcaption>{t('mic.change')} <span>{t('mic.change_hint')}</span></figcaption>
+    <svg viewBox="0 0 {CW} {CH}" preserveAspectRatio="none" role="img" aria-label={t('mic.change_aria')}>
       {#each [100, 1000, 10000] as f (f)}<line x1={cx(f)} x2={cx(f)} y1="0" y2={CH} class="grid" />{/each}
       {#each [-6, 6] as d (d)}<line x1="0" x2={CW} y1={cy(d)} y2={cy(d)} class="grid" />{/each}
       <line x1="0" x2={CW} y1={cy(0)} y2={cy(0)} class="zero" />

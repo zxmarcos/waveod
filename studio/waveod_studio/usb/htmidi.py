@@ -11,6 +11,10 @@ The pedal answers with the same framing; its payloads are LZO1X compressed too (
 """
 import ctypes, struct, sys, time
 
+class PortError(RuntimeError):
+    """the MIDI port itself failed (opening, sending): the pedal may be gone"""
+
+
 HDR = bytes([0x21, 0x25, 0x4D, 0x50, 0x00, 0x00])
 CHUNK = 0xB8
 FLAG_REQ, FLAG_DATA, FLAG_NAK = 0x11, 0x12, 0x13
@@ -240,11 +244,11 @@ class Port:
         self.hin, self.hout = ctypes.c_void_p(), ctypes.c_void_p()
         r = mm.midiOutOpen(ctypes.byref(self.hout), self.out_id, None, None, 0)
         if r:
-            raise RuntimeError('midiOutOpen failed (%d): is the PC editor still open?' % r)
+            raise PortError('midiOutOpen failed (%d): is the PC editor still open?' % r)
         r = mm.midiInOpen(ctypes.byref(self.hin), self.in_id, None, None, 0)
         if r:
             mm.midiOutClose(self.hout)
-            raise RuntimeError('midiInOpen failed (%d): is the PC editor still open?' % r)
+            raise PortError('midiInOpen failed (%d): is the PC editor still open?' % r)
         self.bufs, self.hdrs = [], []
         for _ in range(self.NBUF):
             b = ctypes.create_string_buffer(self.BUFSZ)
@@ -263,7 +267,7 @@ class Port:
         mm.midiOutPrepareHeader(self.hout, ctypes.byref(h), ctypes.sizeof(h))
         r = mm.midiOutLongMsg(self.hout, ctypes.byref(h), ctypes.sizeof(h))
         if r:
-            raise RuntimeError('midiOutLongMsg failed (%d)' % r)
+            raise PortError('midiOutLongMsg failed (%d)' % r)
         t0 = time.time()
         while not h.dwFlags & MHDR_DONE and time.time() - t0 < 2:
             time.sleep(0.001)

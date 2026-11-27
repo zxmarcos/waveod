@@ -11,6 +11,7 @@
  * it = what it turns (the assignments).
  */
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/block.h"
@@ -108,7 +109,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     for (int i = 0; i < 4; i++)
         s.dots[i] = theme_box(root, 0, 0, DOT_W, DOT_H, C_BORDER_OFF);
     s.edited = theme_label(root, &font_tag_12, C_ACCENT, 1);
-    lv_label_set_text(s.edited, "EDITADO");
+    lv_label_set_text(s.edited, T(MSG_PRESET_EDITED));
     s.style = theme_label(root, &font_tag_12, C_OFF, 2);          /* the preset's style (Rock, Pop...) */
 
     theme_box(root, 0, UI_H - KNOBS_H, UI_W, 1, C_LINE);
@@ -217,7 +218,7 @@ static void refresh(struct ui_ctx *ui)
 
     preset_label(r->index, label);
     theme_set_text(s.number, label);
-    theme_set_text(s.name, r->preset.name[0] ? r->preset.name : "(vazio)");
+    theme_set_text(s.name, r->preset.name[0] ? r->preset.name : T(MSG_SCREENS_EMPTY));
     /* subtitle: the amp and cab of the preset, like "Brit 800 · 4x12 V30" */
     sub[0] = 0;
     int amp = -1, cab = -1;
@@ -235,7 +236,7 @@ static void refresh(struct ui_ctx *ui)
         ui_slot_name(ui, cab, c, sizeof c);
     lv_snprintf(sub, sizeof sub, "%s%s%s", a, a[0] && c[0] ? " \xC2\xB7 " : "", c);
     if (!sub[0])
-        lv_snprintf(sub, sizeof sub, "%s", r->origin == PRESET_USER ? "Preset do usuário" : "Preset de fábrica");
+        lv_snprintf(sub, sizeof sub, "%s", T(r->origin == PRESET_USER ? MSG_PRESET_USER : MSG_PRESET_FACTORY));
     theme_set_text(s.subtitle, sub);
 
     /* name, subtitle and the dots as one column next to the number, centred in the middle area */

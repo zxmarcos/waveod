@@ -3,6 +3,7 @@
 
 import { errorText } from './api';
 import * as C from './controls';
+import { t, tn } from './i18n.svelte';
 import { presetLabel, studio, type Screen } from './store.svelte';
 import type { CtlBlock, CtlLink, CtlTable, ModSettings } from './types';
 
@@ -48,11 +49,10 @@ class Ctl {
     const r = studio.rig;
     if (r?.index === index && r.dirty) {
       const id = await studio.ask({
-        title: `${presetLabel(index)} tem alterações não salvas`,
-        text: 'O editor de controles parte do preset guardado (os blocos e valores dele). Salve antes para que as ' +
-              'edições feitas no pedal entrem nos controles.',
-        actions: [{ id: 'save', label: 'Salvar e continuar', kind: 'primary' }, { id: 'go', label: 'Continuar sem salvar' },
-                  { id: 'cancel', label: 'Cancelar' }],
+        title: t('ctl.unsaved_title', { label: presetLabel(index) }),
+        text: t('ctl.unsaved_text'),
+        actions: [{ id: 'save', label: t('ctl.save_continue'), kind: 'primary' }, { id: 'go', label: t('ctl.continue') },
+                  { id: 'cancel', label: t('common.cancel') }],
       });
       if (id === 'save') await studio.save();
       else if (id !== 'go') return;
@@ -75,7 +75,7 @@ class Ctl {
 
   async openGlobal() {
     if ((studio.hello?.protocol ?? 0) < 3 && studio.link?.transport !== 'demonstração') {
-      studio.say('O firmware do pedal não tem controles globais: atualize o waveod', 'error');
+      studio.say(t('ctl.no_global_fw'), 'error');
       return;
     }
     if (this.open && !(await this.close())) return;
@@ -122,9 +122,9 @@ class Ctl {
     if (this.busy) return false;
     if (this.dirty) {
       const id = await studio.ask({
-        title: 'Descartar as alterações?',
-        text: 'As mudanças nos controles ainda não foram gravadas no pedal.',
-        actions: [{ id: 'drop', label: 'Descartar', kind: 'danger' }, { id: 'cancel', label: 'Continuar editando' }],
+        title: t('ctl.discard_title'),
+        text: t('ctl.discard_text'),
+        actions: [{ id: 'drop', label: t('common.discard'), kind: 'danger' }, { id: 'cancel', label: t('common.keep_editing') }],
       });
       if (id !== 'drop') return false;
     }
@@ -144,7 +144,7 @@ class Ctl {
     try {
       if (o.kind === 'global') {
         const n = await studio.call((b) => b.writeGlobalControls(table));
-        studio.say(`Controles globais gravados (${n} ${n === 1 ? 'ligação' : 'ligações'})`);
+        studio.say(tn('ctl.global_saved', n));
         this.open = null;
       } else if (await studio.writeControls(o.index, table, this.mods ? $state.snapshot(this.mods) : null)) {
         this.open = null;
@@ -172,11 +172,11 @@ class Ctl {
   get keyGroups(): { title: string; keys: number[] }[] {
     const fs = [C.A, C.B, C.C, C.D, C.BANK_DOWN, C.BANK_UP, C.COMBO, C.COMBO + 1, C.COMBO + 2, C.COMBO + 3];
     if (this.mode === C.PRESET && !this.isGlobal) fs.push(C.AGAIN);
-    const out = [{ title: 'Footswitches', keys: fs }, { title: 'Pedais', keys: [C.TOE, C.EXP1A, C.EXP1B, C.EXP2] }];
-    if (this.mods) out.push({ title: 'Moduladores', keys: [C.MOD1, C.MOD1 + 1, C.MOD1 + 2, C.MOD1 + 3] });
+    const out = [{ title: t('ctl.group_fs'), keys: fs }, { title: t('ctl.group_pedals'), keys: [C.TOE, C.EXP1A, C.EXP1B, C.EXP2] }];
+    if (this.mods) out.push({ title: t('ctl.group_mods'), keys: [C.MOD1, C.MOD1 + 1, C.MOD1 + 2, C.MOD1 + 3] });
     const midi = new Set([...C.midiKeys(this.table), ...(this.glob ? C.midiKeys(this.glob) : []), ...this.extra]);
     if (C.isMidi(this.key)) midi.add(this.key);
-    out.push({ title: 'MIDI', keys: [...midi].sort((a, b) => a - b) });
+    out.push({ title: t('ctl.group_midi'), keys: [...midi].sort((a, b) => a - b) });
     return out;
   }
 

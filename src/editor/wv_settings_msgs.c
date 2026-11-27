@@ -19,6 +19,7 @@
 #include "model/globals.h"
 #include "model/settings.h"
 #include "model/sysmon.h"
+#include "ui/i18n_msgs.h"
 #include "platform/platform.h"
 #include <string.h>
 #include "platform/sdram.h"
@@ -31,6 +32,7 @@ enum wv_setting {
     WS_EXT1, WS_EXT2, WS_EXP1_MIN, WS_EXP1_MAX, WS_EXP2_MIN, WS_EXP2_MAX,
     /* waveod's */
     WS_A4 = 32, WS_TUNER_MUTE, WS_TUNER_STROBE, WS_BRIGHTNESS, WS_CURSOR, WS_CAB_ORIGINAL, WS_SPILL, WS_SCENE_MANUAL,
+    WS_LANGUAGE,
     /* the system's, read only (GLOBAL > SISTEMA) */
     WS_CPU_TEMP = 48, WS_CPU_TEMP_MAX, WS_CPU_TEMP_MIN,
     /* the global EQ: WS_EQ + enum eq_param */
@@ -75,6 +77,7 @@ static const struct range {
     { WS_CAB_ORIGINAL, 0, 0, 1, 1 },        /* the original's Cab / IR engine instead of waveod's */
     { WS_SPILL, 0, 0, SETTINGS_SPILL_CHOICES - 1, 1 },     /* settings_spill_ms */
     { WS_SCENE_MANUAL, 0, 0, 1, 1 },        /* KNOBS NA CENA: 1 MANUAL, 0 AUTO */
+    { WS_LANGUAGE, 0, 0, LANG_COUNT - 1, 1 },   /* ui/i18n_msgs.h enum i18n_lang (0 English) */
     { WS_CPU_TEMP, RO, -40, 125, 0 },       /* degrees C, tenths (NaN: no sensor reading) */
     { WS_CPU_TEMP_MAX, RO, -40, 125, 0 },
     { WS_CPU_TEMP_MIN, RO, -40, 125, 0 },
@@ -139,6 +142,7 @@ static float value_of(int id)
     case WS_CAB_ORIGINAL: return st->cab_original;
     case WS_SPILL: return st->spill;
     case WS_SCENE_MANUAL: return st->scene_manual;
+    case WS_LANGUAGE: return st->language;
     case WS_CPU_TEMP: return degrees(sysmon_get()->temp);
     case WS_CPU_TEMP_MAX: return degrees(sysmon_get()->temp_max);
     case WS_CPU_TEMP_MIN: return degrees(sysmon_get()->temp_min);
@@ -178,6 +182,7 @@ static int set(int id, float value)
         case WS_BRIGHTNESS: st->brightness = (uint8_t)v; break;
         case WS_CURSOR: st->touch_cursor = v != 0; break;     /* the UI sets the marker (settings_generation) */
         case WS_SPILL: st->spill = (uint8_t)v; break;
+        case WS_LANGUAGE: st->language = (uint8_t)v; break;     /* the UI builds its screens again (ui_tick) */
         case WS_SCENE_MANUAL:
             st->scene_manual = v != 0;
             srv.rig->scene_auto = !st->scene_manual;

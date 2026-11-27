@@ -3,6 +3,7 @@
 // and the change in the response they make, computed as the firmware computes it.
 
 import { CABMIC } from './cabmic_tables';
+import { t } from './i18n.svelte';
 
 export const POSITIONS = 4, DISTANCES = 6, REF = 1, MAX_DB = 18;
 export const TYPES = CABMIC.typeNames.length;
@@ -57,8 +58,10 @@ export function dbAt(db: number[], hz: number): number {
 }
 
 /** the words of the pedal's MIC screen */
-export const positionWord = (st: number) => (st < 0.5 ? 'Centro' : st < 1.5 ? 'Calota' : st < 2.5 ? 'Cone' : 'Borda');
-export const distanceWord = (sd: number) => (sd < 0.5 ? 'Encostado' : sd < 1.5 ? 'Perto' : sd < 3 ? 'Médio' : 'Longe');
+export const positionWord = (st: number) =>
+  t(st < 0.5 ? 'mic.pos_center' : st < 1.5 ? 'mic.pos_cap' : st < 2.5 ? 'mic.pos_cone' : 'mic.pos_edge');
+export const distanceWord = (sd: number) =>
+  t(sd < 0.5 ? 'mic.dist_touching' : sd < 1.5 ? 'mic.dist_close' : sd < 3 ? 'mic.dist_medium' : 'mic.dist_far');
 
 /** the speaker's proportions (scr_mic.c): the dust cap ends at step 1, the cone at the last step */
 export const R_SURROUND = 70, R_CONE = 62, R_CAP = 20;

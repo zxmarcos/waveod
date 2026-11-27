@@ -9,6 +9,10 @@ import type {
 } from './types';
 
 export interface Backend {
+  // the page's own preferences (kept between runs) and its language, for the backend's messages
+  prefs(): Promise<Record<string, unknown>>;
+  setPrefs(changes: Record<string, unknown>): Promise<void>;
+  setLanguage(code: string): Promise<void>;
   status(): Promise<LinkStatus>;
   retry(): Promise<void>;
   hello(): Promise<Hello>;
@@ -84,6 +88,9 @@ export interface Backend {
 }
 
 interface PyApi {
+  prefs(): Promise<Record<string, unknown>>;
+  set_prefs(changes: Record<string, unknown>): Promise<null>;
+  set_language(code: string): Promise<null>;
   status(): Promise<LinkStatus>;
   retry(): Promise<null>;
   hello(): Promise<Hello>;
@@ -165,6 +172,9 @@ function waitForPywebview(ms: number): Promise<PyApi | null> {
 
 class PyBackend implements Backend {
   constructor(private api: PyApi) {}
+  prefs() { return this.api.prefs(); }
+  async setPrefs(changes: Record<string, unknown>) { await this.api.set_prefs(changes); }
+  async setLanguage(code: string) { await this.api.set_language(code); }
   status() { return this.api.status(); }
   async retry() { await this.api.retry(); }
   hello() { return this.api.hello(); }

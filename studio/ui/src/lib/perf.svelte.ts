@@ -3,6 +3,7 @@
 // runs to compare: cycles against a reference run, the CRC of the output telling whether two runs computed the same.
 
 import { errorText } from './api';
+import { t, type MsgKey } from './i18n.svelte';
 import { studio } from './store.svelte';
 import { CHAIN_SECTION } from './types';
 import type { BenchModule, BenchOpts, BenchResult, BenchTarget, Profile } from './types';
@@ -24,6 +25,12 @@ export function blockUse(p: Profile) {
   const budget = p.budget || (600e6 * 64) / 44100;
   return { slots, firmware: Math.max(0, whole - slots), between, whole, budget, worst: (p.worst_ms / 1.4512) * budget };
 }
+
+/** the name of a section of the audio interrupt (types.ts BENCH_SECTIONS's order), in the language now */
+const SECTIONS: MsgKey[] = ['perf.sec_convert', 'perf.sec_in_filter', 'perf.sec_usb_play', 'perf.sec_buffers', 'perf.sec_before',
+  'perf.sec_chain', 'perf.sec_after', 'perf.sec_level', 'perf.sec_eq', 'perf.sec_drums', 'perf.sec_aux', 'perf.sec_out_filter',
+  'perf.sec_send_filter', 'perf.sec_dac', 'perf.sec_latency'];
+export const sectionName = (k: number) => (SECTIONS[k] ? t(SECTIONS[k]) : t('perf.section', { n: k }));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const HISTORY = 90;
@@ -128,7 +135,7 @@ class Perf {
   /** a .elf, or a block's .c (built by the SDK now, and again at every measurement) */
   async pickModule() {
     try {
-      const m = await studio.callLong('Lendo o módulo', (b) => b.pickBenchModule());
+      const m = await studio.callLong(t('perf.reading_module'), (b) => b.pickBenchModule());
       if (m) {
         this.module = m;
         this.source = 'file';
@@ -182,36 +189,36 @@ class Perf {
 
   /** measure the target picked now, or one measured before again (a file is read from the disk again) */
   async measure(again?: Run) {
-    const t = again ? { target: again.target, label: again.label, detail: again.detail } : this.targetNow();
-    if (!t) return;
+    const tg = again ? { target: again.target, label: again.label, detail: again.detail } : this.targetNow();
+    if (!tg) return;
     const opts = again ? { ...this.opts, cold: again.result.cold, bypass: again.result.bypass } : { ...this.opts };
     try {
-      const file = t.target.kind === 'file' ? t.target.path : null;
-      const result = await studio.callLong(file?.toLowerCase().endsWith('.c') ? `Compilando e medindo ${t.label}` : `Medindo ${t.label}`,
-                                           (b) => b.perfBench(t.target, opts));
+      const file = tg.target.kind === 'file' ? tg.target.path : null;
+      const result = await studio.callLong(t(file?.toLowerCase().endsWith('.c') ? 'perf.building' : 'perf.measuring', { name: tg.label }),
+                                           (b) => b.perfBench(tg.target, opts));
       if (file && result.modified) this.seen = result.modified;
       if (result.status === -100) {                 // the source did not build: its words stay on screen
-        this.build = { error: result.error ?? 'não compilou', log: result.log ?? '' };
-        studio.say(`${t.detail}: não compilou`, 'error');
+        this.build = { error: result.error ?? t('perf.not_built'), log: result.log ?? '' };
+        studio.say(`${tg.detail}: ${t('perf.not_built')}`, 'error');
         return;
       }
       if (file) this.build = null;
       if (result.status !== 0) {
-        studio.say(`${t.label}: ${result.status_text}`, 'error');
+        studio.say(`${tg.label}: ${result.status_text}`, 'error');
         return;
       }
-      const label = result.name ?? t.label;
+      const label = result.name ?? tg.label;
       if (file && this.module?.path === file && result.name) {
         this.module = { ...this.module, name: result.name, menu: result.menu, size: result.size, modified: result.modified ?? this.module.modified, error: '' };
       }
-      const run: Run = { id: this.next++, label, detail: t.detail, target: t.target, result, at: Date.now() };
+      const run: Run = { id: this.next++, label, detail: tg.detail, target: tg.target, result, at: Date.now() };
       this.runs = [run, ...this.runs];
       if (this.ref === null) this.ref = run.id;
       this.shown = run.id;
       const ref = this.refRun;
       if (ref && ref.id !== run.id && ref.result.crc !== result.crc && ref.result.bypass === result.bypass &&
           sameTarget(ref, run))
-        studio.say(`${t.label}: o CRC mudou (${ref.result.crc} → ${result.crc}): a saída não é a mesma da referência`);
+        studio.say(t('perf.crc_changed', { name: tg.label, from: ref.result.crc, to: result.crc }));
     } catch (e) {
       studio.say(errorText(e), 'error');
     }

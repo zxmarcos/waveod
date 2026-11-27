@@ -13,6 +13,8 @@ import math
 import os
 import struct
 
+from waveod_studio.i18n import tr
+
 RATE = 44100
 SAMPLES = 1024                      # 16 partitions of 64, 23.2 ms
 DATA_SIZE = SAMPLES * 4
@@ -31,7 +33,7 @@ def read_wav(path):
     with open(path, 'rb') as f:
         data = f.read()
     if len(data) < 12 or data[:4] != b'RIFF' or data[8:12] != b'WAVE':
-        raise ValueError('não é um arquivo WAV (RIFF/WAVE)')
+        raise ValueError(tr('py.wav_not_riff'))
     pos, fmt, raw = 12, None, None
     while pos + 8 <= len(data):
         cid, size = data[pos:pos + 4], struct.unpack_from('<I', data, pos + 4)[0]
@@ -44,19 +46,19 @@ def read_wav(path):
                 break
         pos += 8 + size + (size & 1)
     if fmt is None or len(fmt) < 16:
-        raise ValueError('WAV sem o bloco fmt')
+        raise ValueError(tr('py.wav_no_fmt'))
     if raw is None:
-        raise ValueError('WAV sem o bloco data')
+        raise ValueError(tr('py.wav_no_data'))
     tag, ch, rate, _bps, align, bits = struct.unpack_from('<HHIIHH', fmt)
     if tag == 0xFFFE and len(fmt) >= 26:
         tag = struct.unpack_from('<H', fmt, 24)[0]          # WAVE_FORMAT_EXTENSIBLE: the sub-format GUID
     if tag not in FORMATS:
-        raise ValueError('formato %#x não suportado (só PCM e float)' % tag)
+        raise ValueError(tr('py.wav_format', tag='%#x' % tag))
     if ch < 1 or rate < 8000:
-        raise ValueError('cabeçalho inválido (%d canais, %d Hz)' % (ch, rate))
+        raise ValueError(tr('py.wav_header', channels=ch, rate=rate))
     width = bits // 8
     if tag == 1 and width not in (1, 2, 3, 4) or tag == 3 and width not in (4, 8):
-        raise ValueError('%d bits %s não suportado' % (bits, FORMATS[tag]))
+        raise ValueError(tr('py.wav_bits', bits=bits, fmt=FORMATS[tag]))
     align = align or width * ch
     frames = len(raw) // align
     out = []
@@ -109,7 +111,7 @@ def convert(path, normalize=False):
     src = w['samples']
     peak_in = max((abs(v) for v in src), default=0.0)
     if peak_in <= 0:
-        raise ValueError('o arquivo só tem silêncio')
+        raise ValueError(tr('py.wav_silent'))
     keep = int(round(SAMPLES * w['rate'] / RATE))
     total = sum(v * v for v in src)
     x = resample(src, w['rate'], RATE, SAMPLES + 1)
@@ -121,7 +123,7 @@ def convert(path, normalize=False):
     x += [0.0] * (SAMPLES - len(x))
     peak = max(abs(v) for v in x)
     if peak <= 0:
-        raise ValueError('o IR só tem silêncio no começo')
+        raise ValueError(tr('py.ir_silent_start'))
     gain = FACTORY_PEAK / FULL / peak if normalize else 1.0
     x = [v * gain for v in x]
     return x, dict(rate=w['rate'], channels=w['channels'], bits=w['bits'], fmt=w['fmt'], frames=w['frames'],

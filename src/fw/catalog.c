@@ -5,6 +5,7 @@
 #include "fw/ir_fs.h"
 #include "nam/capture.h"
 #include "sdk/wvfx.h"
+#include "ui/i18n.h"
 #include "platform/flash.h"
 #include <string.h>
 
@@ -88,7 +89,7 @@ int catalog_item(const struct catalog *c, int menu, int index, struct catalog_it
     if (index == CATALOG_MISSING && menu >= 0 && menu < c->lib.menus) {
         out->engine.link_id = -1;
         out->engine.name = out->engine.category = "";
-        memcpy(out->name, CATALOG_MISSING_NAME, sizeof CATALOG_MISSING_NAME);
+        strncpy(out->name, T(MSG_COMMON_MISSING), sizeof out->name - 1);   /* AUSENTE / MISSING */
         return 0;
     }
     if (index < 0 || index >= catalog_count(c, menu))

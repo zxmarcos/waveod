@@ -17,6 +17,7 @@
 #include "dsp/pitch.h"
 #include "engine/looper.h"
 #include "model/globals.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/param_cell.h"
@@ -91,7 +92,7 @@ static void level(struct ui_ctx *ui, int which, int d)
         struct looper_status st;
         looper_status(&st);
         if (st.state != LOOP_EMPTY) {
-            ui_toast("PR\xC3\x89 / P\xC3\x93S: apague o loop antes");
+            ui_toast(T(MSG_LOOPER_ERASE_FIRST));
             return;
         }
         if (d)
@@ -255,7 +256,7 @@ static void enter(struct ui_ctx *ui)
 static void leave(struct ui_ctx *ui)
 {
     if (globals_save(ui->globals, &ui->rig->src))
-        ui_toast("Falha ao gravar o looper");
+        ui_toast(T(MSG_LOOPER_SAVE_FAILED));
 }
 
 static void seconds(uint32_t frames, char *out, unsigned size)
@@ -269,12 +270,13 @@ static void refresh(struct ui_ctx *ui)
     const struct globals *g = ui->globals;
     struct looper_status st;
     looper_status(&st);
-    top_bar_sub(st.state == LOOP_EMPTY ? (g->loop_post ? "LOOPER \xC2\xB7 P\xC3\x93S" : "LOOPER \xC2\xB7 PR\xC3\x89") :
-                st.place == LOOP_POST ? "LOOPER \xC2\xB7 P\xC3\x93S" : "LOOPER \xC2\xB7 PR\xC3\x89");
+    int post = st.state == LOOP_EMPTY ? g->loop_post : st.place == LOOP_POST;
+    top_bar_sub(T(post ? MSG_LOOPER_TITLE_POST : MSG_LOOPER_TITLE_PRE));
 
-    static const char *const names[] = { [LOOP_EMPTY] = "VAZIO", [LOOP_STOPPED] = "PARADO", [2] = "PARADO",
-                                         [LOOP_PLAY] = "TOCANDO", [LOOP_REC] = "GRAVANDO", [LOOP_DUB] = "SOBREPONDO" };
-    const char *name = st.armed ? "ESPERANDO O SINAL" : names[st.state];
+    static const uint16_t names[] = { [LOOP_EMPTY] = MSG_LOOPER_EMPTY, [LOOP_STOPPED] = MSG_LOOPER_STOPPED,
+                                      [2] = MSG_LOOPER_STOPPED, [LOOP_PLAY] = MSG_LOOPER_PLAYING,
+                                      [LOOP_REC] = MSG_LOOPER_RECORDING, [LOOP_DUB] = MSG_LOOPER_OVERDUBBING };
+    const char *name = T(st.armed ? MSG_LOOPER_ARMED : names[st.state]);
     uint32_t color = st.state == LOOP_REC || st.state == LOOP_DUB ? C_CLIP : st.state == LOOP_PLAY ? C_TUNED : C_TEXT;
     theme_set_text(s.state, name);
     theme_set_color(s.state, st.armed ? C_ACCENT : color);
@@ -282,7 +284,7 @@ static void refresh(struct ui_ctx *ui)
     char a[16], b[16], line[48];
     if (st.state == LOOP_EMPTY) {
         seconds(st.max, b, sizeof b);
-        lv_snprintf(line, sizeof line, "at\xC3\xA9 %s", b);
+        lv_snprintf(line, sizeof line, T(MSG_LOOPER_UP_TO), b);
     } else if (st.state == LOOP_REC) {
         seconds(st.pos, a, sizeof a);
         lv_snprintf(line, sizeof line, "%s", a);
@@ -308,22 +310,24 @@ static void refresh(struct ui_ctx *ui)
     s.colour = color == C_TEXT ? C_LABEL : color;
     if (s.span)
         looper_wave(s.peaks, WAVE_W, s.span);
-    theme_set_text(s.empty, st.state == LOOP_EMPTY ? (st.armed ? "COMECE A TOCAR" : "PISE A PARA GRAVAR") : "");
+    theme_set_text(s.empty, st.state == LOOP_EMPTY ? T(st.armed ? MSG_LOOPER_START_PLAYING : MSG_LOOPER_PRESS_A) : "");
     lv_obj_center(s.empty);
     theme_set_border(s.wave, st.state == LOOP_REC || st.state == LOOP_DUB ? C_CLIP : C_BORDER_OFF);
     lv_obj_invalidate(s.wave);
 
     char v[16];
     lv_snprintf(v, sizeof v, "%d", g->loop_rec);
-    param_cell_set(&s.cells[0], "GRAVA\xC3\x87\xC3\x83O", "", v, g->loop_rec / 100.0f, C_LABEL, C_TEXT, C_ACCENT);
-    param_cell_set(&s.cells[1], "POSI\xC3\x87\xC3\x83O", "", g->loop_post ? "P\xC3\x93S" : "PR\xC3\x89", -1, C_LABEL,
-                   st.state == LOOP_EMPTY ? C_TEXT : C_LABEL, C_ACCENT);
+    param_cell_set(&s.cells[0], T(MSG_LOOPER_CELL_REC), "", v, g->loop_rec / 100.0f, C_LABEL, C_TEXT, C_ACCENT);
+    param_cell_set(&s.cells[1], T(MSG_LOOPER_CELL_PLACE), "", T(g->loop_post ? MSG_LOOPER_POST : MSG_LOOPER_PRE), -1,
+                   C_LABEL, st.state == LOOP_EMPTY ? C_TEXT : C_LABEL, C_ACCENT);
     lv_snprintf(v, sizeof v, "%d", g->loop_play);
-    param_cell_set(&s.cells[2], "REPRODU\xC3\x87\xC3\x83O", "", v, g->loop_play / 100.0f, C_LABEL, C_TEXT, C_ACCENT);
+    param_cell_set(&s.cells[2], T(MSG_LOOPER_CELL_PLAY), "", v, g->loop_play / 100.0f, C_LABEL, C_TEXT, C_ACCENT);
 
-    const char *la = st.state == LOOP_EMPTY ? "GRAVAR" : st.state == LOOP_PLAY ? "SOBREPOR" : "TOCAR";
-    const char *lc = st.layer == 1 ? "DESFAZER" : st.layer == 2 ? "REFAZER" : "-";
-    const char *labels[4] = { la, "PARAR", lc, looper_auto() ? "AUTO REC ON" : "AUTO REC OFF" };
+    const char *la = T(st.state == LOOP_EMPTY ? MSG_LOOPER_REC
+                       : st.state == LOOP_PLAY ? MSG_LOOPER_DUB
+                                               : MSG_LOOPER_PLAY);
+    const char *lc = st.layer == 1 ? T(MSG_LOOPER_UNDO) : st.layer == 2 ? T(MSG_LOOPER_REDO) : "-";
+    const char *labels[4] = { la, T(MSG_LOOPER_STOP), lc, looper_auto() ? "AUTO REC ON" : "AUTO REC OFF" };
     for (int k = 0; k < 4; k++) {
         theme_set_text(s.labels[k], labels[k]);
         lv_obj_align(s.labels[k], LV_ALIGN_BOTTOM_LEFT, 8, -4);

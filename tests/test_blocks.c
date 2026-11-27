@@ -1,5 +1,6 @@
 /* waveod's own effect blocks (sdk/wvfx.h, engine/blocks.c, docs/blocks.md): every built-in's descriptor, Stereo
    Util's matrix, where the catalog lists them and their parameters' text (a chain running one: tools/check_blocks.py). */
+#include "ui/i18n.h"
 #include "engine/blocks.h"
 #include "engine/cabir.h"
 #include "fw/catalog.h"
@@ -118,8 +119,8 @@ static void test_catalog(void)
     CHECK(catalog_resolve(&cat, &menu, WVFX_ID(WVFX_VOL, 0x1FF), &index) == RESOLVE_MISSING && index == CATALOG_MISSING &&
           menu == MENU_VOL, "an id of waveod's not installed: missing, kept in its menu");
     struct catalog_item gone;
-    CHECK(catalog_item(&cat, MENU_VOL, CATALOG_MISSING, &gone) == 0 && strcmp(gone.name, "AUSENTE") == 0 &&
-          !gone.block && !gone.engine.elf && gone.nparams == 0, "a missing item: AUSENTE, nothing to run");
+    CHECK(catalog_item(&cat, MENU_VOL, CATALOG_MISSING, &gone) == 0 && strcmp(gone.name, T(MSG_COMMON_MISSING)) == 0 &&
+          !gone.block && !gone.engine.elf && gone.nparams == 0, "a missing item: MISSING, nothing to run");
     menu = MENU_VOL;
     CHECK(catalog_resolve(&cat, &menu, 0x0F00FFFFu, &index) == RESOLVE_FALLBACK && index == 0,
           "an unknown id of the original's still falls back to the menu's first");

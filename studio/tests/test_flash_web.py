@@ -8,7 +8,9 @@ import threading
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from waveod_studio import flashmap as FM, protocol as P, webapp    # noqa: E402
+from waveod_studio import flashmap as FM, i18n, protocol as P, webapp    # noqa: E402
+
+i18n.set_language('pt-BR')                          # the messages checked below are the Portuguese ones
 
 failed = 0
 
@@ -39,7 +41,7 @@ class FakePedal:
         out = bytearray()
         for off in range(start, start + length, P.CHUNK):
             if cancel and cancel():
-                raise P.PedalError('cancelado')
+                raise P.Cancelled('cancelado')
             out += self.data[off:off + min(P.CHUNK, start + length - off)]
             if progress:
                 progress(len(out), length)

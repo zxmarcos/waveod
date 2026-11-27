@@ -1,6 +1,8 @@
 // The pedal's 16 effect menus as its screens show them: name, tag, colours (src/ui/theme.c) and line icon
 // (tools/mkicons.py: the design's SVG paths, 24 x 24, round caps).
 
+import { t, type MsgKey } from './i18n.svelte';
+
 export const ICONS = {
   DYN: 'M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3M4 12h16',
   WAH: 'M5 20l3-15h8l3 15zM9.5 10h5',
@@ -63,26 +65,28 @@ export interface MenuInfo {
   icon: IconName;
 }
 
-const RAW: [string, string, string, string, IconName][] = [
-  ['DYN', 'Dinâmica', '#17D0D8', '#002528', 'DYN'],
-  ['FX', 'Efeitos', '#E698DF', '#2B1729', 'FLT'],
-  ['WAH', 'Wah', '#FE93A4', '#31151A', 'WAH'],
-  ['DRV', 'Drive', '#FF958D', '#321614', 'DRV'],
-  ['AMP', 'Amp', '#F4A25C', '#2F1A07', 'AMP'],
-  ['CAB', 'Gabinete', '#D1B64A', '#261F03', 'CAB'],
-  ['IR', 'IR', '#D1B64A', '#261F03', 'CAB'],
-  ['EQ', 'EQ', '#80CD82', '#102511', 'EQ'],
-  ['MOD', 'Modulação', '#C4A4FE', '#231A31', 'MOD'],
-  ['DLY', 'Delay', '#73BDFF', '#0D2034', 'DLY'],
-  ['RVB', 'Reverb', '#36D2BA', '#002620', 'RVB'],
-  ['CLN', 'Clone', '#FD9976', '#31170E', 'AMP'],
-  ['LOOP', 'FX Loop', '#9FB0FF', '#191D34', 'SR'],
-  ['SND', 'Send', '#9FB0FF', '#191D34', 'SND'],
-  ['RTN', 'Return', '#9FB0FF', '#191D34', 'RTN'],
-  ['VOL', 'Volume', '#B5C159', '#1F2206', 'VOL'],
+const RAW: [string, MsgKey, string, string, IconName][] = [
+  ['DYN', 'menu.dyn', '#17D0D8', '#002528', 'DYN'],
+  ['FX', 'menu.fx', '#E698DF', '#2B1729', 'FLT'],
+  ['WAH', 'menu.wah', '#FE93A4', '#31151A', 'WAH'],
+  ['DRV', 'menu.drv', '#FF958D', '#321614', 'DRV'],
+  ['AMP', 'menu.amp', '#F4A25C', '#2F1A07', 'AMP'],
+  ['CAB', 'menu.cab', '#D1B64A', '#261F03', 'CAB'],
+  ['IR', 'menu.ir', '#D1B64A', '#261F03', 'CAB'],
+  ['EQ', 'menu.eq', '#80CD82', '#102511', 'EQ'],
+  ['MOD', 'menu.mod', '#C4A4FE', '#231A31', 'MOD'],
+  ['DLY', 'menu.dly', '#73BDFF', '#0D2034', 'DLY'],
+  ['RVB', 'menu.rvb', '#36D2BA', '#002620', 'RVB'],
+  ['CLN', 'menu.cln', '#FD9976', '#31170E', 'AMP'],
+  ['LOOP', 'menu.loop', '#9FB0FF', '#191D34', 'SR'],
+  ['SND', 'menu.snd', '#9FB0FF', '#191D34', 'SND'],
+  ['RTN', 'menu.rtn', '#9FB0FF', '#191D34', 'RTN'],
+  ['VOL', 'menu.vol', '#B5C159', '#1F2206', 'VOL'],
 ];
 
-export const MENUS: MenuInfo[] = RAW.map(([tag, name, color, dark, icon], menu) => ({ menu, tag, name, color, dark, icon }));
+/** name: in the language now (a getter, so a page reading it follows the language) */
+export const MENUS: MenuInfo[] = RAW.map(([tag, key, color, dark, icon], menu) =>
+  ({ menu, tag, get name() { return t(key); }, color, dark, icon }));
 
 /** the menus the browser offers: all of them, FX Loop, Send and Return included (ui_menus, since waveod runs them) */
 export const BROWSABLE = MENUS;

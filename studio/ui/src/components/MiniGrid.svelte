@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import { menuInfo } from '../lib/menus';
   import { wirePaths } from '../lib/wires';
+  import { t } from '../lib/i18n.svelte';
   import type { PresetDetail } from '../lib/types';
 
   let { detail, names }: { detail: PresetDetail; names: (b: PresetDetail['blocks'][number]) => string } = $props();
@@ -18,7 +19,7 @@
 </script>
 
 <div class="mini" style:width="{W}px" style:height="{H}px" role="img"
-     aria-label="Cadeia: {placed.map((b) => names(b)).join(', ') || 'vazia'}">
+     aria-label={t('grid.mini_aria', { blocks: placed.map((b) => names(b)).join(', ') || t('grid.mini_empty') })}>
   <svg width={W} height={H} aria-hidden="true">
     {#each wires.main as d (d)}<path {d} />{/each}
     <circle cx="5" cy={Y1} r="3.5" class="end" />
@@ -29,7 +30,7 @@
   </svg>
   {#each placed as b (b.slot)}
     {@const m = menuInfo(b.menu)}
-    <span class="cell" class:off={!b.on} style:--c={m.color} title="{names(b)}{b.on ? '' : ' (desligado)'}"
+    <span class="cell" class:off={!b.on} style:--c={m.color} title="{names(b)}{b.on ? '' : t('grid.off_suffix')}"
           style:left="{cx(b.cell) - BLOCK / 2}px" style:top="{cy(b.cell) - BLOCK / 2}px">
       <Icon name={m.icon} size={20} stroke={2} />
     </span>

@@ -2,6 +2,7 @@
   // The questions the app asks (studio.ask) and the progress of a long task (backup, restore), in the middle of
   // the window over a dimmed page.
   import { studio } from '../lib/store.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   const d = $derived(studio.dialog);
   const p = $derived(studio.progress);
@@ -34,11 +35,11 @@
   <div class="veil" role="presentation"></div>
   <div class="box busy" role="status" aria-live="polite">
     <h3>{p.label}</h3>
-    <p>{p.total ? `${p.done} de ${p.total} ${p.unit ?? 'presets'}` : 'Esperando o pedal…'}</p>
+    <p>{p.total ? t('store.progress', { done: p.done, total: p.total, unit: p.unit ?? 'presets' }) : t('store.progress_wait')}</p>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={pct}>
       <span style:transform="scaleX({p.total ? pct / 100 : 0.06})" class:wait={!p.total}></span>
     </div>
-    {#if p.cancel}<div class="actions cancel"><button onclick={() => studio.cancelLong()}>Cancelar</button></div>{/if}
+    {#if p.cancel}<div class="actions cancel"><button onclick={() => studio.cancelLong()}>{t('common.cancel')}</button></div>{/if}
   </div>
 {/if}
 

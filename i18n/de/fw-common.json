@@ -1,0 +1,16 @@
+{
+  "fw.common.on": "EIN",
+  "fw.common.off": "AUS",
+  "fw.common.menu_arrow": "MENU »",
+  "fw.common.new_link": "+ NEUE ZUWEISUNG",
+  "fw.common.more": "+%d WEITERE",
+  "fw.common.table_full": "Steuertabelle voll",
+  "fw.common.link_removed": "ZUWEISUNG ENTFERNT",
+  "fw.common.mode_preset": "PRESET-MODUS",
+  "fw.common.mode_stomp": "STOMP-MODUS",
+  "fw.common.mode_scenes": "SZENEN-MODUS",
+  "fw.common.when_press": "DRÜCKEN",
+  "fw.common.when_hold": "HALTEN",
+  "fw.common.when_moment": "TASTEND",
+  "fw.common.missing": "FEHLT"
+}

@@ -13,6 +13,8 @@ added) and the module ELF.
 import struct
 import zlib
 
+from waveod_studio.i18n import tr
+
 MAGIC = b'WVLB'
 WVFX_MAGIC, WVFX_ABI = 0x58465657, 1
 MENUS = 16
@@ -53,7 +55,7 @@ def describe(elf):
     their region, each with a relocation naming the region."""
     elf = bytes(elf)
     if elf[:4] != b'\x7fELF':
-        raise LibraryError('não é um ELF')
+        raise LibraryError(tr('py.lib_not_elf'))
     names, secs = _elf_sections(elf)
     regions = {}
     for r, n in enumerate(('ER_IROM', 'ER_SROM', 'ER_IRAM', 'ER_SRAM')):
@@ -71,14 +73,14 @@ def describe(elf):
     def word(addr):
         d = regions.get(addr >> 28)
         if d is None or (addr & 0x0fffffff) + 4 > len(d):
-            raise LibraryError('endereço %#x fora do módulo' % addr)
+            raise LibraryError(tr('py.lib_addr', addr='%#x' % addr))
         return struct.unpack_from('<I', d, addr & 0x0fffffff)[0]
 
     def pointer(addr):
         w = word(addr)
         if addr not in relocated:
             if w:
-                raise LibraryError('ponteiro em %#x sem relocação' % addr)
+                raise LibraryError(tr('py.lib_reloc', addr='%#x' % addr))
             return 0
         return relocated[addr] << 28 | w
 
@@ -95,10 +97,10 @@ def describe(elf):
         return d[o:d.index(b'\0\0', o) + 1].decode('latin-1').split('\0')[:-1]
 
     if 0 not in regions or word(4) != WVFX_MAGIC:
-        raise LibraryError('não é um bloco do waveod (sem o cabeçalho "WVFX")')
+        raise LibraryError(tr('py.lib_not_block'))
     da = pointer(12)
     if word(da) != WVFX_MAGIC or word(da + 4) != WVFX_ABI:
-        raise LibraryError('descritor de outra versão (abi %d)' % word(da + 4))
+        raise LibraryError(tr('py.lib_abi', abi=word(da + 4)))
     d = regions[da >> 28]
     o = (da & 0x0fffffff) + 12
     menu, nparams, flags = d[o], d[o + 1], d[o + 2]
@@ -139,7 +141,7 @@ class Library:
         if name is not None:
             m.name = name
         if m.id >> 24 != 0x57 or (m.id >> 16 & 0xff) != m.menu or m.menu >= MENUS:
-            raise LibraryError('id %#x não é um id do waveod para o menu %d' % (m.id, m.menu))
+            raise LibraryError(tr('py.lib_bad_id', id='%#x' % m.id, menu=m.menu))
         self.modules = [x for x in self.modules if x.id != m.id] + [m]
         return m
 
@@ -206,10 +208,10 @@ class Library:
         if not img:
             return cls()
         if len(img) < 0x18 or img[:4] != MAGIC:
-            raise LibraryError('não é uma biblioteca do waveod')
+            raise LibraryError(tr('py.lib_not_lib'))
         head, index_size, total, crc, menus = struct.unpack_from('<IIIII', img, 4)
         if total > len(img) or zlib.crc32(img[0x18:total]) != crc:
-            raise LibraryError('biblioteca corrompida (CRC)')
+            raise LibraryError(tr('py.lib_crc'))
         lib = cls()
         for menu in range(menus):
             lst, = struct.unpack_from('<I', img, 0x18 + 4 * menu)

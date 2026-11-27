@@ -2,16 +2,19 @@
 // plays (read once per change), and a MIDI file on its way in.
 
 import { errorText, type Backend } from './api';
+import { t, tn, type MsgKey } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { DrumPattern, DrumState, MidiPreview } from './types';
 
 const POLL_MS = 1500;               // the pedal's own buttons start and stop the drums too
 
 /** the 13 sounds of the pedal's bank (drums.py SOUNDS), top to bottom as a drum score has them */
-export const SOUNDS = [
-  'Bumbo eletrônico', 'Bumbo', 'Aro / clique', 'Caixa eletrônica', 'Palmas', 'Caixa', 'Chimbal fechado',
-  'Chimbal aberto', 'Prato de ataque', 'Ride', 'Splash', 'Cowbell', 'Pandeirola',
+const SOUND_KEYS: MsgKey[] = [
+  'drums.sound_kick_elec', 'drums.sound_kick', 'drums.sound_rim', 'drums.sound_snare_elec', 'drums.sound_claps',
+  'drums.sound_snare', 'drums.sound_hat_closed', 'drums.sound_hat_open', 'drums.sound_crash', 'drums.sound_ride',
+  'drums.sound_splash', 'drums.sound_cowbell', 'drums.sound_tambourine',
 ];
+export const soundName = (s: number) => (SOUND_KEYS[s] ? t(SOUND_KEYS[s]) : `${s}`);
 export const ROW_ORDER = [8, 10, 9, 7, 6, 12, 11, 4, 2, 5, 3, 1, 0];
 /** a colour per family: cymbals, hats, percussion, snares, kicks */
 export const SOUND_COLOR = (s: number) =>
@@ -117,18 +120,18 @@ class Drums {
   async rename(i: number, name: string) {
     const s = this.state?.slots[i];
     if (!s || !name.trim() || name.trim().toUpperCase() === s.name) return;
-    await this.change((b) => b.drumRename(i, name), `M${i + 1} renomeado`);
+    await this.change((b) => b.drumRename(i, name), t('drums.renamed', { n: i + 1 }));
   }
 
   async empty(i: number) {
     const s = this.state?.slots[i];
     if (!s) return;
     const id = await studio.ask({
-      title: `Esvaziar M${i + 1}?`,
-      text: `Apaga do pedal o ritmo “${s.name}”. Para tê-lo de volta é preciso importar o MIDI de novo.`,
-      actions: [{ id: 'go', label: 'Esvaziar', kind: 'danger' }, { id: 'cancel', label: 'Cancelar' }],
+      title: t('drums.empty_title', { n: i + 1 }),
+      text: t('drums.empty_text', { name: s.name }),
+      actions: [{ id: 'go', label: t('drums.empty_action'), kind: 'danger' }, { id: 'cancel', label: t('common.cancel') }],
     });
-    if (id === 'go') await this.change((b) => b.drumEmpty(i), `M${i + 1} vazio`);
+    if (id === 'go') await this.change((b) => b.drumEmpty(i), t('drums.emptied', { n: i + 1 }));
   }
 
   /** a MIDI file picked for place i (the picked one, or the first empty when the picked is in use and `free`) */
@@ -164,7 +167,7 @@ class Drums {
     d.busy = true;
     const { place, preview: p, name } = d;
     const ok = await this.change((b) => b.drumImport(place, p.path, name, p.kit, p.once),
-                                 `M${place + 1}: ${name.trim().toUpperCase() || p.name} (${p.bars} ${p.bars === 1 ? 'compasso' : 'compassos'})`);
+                                 tn('drums.imported', p.bars, { place: place + 1, name: name.trim().toUpperCase() || p.name }));
     if (ok) {
       this.draft = null;
       this.pick(place);

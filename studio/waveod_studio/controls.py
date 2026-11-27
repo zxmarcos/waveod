@@ -12,6 +12,8 @@ has a link there (a NOTHING link too), else from the global one.
 """
 import struct
 
+from waveod_studio.i18n import tr
+
 # keys
 A, B, C, D, BANK_DOWN, BANK_UP = range(6)
 COMBO = 6                                   # .. +3: A+B, B+C, C+D, BANK- + BANK+
@@ -206,7 +208,7 @@ class Table:
         if every_mode(l.key) or l.modes == mode:
             return i
         if len(self.links) >= CONTROL_MAX:
-            raise ValueError('tabela de controles cheia (%d ligações)' % CONTROL_MAX)
+            raise ValueError(tr('ctl.table_full', max=CONTROL_MAX))
         c = l.copy()
         c.modes = mode
         l.modes &= ~mode
@@ -215,7 +217,7 @@ class Table:
 
     def add(self, link):
         if len(self.links) >= CONTROL_MAX:
-            raise ValueError('tabela de controles cheia (%d ligações)' % CONTROL_MAX)
+            raise ValueError(tr('ctl.table_full', max=CONTROL_MAX))
         self.links.append(link)
         return len(self.links) - 1
 

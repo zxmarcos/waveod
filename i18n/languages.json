@@ -1,0 +1,7 @@
+[
+  {"code": "en", "name": "English", "pedal": "ENGLISH"},
+  {"code": "pt-BR", "name": "Português (Brasil)", "pedal": "PORTUGUÊS"},
+  {"code": "es", "name": "Español", "pedal": "ESPAÑOL"},
+  {"code": "de", "name": "Deutsch", "pedal": "DEUTSCH"},
+  {"code": "it", "name": "Italiano", "pedal": "ITALIANO"}
+]

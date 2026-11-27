@@ -1,7 +1,8 @@
 <script lang="ts">
   // What a drum pattern plays, drawn as a drum score reads: the pedal's 13 sounds as rows (cymbals on top, kicks at
   // the bottom), time across in beats and bars, each hit as strong as its velocity.
-  import { ROW_ORDER, SOUND_COLOR, SOUNDS } from '../lib/drums.svelte';
+  import { ROW_ORDER, SOUND_COLOR, soundName } from '../lib/drums.svelte';
+  import { tn } from '../lib/i18n.svelte';
   import type { DrumRoll } from '../lib/types';
 
   let { roll, bar = 480 }: { roll: DrumRoll; bar?: number } = $props();
@@ -31,12 +32,12 @@
 <div class="roll">
   <div class="names" style:padding-top="{RULER}px">
     {#each ROW_ORDER as s (s)}
-      <span class:unused={!used.has(s)} style:--c={SOUND_COLOR(s)} style:height="{ROW}px">{SOUNDS[s]}</span>
+      <span class:unused={!used.has(s)} style:--c={SOUND_COLOR(s)} style:height="{ROW}px">{soundName(s)}</span>
     {/each}
   </div>
   <div class="scroll" bind:this={box}>
     <svg width={W} height={H} role="img"
-         aria-label="{roll.hits.length} batidas em {bars} {bars === 1 ? 'compasso' : 'compassos'}">
+         aria-label={tn('drums.roll_aria', bars, { hits: roll.hits.length })}>
       {#each ROW_ORDER as _, r (r)}
         {#if r % 2 === 0}<rect x="0" y={RULER + r * ROW} width={W} height={ROW} class="band" />{/if}
       {/each}

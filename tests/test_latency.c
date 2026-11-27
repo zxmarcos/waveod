@@ -186,5 +186,5 @@ void test_latency(void)
     latency_cancel();
     latency_get(&r);
     CHECK(r.status == LAT_CANCELLED && !latency_quiet() && !latency_preset(), "cancelled: status %d", r.status);
-    CHECK(!strcmp(latency_status_name(LAT_NO_SIGNAL), "SEM SINAL"), "status name");
+    CHECK(!strcmp(latency_status_name(LAT_NO_SIGNAL), "NO SIGNAL"), "status name");
 }

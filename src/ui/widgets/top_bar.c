@@ -2,6 +2,7 @@
 #include "dsp/pitch.h"
 #include "platform/audio.h"
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/images/icons.h"
 #include "ui/theme.h"
 #include "platform/sdram.h"
@@ -56,8 +57,8 @@
 
 enum { ACT_COPY = SCENE_COUNT, ACT_NAME, ACT_REVERT };
 
-static const char *const mode_names[3] = { "PRESET", "STOMP", "CENAS" };
-static const char *const mode_hints[3] = { "A-D: PRESETS", "A-D: BLOCOS", "A-D: CENAS" };
+static const uint16_t mode_names[3] = { MSG_TOP_MODE_PRESET, MSG_TOP_MODE_STOMP, MSG_TOP_SCENES };
+static const uint16_t mode_hints[3] = { MSG_TOP_HINT_PRESET, MSG_TOP_HINT_STOMP, MSG_TOP_HINT_SCENES };
 
 static struct {
     lv_obj_t *box;
@@ -71,7 +72,7 @@ static struct {
     lv_obj_t *seg[2][SEGS];
     lv_obj_t *dsp_fill;
     float level[2], peak[2], dsp;
-    lv_obj_t *pop, *pop_btn[3], *pop_icon[3], *pop_name[3];
+    lv_obj_t *pop, *pop_title, *pop_btn[3], *pop_icon[3], *pop_name[3], *pop_hint[3];
     int pop_sel;
     lv_obj_t *sp, *sp_title, *sp_hint, *sp_item[SP_ITEMS], *sp_num[SCENE_COUNT], *sp_name[SP_ITEMS];
     lv_obj_t *sp_mark[SCENE_COUNT][PRESET_SLOTS];
@@ -109,8 +110,19 @@ static void pop_refresh(void)
     }
 }
 
+/* the texts: the language may have changed since the chooser was made (ui.c builds the screens again, not the bar) */
+static void pop_texts(void)
+{
+    lv_label_set_text_static(s.pop_title, T(MSG_TOP_FS_MODE));
+    for (int m = 0; m < 3; m++) {
+        lv_label_set_text_static(s.pop_name[m], T(mode_names[m]));
+        lv_label_set_text_static(s.pop_hint[m], T(mode_hints[m]));
+    }
+}
+
 static void pop_open(void)
 {
+    pop_texts();
     s.pop_sel = footswitch_mode(ui_context());
     pop_refresh();
     show(s.pop, 1);
@@ -187,17 +199,17 @@ static void sp_refresh(void)
     int act = rig_scene_active(r), playing = rig_scene_editing(r);
     char text[72], name[SCENE_NAME_LEN + 1];
     if (s.sp_copy)
-        lv_snprintf(text, sizeof text, "COPIAR A CENA %d PARA...", act + 1);
+        lv_snprintf(text, sizeof text, T(MSG_TOP_COPY_TITLE), act + 1);
     else if (playing)
-        lv_snprintf(text, sizeof text, "CENAS \xC2\xB7 EDITANDO A CENA %d", act + 1);
+        lv_snprintf(text, sizeof text, T(MSG_TOP_EDITING_SCENE), act + 1);
     else
-        lv_snprintf(text, sizeof text, "CENAS");
+        lv_snprintf(text, sizeof text, "%s", T(MSG_TOP_SCENES));
     theme_set_text(s.sp_title, text);
     theme_set_color(s.sp_title, s.sp_copy || playing ? C_ACCENT : C_LABEL);
-    const char *hint = s.sp_copy ? "TOQUE NA CENA DE DESTINO \xC2\xB7 EXIT CANCELA"
-                       : !playing ? "ESCOLHA UMA CENA PARA EDITAR: BLOCOS E KNOBS FICAM NELA"
-                       : r->scene_auto ? "BLOCOS E KNOBS QUE VOC\xC3\x8A MEXER FICAM NA CENA ATIVA"
-                                       : "BLOCOS FICAM NA CENA ATIVA \xC2\xB7 KNOBS NA CENA: MANUAL";
+    const char *hint = T(s.sp_copy ? MSG_TOP_HINT_COPY
+                         : !playing ? MSG_TOP_HINT_CHOOSE
+                         : r->scene_auto ? MSG_TOP_HINT_AUTO
+                                         : MSG_TOP_HINT_MANUAL);
     theme_set_text(s.sp_hint, hint);
     for (int i = 0; i < SP_ITEMS; i++) {
         int scene = i < SCENE_COUNT, on = scene && i == act && playing, sel = i == s.sp_sel;
@@ -213,8 +225,8 @@ static void sp_refresh(void)
             theme_set_color(s.sp_num[i], off ? C_OFF : on ? C_ACCENT : C_TEXT);
             sp_marks(ui, i);
         } else {
-            static const char *const names[3] = { "COPIAR PARA...", "RENOMEAR", "DESFAZER" };
-            theme_set_text(s.sp_name[i], i == ACT_COPY && s.sp_copy ? "CANCELAR" : names[i - ACT_COPY]);
+            static const uint16_t names[3] = { MSG_TOP_COPY_TO, MSG_TOP_RENAME, MSG_TOP_REVERT };
+            theme_set_text(s.sp_name[i], T(i == ACT_COPY && s.sp_copy ? MSG_TOP_CANCEL : names[i - ACT_COPY]));
             theme_set_color(s.sp_name[i], off ? C_OFF : C_TEXT);
             lv_obj_center(s.sp_name[i]);
         }
@@ -240,7 +252,7 @@ static void sp_pick(int i)
         if (i < SCENE_COUNT && i != act) {
             top_bar_close();
             rig_scene_copy(r, act, i);
-            lv_snprintf(text, sizeof text, "CENA %d COPIADA PARA A CENA %d", act + 1, i + 1);
+            lv_snprintf(text, sizeof text, T(MSG_TOP_COPIED), act + 1, i + 1);
             ui_changed();
             ui_toast(text);
         } else if (i == ACT_COPY || i == act) {
@@ -262,9 +274,9 @@ static void sp_pick(int i)
     case ACT_REVERT:
         top_bar_close();
         if (rig_scene_revert(r, act) == 0)
-            lv_snprintf(text, sizeof text, "CENA %d COMO EST\xC3\x81 SALVA", act + 1);
+            lv_snprintf(text, sizeof text, T(MSG_TOP_REVERTED), act + 1);
         else
-            lv_snprintf(text, sizeof text, "PRESET N\xC3\x83O SALVO");
+            lv_snprintf(text, sizeof text, "%s", T(MSG_TOP_NOT_SAVED));
         ui_changed();
         ui_toast(text);
         break;
@@ -474,9 +486,8 @@ static void pop_create(void)
     s.pop = theme_box(lv_layer_top(), 0, 0, UI_W, UI_H, 0x000000);
     lv_obj_set_style_bg_opa(s.pop, LV_OPA_80, 0);
     gesture_bind(s.pop, on_pop, 3);
-    lv_obj_t *t = theme_label(s.pop, &font_tag_12, C_LABEL, 2);
-    lv_label_set_text_static(t, "MODO DOS FOOTSWITCHES");
-    lv_obj_align(t, LV_ALIGN_TOP_MID, 0, (UI_H - POP_H) / 2 - 26);
+    s.pop_title = theme_label(s.pop, &font_tag_12, C_LABEL, 2);
+    lv_obj_align(s.pop_title, LV_ALIGN_TOP_MID, 0, (UI_H - POP_H) / 2 - 26);
     int x = (UI_W - 3 * POP_W - 2 * POP_GAP) / 2;
     for (int m = 0; m < 3; m++) {
         lv_obj_t *b = theme_box(s.pop, x + m * (POP_W + POP_GAP), (UI_H - POP_H) / 2, POP_W, POP_H, C_BG);
@@ -487,12 +498,11 @@ static void pop_create(void)
         s.pop_icon[m] = theme_icon(b, mode_icon(m, 1), C_LABEL);
         lv_obj_align(s.pop_icon[m], LV_ALIGN_TOP_MID, 0, 14);
         s.pop_name[m] = theme_label(b, &font_value_20, C_TEXT, 0);
-        lv_label_set_text_static(s.pop_name[m], mode_names[m]);
         lv_obj_align(s.pop_name[m], LV_ALIGN_TOP_MID, 0, 48);
-        lv_obj_t *h = theme_label(b, &font_tag_12, C_OFF, 1);
-        lv_label_set_text_static(h, mode_hints[m]);
-        lv_obj_align(h, LV_ALIGN_TOP_MID, 0, 78);
+        s.pop_hint[m] = theme_label(b, &font_tag_12, C_OFF, 1);
+        lv_obj_align(s.pop_hint[m], LV_ALIGN_TOP_MID, 0, 78);
     }
+    pop_texts();
     show(s.pop, 0);
 }
 
@@ -560,7 +570,7 @@ static void refresh_preset(void)
     theme_set_text(s.bpm, text);
     lv_snprintf(text, sizeof text, "VOL %d", r->preset.volume);
     theme_set_text(s.vol, text);
-    theme_set_text(s.name, r->preset.name[0] ? r->preset.name : "(vazio)");
+    theme_set_text(s.name, r->preset.name[0] ? r->preset.name : T(MSG_SCREENS_EMPTY));
     /* BPM / VOL: a button at the right end of the preset, amber while the chain screen shows them */
     lv_obj_update_layout(s.bpm);
     lv_obj_update_layout(s.vol);

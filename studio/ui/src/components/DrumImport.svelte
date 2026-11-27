@@ -4,6 +4,7 @@
   import Icon from './Icon.svelte';
   import DrumRoll from './DrumRoll.svelte';
   import { drums, pedalName } from '../lib/drums.svelte';
+  import { num, t } from '../lib/i18n.svelte';
 
   const d = $derived(drums.draft!);
   const p = $derived(d.preview);
@@ -18,27 +19,27 @@
     }
   }
   function focusName(node: HTMLInputElement) { node.focus(); node.select(); }
-  const secs = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${s.toFixed(1)} s`);
+  const secs = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${num(s, 1)} s`);
 </script>
 
 <div class="veil" role="presentation" onclick={() => !d.busy && (drums.draft = null)}></div>
 <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="imp-title" tabindex="-1" onkeydown={key}>
   <header>
-    <h3 id="imp-title">{replaced ? `Substituir M${d.place + 1}` : `Importar para M${d.place + 1}`}</h3>
+    <h3 id="imp-title">{replaced ? t('drums.replace_title', { n: d.place + 1 }) : t('drums.import_to_title', { n: d.place + 1 })}</h3>
     <span class="file"><Icon name="file" size={15} stroke={2} /> {p.file}</span>
   </header>
 
   <dl class="facts">
-    <div><dt>Tempo</dt><dd>{p.bpm ? `${p.bpm} BPM` : 'sem tempo (fica o da bateria)'}</dd></div>
-    <div><dt>Compassos</dt><dd>{p.bars} · {secs(p.seconds)}</dd></div>
-    <div><dt>Notas</dt><dd>{p.notes}</dd></div>
-    <div><dt>Eventos</dt><dd>{p.events} de {drums.state?.max_events ?? 2000}</dd></div>
+    <div><dt>{t('drums.tempo')}</dt><dd>{p.bpm ? `${p.bpm} BPM` : t('drums.no_tempo')}</dd></div>
+    <div><dt>{t('drums.bars')}</dt><dd>{p.bars} · {secs(p.seconds)}</dd></div>
+    <div><dt>{t('drums.notes')}</dt><dd>{p.notes}</dd></div>
+    <div><dt>{t('drums.events')}</dt><dd>{t('drums.of', { n: p.events, max: drums.state?.max_events ?? 2000 })}</dd></div>
   </dl>
   {#if p.dropped || p.cut || p.all_channels}
     <ul class="warn">
-      {#if p.dropped}<li>Sem som no pedal, ficam de fora: {p.dropped}.</li>{/if}
-      {#if p.cut}<li>Longo demais: só os primeiros {p.bars} compassos cabem ({p.cut} ficam de fora).</li>{/if}
-      {#if p.all_channels}<li>O arquivo não usa o canal 10 da bateria: todas as notas foram lidas como bateria.</li>{/if}
+      {#if p.dropped}<li>{t('drums.dropped', { list: p.dropped })}</li>{/if}
+      {#if p.cut}<li>{t('drums.cut', { bars: p.bars, cut: p.cut })}</li>{/if}
+      {#if p.all_channels}<li>{t('drums.all_channels')}</li>{/if}
     </ul>
   {/if}
 
@@ -48,36 +49,36 @@
 
   <div class="form">
     <label class="name">
-      <span>Nome no pedal</span>
+      <span>{t('drums.name_short')}</span>
       <input value={d.name} maxlength="16" spellcheck="false" use:focusName
              oninput={(e) => { d.name = pedalName(e.currentTarget.value); e.currentTarget.value = d.name; }}
              onkeydown={(e) => e.key === 'Enter' && !d.busy && drums.commit()} />
     </label>
     <div class="field">
-      <span>Bumbo e caixa</span>
-      <div class="seg" role="radiogroup" aria-label="Bumbo e caixa">
-        <button role="radio" aria-checked={p.kit === 'acustico'} class:on={p.kit === 'acustico'} onclick={() => setKit('acustico')}>Acústicos</button>
-        <button role="radio" aria-checked={p.kit === 'eletronico'} class:on={p.kit === 'eletronico'} onclick={() => setKit('eletronico')}>Eletrônicos</button>
+      <span>{t('drums.kit')}</span>
+      <div class="seg" role="radiogroup" aria-label={t('drums.kit')}>
+        <button role="radio" aria-checked={p.kit === 'acustico'} class:on={p.kit === 'acustico'} onclick={() => setKit('acustico')}>{t('drums.kit_acoustic')}</button>
+        <button role="radio" aria-checked={p.kit === 'eletronico'} class:on={p.kit === 'eletronico'} onclick={() => setKit('eletronico')}>{t('drums.kit_electronic')}</button>
       </div>
     </div>
     <div class="field">
-      <span>No fim</span>
-      <div class="seg" role="radiogroup" aria-label="No fim">
+      <span>{t('drums.at_end')}</span>
+      <div class="seg" role="radiogroup" aria-label={t('drums.at_end')}>
         <button role="radio" aria-checked={!p.once} class:on={!p.once} onclick={() => setOnce(false)}>
-          <Icon name="loop" size={14} stroke={2} /> Volta ao começo</button>
+          <Icon name="loop" size={14} stroke={2} /> {t('drums.at_end_loop')}</button>
         <button role="radio" aria-checked={p.once} class:on={p.once} onclick={() => setOnce(true)}>
-          <Icon name="once" size={14} stroke={2} /> Para (música inteira)</button>
+          <Icon name="once" size={14} stroke={2} /> {t('drums.at_end_once')}</button>
       </div>
     </div>
   </div>
 
   <footer>
     <p class:lost={!!replaced}>
-      {replaced ? `Isto substitui “${replaced.name}”, que está em M${d.place + 1}.` : `M${d.place + 1} está vazio.`}
+      {replaced ? t('drums.replaces', { name: replaced.name, n: d.place + 1 }) : t('drums.place_empty', { n: d.place + 1 })}
     </p>
-    <button onclick={() => (drums.draft = null)} disabled={d.busy}>Cancelar</button>
+    <button onclick={() => (drums.draft = null)} disabled={d.busy}>{t('common.cancel')}</button>
     <button class={replaced ? 'danger' : 'primary'} onclick={() => drums.commit()} disabled={d.busy || !d.name.trim()}>
-      Gravar em M{d.place + 1}
+      {t('drums.write_to', { n: d.place + 1 })}
     </button>
   </footer>
 </div>

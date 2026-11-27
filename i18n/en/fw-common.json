@@ -1,0 +1,16 @@
+{
+  "fw.common.on": "ON",
+  "fw.common.off": "OFF",
+  "fw.common.menu_arrow": "MENU »",
+  "fw.common.new_link": "+ NEW LINK",
+  "fw.common.more": "+%d MORE",
+  "fw.common.table_full": "Control table full",
+  "fw.common.link_removed": "LINK REMOVED",
+  "fw.common.mode_preset": "PRESET MODE",
+  "fw.common.mode_stomp": "STOMP MODE",
+  "fw.common.mode_scenes": "SCENES MODE",
+  "fw.common.when_press": "PRESS",
+  "fw.common.when_hold": "HOLD",
+  "fw.common.when_moment": "WHILE HELD",
+  "fw.common.missing": "MISSING"
+}

@@ -10,7 +10,10 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..'))
 
-from waveod_studio import protocol as P, webapp     # noqa: E402
+from waveod_studio import i18n, protocol as P, webapp     # noqa: E402
+from waveod_studio.usb import htmidi                      # noqa: E402
+
+i18n.set_language('pt-BR')                          # the messages checked below are the Portuguese ones
 
 failed = 0
 NAME = 'Matribox II Pro'
@@ -37,7 +40,7 @@ class FakePedal:
         if not World.plugged:
             raise RuntimeError('MIDI port not found')
         if World.busy:
-            raise RuntimeError('midiOutOpen failed (4): is the PC editor still open?')
+            raise htmidi.PortError('midiOutOpen failed (4): is the PC editor still open?')
         World.opened += 1
         self.name = NAME
 

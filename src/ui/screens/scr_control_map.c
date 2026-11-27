@@ -19,6 +19,7 @@
 #include "model/param_format.h"
 #include "platform/sdram.h"
 #include "ui/footswitch.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/mod_graph.h"
@@ -126,8 +127,8 @@ static int card_links(struct ui_ctx *ui, int i, const struct control **out, uint
 
 static void brief(struct ui_ctx *ui, const struct control *l, char *out, unsigned size)
 {
-    const char *pre = l->key == CK_EXP1A ? "A " : l->key == CK_EXP1B ? "B " : l->key == CK_TOE ? "BICO " :
-                      l->when == CW_HOLD ? "SEG " : "";
+    const char *pre = l->key == CK_EXP1A ? "A " : l->key == CK_EXP1B ? "B " : l->key == CK_TOE ? T(MSG_CTLMAP_PREFIX_TOE) :
+                      l->when == CW_HOLD ? T(MSG_CTLMAP_PREFIX_HOLD) : "";
     char name[24] = "?";
     if (l->action == CA_BLOCK) {
         ui_slot_name(ui, l->slot, name, sizeof name);
@@ -146,7 +147,7 @@ static void brief(struct ui_ctx *ui, const struct control *l, char *out, unsigne
         if (l->arg < SCENE_COUNT)
             rig_scene_name(ui->rig, l->arg, name);
         else
-            lv_snprintf(name, sizeof name, "%s", l->arg == SCENE_NEXT ? "CENA +" : "CENA \xE2\x88\x92");
+            lv_snprintf(name, sizeof name, "%s", T(l->arg == SCENE_NEXT ? MSG_CTLMAP_SCENE_NEXT : MSG_CTLMAP_SCENE_PREV));
         lv_snprintf(out, size, "%s%s", pre, name);
     } else if (l->action == CA_MIDI) {
         lv_snprintf(out, size, "%sMIDI %s %d", pre, l->flags & CF_PC ? "PC" : "CC", l->arg);
@@ -331,6 +332,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     lv_obj_set_style_outline_color(s.midi, rgb(C_ACCENT), 0);
     lv_obj_set_style_outline_pad(s.midi, 2, 0);
     s.midi_text = theme_label(s.midi, &font_body_14, C_OFF, 0);
+    lv_obj_set_height(s.midi_text, lv_font_get_line_height(&font_body_14));  /* one line: dots, no wrap */
     lv_label_set_long_mode(s.midi_text, LV_LABEL_LONG_DOT);
 
     s.knobs = theme_box(page0, UI_W - UI_PAD - KNOBS_W, BAR_Y, KNOBS_W, BAR_H, C_BG);
@@ -341,6 +343,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     lv_obj_set_style_outline_pad(s.knobs, 2, 0);
     s.knobs_text = theme_label(s.knobs, &font_body_14, C_TEXT, 0);
     lv_obj_set_width(s.knobs_text, KNOBS_W - 2 * CARD_PAD - 4);
+    lv_obj_set_height(s.knobs_text, lv_font_get_line_height(&font_body_14));  /* one line: dots, no wrap */
     lv_label_set_long_mode(s.knobs_text, LV_LABEL_LONG_DOT);
     lv_obj_align(s.knobs_text, LV_ALIGN_LEFT_MID, CARD_PAD, 0);
 }
@@ -357,7 +360,8 @@ static void refresh_knobs(struct ui_ctx *ui)
         return;
     }
     lv_obj_clear_flag(s.knobs, LV_OBJ_FLAG_HIDDEN);
-    char text[96] = "KNOBS";
+    char text[96];
+    lv_snprintf(text, sizeof text, "%s", T(MSG_CTLMAP_KNOBS));
     for (int i = 0; i < QUICK_COUNT; i++) {
         const struct quick_knob *q = &ui->assign.quick[i];
         char name[24] = "\xE2\x80\x93";
@@ -379,9 +383,9 @@ static void refresh_knobs(struct ui_ctx *ui)
 /* the modulators' cards: the type and rate, the drawing, the first link and how many */
 static void refresh_mods(struct ui_ctx *ui)
 {
-    static const char *const shapes[MS_SHAPES] = {
-        "SENOIDE", "TRI\xC3\x82NGULO", "QUADRADA", "DENTE SUBINDO", "DENTE DESCENDO", "ALEAT\xC3\x93RIA",
-        "ALEAT\xC3\x93RIA SUAVE",
+    static const uint16_t shapes[MS_SHAPES] = {
+        MSG_MOD_SHAPE_SINE, MSG_MOD_SHAPE_TRIANGLE, MSG_MOD_SHAPE_SQUARE, MSG_MOD_SHAPE_SAW_UP, MSG_MOD_SHAPE_SAW_DOWN,
+        MSG_MOD_SHAPE_RANDOM, MSG_MOD_SHAPE_SMOOTH,
     };
     const struct preset_controls *c = &ui->rig->preset.controls;
     for (int i = 0; i < MOD_COUNT; i++) {
@@ -394,13 +398,13 @@ static void refresh_mods(struct ui_ctx *ui)
         else
             lv_snprintf(rate, sizeof rate, "%d.%02d Hz", cr / 100, cr % 100);
         if (m->type == MOD_LFO)
-            lv_snprintf(info, sizeof info, "%s \xC2\xB7 %s", shapes[m->shape % MS_SHAPES], rate);
+            lv_snprintf(info, sizeof info, "%s \xC2\xB7 %s", T(shapes[m->shape % MS_SHAPES]), rate);
         else if (m->type == MOD_ENV)
-            lv_snprintf(info, sizeof info, "ENVELOPE \xC2\xB7 %+d dB", m->sens);
+            lv_snprintf(info, sizeof info, T(MSG_CTLMAP_ENV_INFO), m->sens);
         else if (m->type == MOD_SEQ)
-            lv_snprintf(info, sizeof info, "SEQU\xC3\x8A" "NCIA %d \xC2\xB7 %s", m->steps, rate);
+            lv_snprintf(info, sizeof info, T(MSG_CTLMAP_SEQ_INFO), m->steps, rate);
         else
-            lv_snprintf(info, sizeof info, "DESLIGADO");
+            lv_snprintf(info, sizeof info, "%s", T(MSG_COMMON_OFF));
         theme_set_text(mc->info, info);
         theme_set_color(mc->info, m->type == MOD_OFF ? C_OFF : C_LABEL);
         theme_set_color(mc->name, m->type == MOD_OFF ? C_OFF : C_TEXT);
@@ -419,7 +423,7 @@ static void refresh_mods(struct ui_ctx *ui)
                 lv_snprintf(text + at, sizeof text - at, "  +%d", n - 1);
             }
         } else {
-            lv_snprintf(text, sizeof text, m->type == MOD_OFF ? "\xE2\x80\x93" : "SEM LIGA\xC3\x87\xC3\x95" "ES");
+            lv_snprintf(text, sizeof text, "%s", m->type == MOD_OFF ? "\xE2\x80\x93" : T(MSG_CTLMAP_NO_LINKS));
         }
         theme_set_text(mc->link, text);
         theme_set_color(mc->link, first && m->type != MOD_OFF ? C_TEXT : C_OFF);
@@ -467,14 +471,14 @@ static void enter(struct ui_ctx *ui)
 
 static void refresh(struct ui_ctx *ui)
 {
-    static const char *const modes[] = { "", "MODO PRESET", "MODO STOMP", "", "MODO CENAS" };
+    static const uint16_t modes[] = { 0, MSG_COMMON_MODE_PRESET, MSG_COMMON_MODE_STOMP, 0, MSG_COMMON_MODE_SCENES };
     char title[48];
     int page = ui->ctl_global ? 0 : page_of(s.sel);
     if (page)
-        lv_snprintf(title, sizeof title, "CONTROLES \xC2\xB7 MODULADORES");
+        lv_snprintf(title, sizeof title, "%s", T(MSG_CTLMAP_TITLE_MODS));
     else
-        lv_snprintf(title, sizeof title, "%s \xC2\xB7 %s", ui->ctl_global ? "CONTROLES GLOBAIS" : "CONTROLES",
-                    modes[s.mode]);
+        lv_snprintf(title, sizeof title, "%s \xC2\xB7 %s", T(ui->ctl_global ? MSG_CTLMAP_TITLE_GLOBAL : MSG_CTLMAP_TITLE),
+                    T(modes[s.mode]));
     top_bar_sub(title);
     for (int p = 0; p < PAGES; p++) {
         if (p == page)
@@ -500,7 +504,7 @@ static void refresh(struct ui_ctx *ui)
             char text[48];
             int more = shown == LINES - 1 && n > LINES;
             if (more)
-                lv_snprintf(text, sizeof text, "+%d MAIS", n - shown);
+                lv_snprintf(text, sizeof text, T(MSG_COMMON_MORE), n - shown);
             else
                 brief(ui, links[k], text, sizeof text);
             theme_set_text(cd->line[shown], text);

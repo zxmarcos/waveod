@@ -2,13 +2,14 @@
   import Icon from './Icon.svelte';
   import { ctl } from '../lib/ctl.svelte';
   import { presetLabel, studio } from '../lib/store.svelte';
+  import { t, type MsgKey, isAny } from '../lib/i18n.svelte';
 
   const rig = $derived(studio.rig);
   let listOpen = $state(false);
   let filter = $state('');
   let ask = $state<number | null>(null);   // a load waiting for "discard the edits?"
 
-  const MODES = ['Série', 'Paralelo', 'Dual L/R'];
+  const MODES: MsgKey[] = ['preset.route_series', 'preset.route_parallel', 'preset.route_dual'];
 
   function go(i: number) {
     listOpen = false;
@@ -28,7 +29,7 @@
       const q = filter.trim().toLowerCase();
       return !q || p.name.toLowerCase().includes(q) || presetLabel(p.index).toLowerCase().includes(q);
     }));
-  const isDefault = (name: string, n: number) => !name || name === `CENA ${n + 1}`;
+  const isDefault = (name: string, n: number) => !name || isAny('ctl.scene', name.toUpperCase(), { n: n + 1 });
 
   // ---------------------------------------------------------------- the save sheet (the pedal's SAVE + NOME)
   let saving = $state(false);
@@ -77,102 +78,102 @@
 
 <div class="bar">
   <div class="preset">
-    <button class="arrow" aria-label="Preset anterior" disabled={!rig || rig.index === 0}
+    <button class="arrow" aria-label={t('bar.prev')} disabled={!rig || rig.index === 0}
             onclick={() => rig && go(rig.index - 1)}><Icon name="prev" size={20} stroke={2.4} /></button>
-    <button class="arrow" aria-label="Próximo preset" disabled={!rig || rig.index === 239}
+    <button class="arrow" aria-label={t('bar.next')} disabled={!rig || rig.index === 239}
             onclick={() => rig && go(rig.index + 1)}><Icon name="next" size={20} stroke={2.4} /></button>
     <button class="title" onclick={() => (listOpen = !listOpen)} aria-haspopup="listbox" aria-expanded={listOpen}>
       <span class="num">{rig ? presetLabel(rig.index) : '--'}</span>
-      <span class="name">{rig?.name || 'sem nome'}</span>
-      {#if rig?.dirty}<span class="dirty" title="Alterado e não salvo" aria-label="alterado e não salvo"></span>{/if}
+      <span class="name">{rig?.name || t('ctl.unnamed')}</span>
+      {#if rig?.dirty}<span class="dirty" title={t('bar.dirty')} aria-label={t('bar.dirty')}></span>{/if}
       <Icon name="down" size={18} stroke={2.2} />
     </button>
     <button class="save" class:idle={!rig?.dirty} disabled={!rig} onclick={openSave} aria-haspopup="dialog" aria-expanded={saving}
-            title={rig ? `Salvar: nome e lugar (Ctrl+S grava direto em ${presetLabel(rig.index)})` : ''}>
-      <Icon name="save" size={17} stroke={2.1} /> Salvar
+            title={rig ? t('bar.save_title', { label: presetLabel(rig.index) }) : ''}>
+      <Icon name="save" size={17} stroke={2.1} /> {t('bar.save')}
     </button>
   </div>
 
   {#if saving && rig}
     <div class="scrim" role="presentation" onclick={() => (saving = false)}></div>
-    <div class="savesheet" role="dialog" aria-label="Salvar preset">
+    <div class="savesheet" role="dialog" aria-label={t('bar.save_aria')}>
       <label>
-        <span>Nome</span>
+        <span>{t('bar.name')}</span>
         <input class="name" bind:value={saveName} maxlength="17" spellcheck="false" use:takeFocus onkeydown={saveKey}
-               placeholder="sem nome" aria-label="Nome do preset (até 17 caracteres)" />
+               placeholder={t('ctl.unnamed')} aria-label={t('preset.name_aria')} />
       </label>
       <label>
-        <span>Lugar</span>
+        <span>{t('bar.place')}</span>
         <select bind:value={saveTo} onkeydown={saveKey}>
           {#each studio.presets as p (p.index)}
-            <option value={p.index}>{presetLabel(p.index)} · {p.index === rig.index ? 'este' : p.place === 2 ? 'vazio' : p.name || 'sem nome'}</option>
+            <option value={p.index}>{presetLabel(p.index)} · {p.index === rig.index ? t('bar.this') : p.place === 2 ? t('presets.vacant') : p.name || t('ctl.unnamed')}</option>
           {/each}
         </select>
       </label>
       <p class="hint">
         {#if saveTo !== rig.index && dest && dest.place !== 2}
-          <b>Substitui {presetLabel(saveTo)} “{dest.name || 'sem nome'}”.</b>
+          <b>{t('bar.replaces', { label: presetLabel(saveTo), name: dest.name || t('ctl.unnamed') })}</b>
         {:else if saveTo !== rig.index}
-          Vai para um lugar vazio; {presetLabel(rig.index)} fica como estava guardado.
+          {t('bar.to_empty', { label: presetLabel(rig.index) })}
         {:else}
-          Enter grava · Esc cancela · até 17 caracteres
+          {t('preset.rename_hint')}
         {/if}
       </p>
       <div class="actions">
-        <button class="primary" onclick={doSave}>Salvar em {presetLabel(saveTo)}</button>
-        <button onclick={() => (saving = false)}>Cancelar</button>
+        <button class="primary" onclick={doSave}>{t('bar.save_to', { label: presetLabel(saveTo) })}</button>
+        <button onclick={() => (saving = false)}>{t('common.cancel')}</button>
       </div>
     </div>
   {/if}
 
   <div class="scenewrap">
-  <div class="group" role="radiogroup" aria-label="Cenas">
+  <div class="group" role="radiogroup" aria-label={t('preset.scenes')}>
     {#each rig?.scene.names ?? ['', '', '', ''] as name, n (n)}
       <button role="radio" aria-checked={rig?.scene.active === n} class:on={rig?.scene.active === n}
-              title={name || `Cena ${n + 1}`} onclick={() => studio.scene(n)}>
+              title={name || t('preset.scene_n', { n: n + 1 })} onclick={() => studio.scene(n)}>
         <b>C{n + 1}</b>{#if !isDefault(name, n)}<small>{name}</small>{/if}
       </button>
     {/each}
     {#if studio.canEditScenes}
       <button class="more" class:open={sceneMenu} onclick={openScenes} aria-haspopup="menu" aria-expanded={sceneMenu}
-              title="Copiar, renomear ou reverter a cena C{act + 1}" aria-label="Menu da cena"><Icon name="down" size={16} stroke={2.4} /></button>
+              title={t('bar.scene_menu_title', { n: act + 1 })} aria-label={t('bar.scene_menu_aria')}><Icon name="down" size={16} stroke={2.4} /></button>
     {/if}
   </div>
 
   {#if sceneMenu && rig}
     <div class="scrim" role="presentation" onclick={() => (sceneMenu = false)}></div>
-    <div class="scenes" role="menu" aria-label="Cena C{act + 1}">
+    <div class="scenes" role="menu" aria-label={t('bar.scene_aria', { n: act + 1 })}>
       <p class="head"><b>C{act + 1}</b> {isDefault(rig.scene.names[act], act) ? '' : rig.scene.names[act]}
-        <span>{rig.scene.editing ? 'as edições vão para esta cena' : 'as quatro cenas estão iguais'}</span></p>
+        <span>{rig.scene.editing ? t('bar.scene_editing') : t('bar.scene_same')}</span></p>
       <div class="copy">
-        <span>Copiar para</span>
+        <span>{t('bar.copy_to')}</span>
         {#each [0, 1, 2, 3] as n (n)}
           {#if n !== act}<button role="menuitem" onclick={() => { sceneMenu = false; void studio.sceneCopy(act, n); }}>C{n + 1}</button>{/if}
         {/each}
       </div>
       {#if renaming}
         <input class="rename" bind:value={sceneName} maxlength="10" spellcheck="false" use:takeFocus onkeydown={nameKey}
-               aria-label="Nome da cena (até 10 letras)" placeholder="CENA {act + 1}" />
-        <p class="hint">Enter grava · vazio volta ao nome padrão</p>
+               aria-label={t('bar.scene_name_aria')} placeholder={t('ctl.scene', { n: act + 1 })} />
+        <p class="hint">{t('bar.scene_name_hint')}</p>
       {:else}
-        <button role="menuitem" class="item" onclick={startRename}><Icon name="pencil" size={15} stroke={2} /> Renomear…</button>
+        <button role="menuitem" class="item" onclick={startRename}><Icon name="pencil" size={15} stroke={2} /> {t('bar.rename')}</button>
       {/if}
       <button role="menuitem" class="item" onclick={() => { sceneMenu = false; void studio.sceneRevert(act); }}
-              title="Blocos, valores e nome da cena como estão no preset salvo"><Icon name="loop" size={15} stroke={2} /> Reverter como está salva</button>
+              title={t('bar.revert_title')}><Icon name="loop" size={15} stroke={2} /> {t('bar.revert')}</button>
     </div>
   {/if}
   </div>
 
-  <div class="group" role="radiogroup" aria-label="Roteamento">
+  <div class="group" role="radiogroup" aria-label={t('preset.routing')}>
     {#each MODES as label, mode (mode)}
       <button role="radio" aria-checked={rig?.route.mode === mode} class:on={rig?.route.mode === mode}
-              onclick={() => studio.route(mode)}>{label}</button>
+              onclick={() => studio.route(mode)}>{t(label)}</button>
     {/each}
   </div>
 
   <button class="controls" disabled={!rig} onclick={() => rig && ctl.openPreset(rig.index, 'grid')}
-          title="Footswitches, pedais, MIDI e moduladores deste preset">
-    <Icon name="link" size={17} stroke={2.1} /> Controles
+          title={t('preset.controls_title')}>
+    <Icon name="link" size={17} stroke={2.1} /> {t('ctl.title')}
   </button>
 
   <dl class="facts">
@@ -182,16 +183,16 @@
 
   {#if listOpen}
     <div class="scrim" role="presentation" onclick={() => (listOpen = false)}></div>
-    <div class="list" role="dialog" aria-label="Presets">
+    <div class="list" role="dialog" aria-label={t('tab.presets')}>
       <!-- svelte-ignore a11y_autofocus -->
-      <input type="search" placeholder="Buscar preset ou posição (ex.: 03B)" bind:value={filter} autofocus />
+      <input type="search" placeholder={t('bar.search')} bind:value={filter} autofocus />
       <ul role="listbox">
         {#each shown as p (p.index)}
           <li role="option" aria-selected={p.index === rig?.index}>
             <button class:current={p.index === rig?.index} class:vacant={p.place === 2} onclick={() => go(p.index)}>
               <span class="num">{presetLabel(p.index)}</span>
-              <span>{p.place === 2 ? 'vazio' : p.name || 'sem nome'}</span>
-              {#if p.place === 1}<span class="orig" title="Preset do firmware original">original</span>{/if}
+              <span>{p.place === 2 ? t('presets.vacant') : p.name || t('ctl.unnamed')}</span>
+              {#if p.place === 1}<span class="orig" title={t('bar.original_title')}>{t('bar.original')}</span>{/if}
             </button>
           </li>
         {/each}
@@ -202,11 +203,11 @@
   {#if ask !== null && rig}
     <div class="scrim" role="presentation" onclick={() => (ask = null)}></div>
     <div class="confirm" role="alertdialog" aria-labelledby="confirm-text">
-      <p id="confirm-text">{presetLabel(rig.index)} tem alterações não salvas. Trocar para {presetLabel(ask)}?</p>
+      <p id="confirm-text">{t('bar.confirm', { label: presetLabel(rig.index), to: presetLabel(ask) })}</p>
       <div class="actions">
-        <button class="primary" onclick={() => resolve('save')}>Salvar e trocar</button>
-        <button onclick={() => resolve('discard')}>Descartar alterações</button>
-        <button onclick={() => (ask = null)}>Cancelar</button>
+        <button class="primary" onclick={() => resolve('save')}>{t('bar.save_switch')}</button>
+        <button onclick={() => resolve('discard')}>{t('bar.discard_changes')}</button>
+        <button onclick={() => (ask = null)}>{t('common.cancel')}</button>
       </div>
     </div>
   {/if}

@@ -2,10 +2,11 @@
   // A firmware .bin on its way into the pedal: what it is, what an update rewrites and keeps, and an explicit "I
   // understand" before the pedal is rebooted into its bootloader and written.
   import Icon from './Icon.svelte';
+  import { num, t } from '../lib/i18n.svelte';
   import { pedal } from '../lib/pedal.svelte';
 
   const f = $derived(pedal.fw!);
-  const mb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.round(n / 1024)} KB`);
+  const mb = (n: number) => (n >= 1048576 ? `${num(n / 1048576, 1)} MB` : `${Math.round(n / 1024)} KB`);
   function take(node: HTMLElement) { node.focus(); }
   function key(e: KeyboardEvent) {
     if (e.key === 'Escape') {
@@ -17,26 +18,24 @@
 
 <div class="veil" role="presentation" onclick={() => (pedal.fw = null)}></div>
 <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="fw-title" tabindex="-1" onkeydown={key} use:take>
-  <h3 id="fw-title">Atualizar o firmware do pedal</h3>
+  <h3 id="fw-title">{t('fw.title')}</h3>
   <p class="file"><Icon name="file" size={15} stroke={2} /> {f.file} · {f.version} · {mb(f.size)}</p>
   <ul class="secs">
     {#each f.sections as s (s.name)}<li><span>{s.name}</span><b>{mb(s.size)}</b></li>{/each}
   </ul>
   <ul class="notes">
-    <li>O pedal reinicia no modo de atualização (bootloader) e recebe as quatro seções pela USB, como no editor original.
-      O bootloader nunca é regravado: uma gravação que falhe pode ser repetida.</li>
-    <li>Os presets, ritmos e controles do waveod, as capturas NAM (Clone) e os IRs de usuário ficam fora das seções
-      gravadas e são mantidos. A seção Bank é regravada: os presets <b>originais</b> da lista voltam aos do arquivo.
-      Faça um backup antes (Presets › Backup): ele guarda os dois tipos.</li>
-    <li><b>Não desligue o pedal nem tire o cabo durante a gravação.</b></li>
+    <li>{t('fw.note_boot')}</li>
+    <!-- the catalog's own text, with <b> around the word stressed -->
+    <li>{@html t('fw.note_keep')}</li>
+    <li><b>{t('fw.note_power')}</b></li>
   </ul>
   <label class="agree">
     <input type="checkbox" bind:checked={pedal.agree} />
-    <span>Entendi: o pedal fica sem som durante a gravação, que leva alguns minutos.</span>
+    <span>{t('fw.agree')}</span>
   </label>
   <footer>
-    <button onclick={() => (pedal.fw = null)}>Cancelar</button>
-    <button class="primary" disabled={!pedal.agree} onclick={() => pedal.update()}>Gravar {f.version} no pedal</button>
+    <button onclick={() => (pedal.fw = null)}>{t('common.cancel')}</button>
+    <button class="primary" disabled={!pedal.agree} onclick={() => pedal.update()}>{t('fw.write', { version: f.version })}</button>
   </footer>
 </div>
 

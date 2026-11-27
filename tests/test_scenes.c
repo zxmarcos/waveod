@@ -226,7 +226,7 @@ static void test_rig(void)
     char name[SCENE_NAME_LEN + 1];
     rig_scene_name(&r, 3, name);
     CHECK(strcmp(name, "solo") == 0, "scene name");
-    rig_scene_set_name(&r, 2, "CENA 3");
+    rig_scene_set_name(&r, 2, "SCENE 3");
     CHECK(r.preset.scenes.name[2][0] == 0, "the default name is stored as none");
     rig_scene_copy(&r, 1, 3);
     CHECK(r.preset.scenes.on[3] == r.preset.scenes.on[1] && r.preset.scenes.param[i].value[3] == in2, "copy");

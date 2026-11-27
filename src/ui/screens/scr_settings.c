@@ -22,6 +22,7 @@
 #include "platform/safety.h"
 #include "ui/diag_panel.h"
 #include "ui/images/icons.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/param_cell.h"
@@ -55,96 +56,120 @@ enum row {
     R_TUNER, R_A4, R_TUNER_OUT, R_TUNER_VIEW, R_INPUT_LEVEL, R_INPUT_MODE, R_AUX, R_CABS, R_USB_MODE, R_USB_REC, R_USB_WET,
     R_USB_AUX, R_USB_MON, R_MIDI_SOURCE, R_MIDI_TRS, R_MIDI_USB, R_CLOCK_SOURCE, R_CLOCK_OUT, R_EQ, R_EQ_EDIT,
     R_TEMPO, R_EXP1_CAL, R_EXP2_CAL, R_CALIBRATE, R_EXP2_JACK, R_EXT1, R_EXT2, R_CONTROLS, R_CAB_ENGINE, R_SPILL, R_SCENE_EDIT,
-    R_BRIGHTNESS, R_CURSOR, R_LATENCY, R_CPU_TEMP, R_BOOT_LOCK, R_DIAG, R_SAFETY_TEST, R_VERSION, R_COUNT
+    R_BRIGHTNESS, R_CURSOR, R_LANGUAGE, R_LATENCY, R_CPU_TEMP, R_BOOT_LOCK, R_DIAG, R_SAFETY_TEST, R_VERSION, R_COUNT
 };
 
-static const char *const titles[R_COUNT] = {
-    [R_TUNER] = "AFINADOR",
-    [R_A4] = "REFER\xC3\x8ANCIA A4",
-    [R_TUNER_OUT] = "SOM AO AFINAR",
-    [R_TUNER_VIEW] = "VISOR",
-    [R_INPUT_LEVEL] = "N\xC3\x8DVEL IN",
-    [R_INPUT_MODE] = "ENTRADA",
-    [R_AUX] = "N\xC3\x8DVEL AUX IN",
-    [R_CABS] = "CAB NAS SA\303\215" "DAS",
-    [R_USB_MODE] = "CANAIS",
-    [R_USB_REC] = "N\xC3\x8DVEL GRAV.",
-    [R_USB_WET] = "GRAVA\xC3\x87\xC3\x83O 1 / 2",
-    [R_USB_AUX] = "AUX NA GRAV.",
-    [R_USB_MON] = "RETORNO DO PC",
-    [R_MIDI_SOURCE] = "ENTRADA",
-    [R_MIDI_TRS] = "CANAL DO TRS",
-    [R_MIDI_USB] = "CANAL DO USB",
-    [R_CLOCK_SOURCE] = "FONTE DO TEMPO",
-    [R_CLOCK_OUT] = "ENVIAR CLOCK",
-    [R_EQ] = "EQ GLOBAL",
-    [R_EQ_EDIT] = "BANDAS",
-    [R_TEMPO] = "TEMPO GLOBAL",
-    [R_EXP1_CAL] = "EXP 1",
-    [R_EXP2_CAL] = "EXP 2",
-    [R_CALIBRATE] = "CALIBRAR",
-    [R_EXP2_JACK] = "JACK EXP 2",
-    [R_EXT1] = "FS EXT. 1",
-    [R_EXT2] = "FS EXT. 2",
-    [R_CONTROLS] = "LIGA\xC3\x87\xC3\x95" "ES",
-    [R_BRIGHTNESS] = "BRILHO",
-    [R_CURSOR] = "MARCA DE TOQUE",
-    [R_CAB_ENGINE] = "MOTOR CAB / IR",
-    [R_SPILL] = "RASTRO NA TROCA",
-    [R_SCENE_EDIT] = "KNOBS NA CENA",
-    [R_LATENCY] = "TESTE",
-    [R_CPU_TEMP] = "TEMP. CPU",
-    [R_BOOT_LOCK] = "BOOTLOADER",
-    [R_DIAG] = "DIAGN\xC3\x93STICO",
-    [R_SAFETY_TEST] = "PROTE\xC3\x87\xC3\x83O",
-    [R_VERSION] = "VERS\xC3\x83O",
+/* the settings' names (EXP 1 / EXP 2 are the same in every language: title()) */
+static const uint16_t titles[R_COUNT] = {
+    [R_TUNER] = MSG_SHARED_FN_TUNER,
+    [R_A4] = MSG_SETTINGS_A4,
+    [R_TUNER_OUT] = MSG_SETTINGS_TUNER_OUT,
+    [R_TUNER_VIEW] = MSG_SETTINGS_TUNER_VIEW,
+    [R_INPUT_LEVEL] = MSG_SETTINGS_INPUT_LEVEL,
+    [R_INPUT_MODE] = MSG_SETTINGS_INPUT_MODE,
+    [R_AUX] = MSG_SETTINGS_AUX,
+    [R_CABS] = MSG_SETTINGS_CABS,
+    [R_USB_MODE] = MSG_SETTINGS_USB_MODE,
+    [R_USB_REC] = MSG_SETTINGS_USB_REC,
+    [R_USB_WET] = MSG_SETTINGS_USB_WET,
+    [R_USB_AUX] = MSG_SETTINGS_USB_AUX,
+    [R_USB_MON] = MSG_SETTINGS_USB_MON,
+    [R_MIDI_SOURCE] = MSG_SETTINGS_MIDI_IN,
+    [R_MIDI_TRS] = MSG_SETTINGS_MIDI_TRS,
+    [R_MIDI_USB] = MSG_SETTINGS_MIDI_USB,
+    [R_CLOCK_SOURCE] = MSG_SETTINGS_CLOCK_SOURCE,
+    [R_CLOCK_OUT] = MSG_SETTINGS_CLOCK_OUT,
+    [R_EQ] = MSG_SETTINGS_EQ,
+    [R_EQ_EDIT] = MSG_SETTINGS_EQ_EDIT,
+    [R_TEMPO] = MSG_SETTINGS_TEMPO,
+    [R_CALIBRATE] = MSG_SETTINGS_CALIBRATE,
+    [R_EXP2_JACK] = MSG_SETTINGS_EXP2_JACK,
+    [R_EXT1] = MSG_SETTINGS_EXT1,
+    [R_EXT2] = MSG_SETTINGS_EXT2,
+    [R_CONTROLS] = MSG_SETTINGS_CONTROLS,
+    [R_BRIGHTNESS] = MSG_SETTINGS_BRIGHTNESS,
+    [R_CURSOR] = MSG_SETTINGS_CURSOR,
+    [R_LANGUAGE] = MSG_SETTINGS_LANGUAGE,
+    [R_CAB_ENGINE] = MSG_SETTINGS_CAB_ENGINE,
+    [R_SPILL] = MSG_SETTINGS_SPILL,
+    [R_SCENE_EDIT] = MSG_SETTINGS_SCENE_EDIT,
+    [R_LATENCY] = MSG_SETTINGS_LATENCY,
+    [R_CPU_TEMP] = MSG_SETTINGS_CPU_TEMP,
+    [R_BOOT_LOCK] = MSG_SETTINGS_BOOT_LOCK,
+    [R_DIAG] = MSG_SETTINGS_DIAG,
+    [R_SAFETY_TEST] = MSG_SETTINGS_SAFETY_TEST,
+    [R_VERSION] = MSG_SETTINGS_VERSION,
 };
+
+static const char *title(int row)
+{
+    if (row == R_EXP1_CAL)
+        return "EXP 1";
+    if (row == R_EXP2_CAL)
+        return "EXP 2";
+    return T(titles[row]);
+}
 
 /* the cards: name, icon, settings (-1 ends), what MENU opens (-1 = the next settings) */
 #define CARD_ROWS 6
 static const struct card_def {
-    const char *name;
+    uint16_t name;                          /* enum i18n_msg */
     const lv_image_dsc_t *icon;
     int8_t rows[CARD_ROWS];
     int8_t open;
 } cards[] = {
-    { "IN / OUT", &icon_g_io, { R_INPUT_MODE, R_INPUT_LEVEL, R_CABS, R_AUX, -1 }, -1 },
-    { "AFINADOR", &icon_g_tuner, { R_TUNER, R_A4, R_TUNER_OUT, R_TUNER_VIEW, -1 }, R_TUNER },
-    { "\xC3\x81UDIO USB", &icon_g_usb, { R_USB_MODE, R_USB_REC, R_USB_MON, R_USB_WET, R_USB_AUX, -1 }, -1 },
-    { "PEDAIS EXP", &icon_g_exp, { R_EXP1_CAL, R_EXP2_CAL, R_CALIBRATE, -1 }, R_CALIBRATE },
-    { "EQ GLOBAL", &icon_g_eq, { R_EQ, R_EQ_EDIT, -1 }, R_EQ_EDIT },
-    { "EXP 2 / FS EXT.", &icon_g_fs, { R_EXP2_JACK, R_EXT1, R_EXT2, -1 }, -1 },
-    { "MIDI", &icon_g_midi, { R_MIDI_SOURCE, R_MIDI_TRS, R_MIDI_USB, R_CLOCK_SOURCE, R_CLOCK_OUT, -1 }, -1 },
-    { "PRESETS", &icon_g_presets, { R_TEMPO, R_SPILL, R_SCENE_EDIT, R_CAB_ENGINE, -1 }, -1 },
-    { "CONTROLES", &icon_g_controls, { R_CONTROLS, -1 }, R_CONTROLS },
-    { "TELA", &icon_g_display, { R_BRIGHTNESS, R_CURSOR, -1 }, -1 },
-    { "LAT\xC3\x8ANCIA", &icon_g_latency, { R_LATENCY, -1 }, R_LATENCY },
-    { "SISTEMA", &icon_g_system, { R_CPU_TEMP, R_BOOT_LOCK, R_DIAG, R_SAFETY_TEST, R_VERSION, -1 }, -1 },
+    { MSG_SETTINGS_CARD_IO, &icon_g_io, { R_INPUT_MODE, R_INPUT_LEVEL, R_CABS, R_AUX, -1 }, -1 },
+    { MSG_SHARED_FN_TUNER, &icon_g_tuner, { R_TUNER, R_A4, R_TUNER_OUT, R_TUNER_VIEW, -1 }, R_TUNER },
+    { MSG_SETTINGS_CARD_USB, &icon_g_usb, { R_USB_MODE, R_USB_REC, R_USB_MON, R_USB_WET, R_USB_AUX, -1 }, -1 },
+    { MSG_SETTINGS_CARD_EXP, &icon_g_exp, { R_EXP1_CAL, R_EXP2_CAL, R_CALIBRATE, -1 }, R_CALIBRATE },
+    { MSG_SETTINGS_EQ, &icon_g_eq, { R_EQ, R_EQ_EDIT, -1 }, R_EQ_EDIT },
+    { MSG_SETTINGS_CARD_FS, &icon_g_fs, { R_EXP2_JACK, R_EXT1, R_EXT2, -1 }, -1 },
+    { MSG_SETTINGS_CARD_MIDI, &icon_g_midi, { R_MIDI_SOURCE, R_MIDI_TRS, R_MIDI_USB, R_CLOCK_SOURCE, R_CLOCK_OUT, -1 }, -1 },
+    { MSG_SETTINGS_CARD_PRESETS, &icon_g_presets, { R_TEMPO, R_SPILL, R_SCENE_EDIT, R_CAB_ENGINE, -1 }, -1 },
+    { MSG_SETTINGS_CARD_CONTROLS, &icon_g_controls, { R_CONTROLS, -1 }, R_CONTROLS },
+    { MSG_SETTINGS_CARD_DISPLAY, &icon_g_display, { R_BRIGHTNESS, R_CURSOR, R_LANGUAGE, -1 }, -1 },
+    { MSG_SETTINGS_CARD_LATENCY, &icon_g_latency, { R_LATENCY, -1 }, R_LATENCY },
+    { MSG_SETTINGS_CARD_SYSTEM, &icon_g_system, { R_CPU_TEMP, R_BOOT_LOCK, R_DIAG, R_SAFETY_TEST, R_VERSION, -1 }, -1 },
 };
 #define CARDS ((int)(sizeof cards / sizeof cards[0]))
 #define PAGES ((CARDS + PER_PAGE - 1) / PER_PAGE)
 
-static const char *const input_modes[3] = { "VIOL\xC3\x83O", "GUITARRA", "LINHA" };
-static const char *const exp2_jacks[3] = { "PEDAL", "1 FOOTSWITCH", "2 FOOTSWITCHES" };
+static const uint16_t input_modes[3] = { MSG_SETTINGS_IN_ACOUSTIC, MSG_SETTINGS_IN_GUITAR, MSG_SETTINGS_IN_LINE };
+static const uint16_t exp2_jacks[3] = { MSG_SETTINGS_JACK_PEDAL, MSG_SETTINGS_JACK_FS1, MSG_SETTINGS_JACK_FS2 };
 
 /* cabinets on the outputs, as one choice: index = no cab on L | no cab on R << 1 */
-static const char *const cab_outputs[4] = { "L E R", "S\xC3\x93 EM R", "S\xC3\x93 EM L", "NENHUMA" };
+static const uint16_t cab_outputs[4] = { MSG_SETTINGS_CAB_BOTH, MSG_SETTINGS_CAB_R, MSG_SETTINGS_CAB_L,
+                                         MSG_SETTINGS_CAB_NONE };
 static const uint8_t cab_cycle[4] = { 0, 2, 1, 3 };     /* order of the choices: both, L only, R only, none */
 
 /* USB recording channels 1 / 2: index = processed L | processed R << 1 */
-static const char *const usb_wet[4] = { "SECA / SECA", "PROC. / SECA", "SECA / PROC.", "PROC. / PROC." };
+static const uint16_t usb_wet[4] = { MSG_SETTINGS_WET_DD, MSG_SETTINGS_WET_WD, MSG_SETTINGS_WET_DW,
+                                     MSG_SETTINGS_WET_WW };
 
 /* MIDI (midi/midi.h): the original editor's lists */
-static const char *const midi_sources[3] = { "S\xC3\x93 TRS", "S\xC3\x93 USB", "TRS E USB" };
-static const char *const clock_sources[5] = { "INTERNO", "CLOCK DO TRS", "CLOCK DO USB", "CLOCK EXTERNO",
-                                              "INTERNO E CLOCK" };
-static const char *const clock_outs[4] = { "DESLIGADO", "TRS", "USB", "TRS E USB" };
+static const uint16_t midi_sources[3] = { MSG_SETTINGS_MIDI_TRS_ONLY, MSG_SETTINGS_MIDI_USB_ONLY,
+                                          MSG_SETTINGS_TRS_USB };
+static const uint16_t clock_sources[5] = { MSG_SETTINGS_CLK_INTERNAL, MSG_SETTINGS_CLK_TRS, MSG_SETTINGS_CLK_USB,
+                                           MSG_SETTINGS_CLK_EXTERNAL, MSG_SETTINGS_CLK_BOTH };
+
+/* the clock out: off, TRS, USB, TRS and USB (TRS / USB are the same in every language) */
+static const char *clock_out_name(int i)
+{
+    switch (i & 3) {
+    case 0:  return T(MSG_COMMON_OFF);
+    case 1:  return "TRS";
+    case 2:  return "USB";
+    default: return T(MSG_SETTINGS_TRS_USB);
+    }
+}
 
 /* deliberate failures (platform/safety.h): the pedal restarts and tells what happened; 0 = none chosen */
-static const char *const safety_tests[4] = { "ESCOLHA", "FALHA", "TRAVAR", "TRAVAR SEM IRQ" };
+static const uint16_t safety_tests[4] = { MSG_SETTINGS_TEST_CHOOSE, MSG_SETTINGS_TEST_FAULT, MSG_SETTINGS_TEST_HANG,
+                                          MSG_SETTINGS_TEST_HANG_NOIRQ };
 
 /* the bootloader's write protection in the flash chip (platform/flash.h enum flash_lock) */
-static const char *const boot_lock_names[4] = { "SEM PROTE\xC3\x87\xC3\x83O", "PROTEGIDO", "FALHOU", "N\xC3\x83O SUPORTADO" };
+static const uint16_t boot_lock_names[4] = { MSG_SETTINGS_LOCK_NONE, MSG_SETTINGS_LOCK_ON, MSG_SETTINGS_LOCK_FAILED,
+                                             MSG_SETTINGS_LOCK_UNSUPPORTED };
 
 struct card_obj {
     lv_obj_t *box, *icon, *name, *status;
@@ -323,6 +348,12 @@ static void change(struct ui_ctx *ui, int row, int d)
             gesture_cursor_set(st->touch_cursor);
         }
         break;
+    case R_LANGUAGE:                        /* ui_tick builds every screen again in it */
+        if (d) {
+            st->language = (uint8_t)((st->language + LANG_COUNT + d % LANG_COUNT) % LANG_COUNT);
+            settings_apply(st);
+        }
+        break;
     case R_CAB_ENGINE:                      /* A / B: the preset reloads on the other engine */
         if (d) {
             st->cab_original = !st->cab_original;
@@ -404,7 +435,7 @@ static void latency_text(char *out, unsigned size)
         int n = (int)(r.mean * (100000.0f / AUDIO_RATE) + 0.5f);       /* hundredths of a ms */
         lv_snprintf(out, size, "%d.%02d ms", n / 100, n % 100);
     } else {
-        lv_snprintf(out, size, "MEDIR");
+        lv_snprintf(out, size, "%s", T(MSG_SETTINGS_MEASURE));
     }
 }
 
@@ -414,20 +445,20 @@ static float value_text(const struct ui_ctx *ui, int row, char *out, unsigned si
     const struct settings *st = ui->settings;
     const struct globals *g = ui->globals;
     switch (row) {
-    case R_TUNER:       lv_snprintf(out, size, "ABRIR \xC2\xBB"); return -1;
+    case R_TUNER:       lv_snprintf(out, size, "%s", T(MSG_SETTINGS_OPEN)); return -1;
     case R_A4:          lv_snprintf(out, size, "%d Hz", st->a4); return (st->a4 - 430) / 20.0f;
-    case R_TUNER_OUT:   lv_snprintf(out, size, st->tuner_mute ? "MUDO" : "LIGADO"); return -1;
-    case R_TUNER_VIEW:  lv_snprintf(out, size, st->tuner_strobe ? "STROBE" : "AGULHA"); return -1;
+    case R_TUNER_OUT:   lv_snprintf(out, size, "%s", T(st->tuner_mute ? MSG_SETTINGS_MUTE : MSG_COMMON_ON)); return -1;
+    case R_TUNER_VIEW:  lv_snprintf(out, size, "%s", T(st->tuner_strobe ? MSG_SETTINGS_STROBE : MSG_SETTINGS_NEEDLE)); return -1;
     case R_INPUT_LEVEL: signed_db(out, size, g->input_level); return (g->input_level + 20) / 40.0f;
-    case R_INPUT_MODE:  lv_snprintf(out, size, "%s", g->input_mode < 3 ? input_modes[g->input_mode] : "MODO 4"); return -1;
+    case R_INPUT_MODE:  lv_snprintf(out, size, "%s", T(g->input_mode < 3 ? input_modes[g->input_mode] : MSG_SETTINGS_IN_MODE4)); return -1;
     case R_AUX:         lv_snprintf(out, size, "%d", g->aux_level); return g->aux_level / 100.0f;
-    case R_CABS:        lv_snprintf(out, size, "%s", cab_outputs[g->no_cab[0] | g->no_cab[1] << 1]); return -1;
+    case R_CABS:        lv_snprintf(out, size, "%s", T(cab_outputs[g->no_cab[0] | g->no_cab[1] << 1])); return -1;
     case R_USB_MODE:    lv_snprintf(out, size, g->usb_mode ? "2 IN / 2 OUT" : "6 IN / 4 OUT"); return -1;
     case R_USB_REC:     signed_db(out, size, g->usb_rec_level); return (g->usb_rec_level + 20) / 40.0f;
     case R_USB_MON:     signed_db(out, size, g->usb_mon_level); return (g->usb_mon_level + 20) / 40.0f;
-    case R_USB_AUX:     lv_snprintf(out, size, g->usb_rec_aux ? "LIGADO" : "DESLIGADO"); return -1;
-    case R_USB_WET:     lv_snprintf(out, size, "%s", usb_wet[g->usb_rec_wet[0] | g->usb_rec_wet[1] << 1]); return -1;
-    case R_MIDI_SOURCE: lv_snprintf(out, size, "%s", midi_sources[g->midi_source < 3 ? g->midi_source : 2]); return -1;
+    case R_USB_AUX:     lv_snprintf(out, size, "%s", T(g->usb_rec_aux ? MSG_COMMON_ON : MSG_COMMON_OFF)); return -1;
+    case R_USB_WET:     lv_snprintf(out, size, "%s", T(usb_wet[g->usb_rec_wet[0] | g->usb_rec_wet[1] << 1])); return -1;
+    case R_MIDI_SOURCE: lv_snprintf(out, size, "%s", T(midi_sources[g->midi_source < 3 ? g->midi_source : 2])); return -1;
     case R_MIDI_TRS:
     case R_MIDI_USB: {
         int ch = g->midi_channel[row == R_MIDI_USB];
@@ -437,16 +468,16 @@ static float value_text(const struct ui_ctx *ui, int row, char *out, unsigned si
             lv_snprintf(out, size, "%d", ch);
         return -1;
     }
-    case R_CLOCK_SOURCE: lv_snprintf(out, size, "%s", g->clock_source < 5 ? clock_sources[g->clock_source] : "-"); return -1;
-    case R_CLOCK_OUT:   lv_snprintf(out, size, "%s", clock_outs[g->clock_out & 3]); return -1;
-    case R_EQ:          lv_snprintf(out, size, g->eq_on ? "LIGADO" : "DESLIGADO"); return -1;
-    case R_EQ_EDIT:     lv_snprintf(out, size, "EDITAR \xC2\xBB"); return -1;
+    case R_CLOCK_SOURCE: lv_snprintf(out, size, "%s", g->clock_source < 5 ? T(clock_sources[g->clock_source]) : "-"); return -1;
+    case R_CLOCK_OUT:   lv_snprintf(out, size, "%s", clock_out_name(g->clock_out)); return -1;
+    case R_EQ:          lv_snprintf(out, size, "%s", T(g->eq_on ? MSG_COMMON_ON : MSG_COMMON_OFF)); return -1;
+    case R_EQ_EDIT:     lv_snprintf(out, size, "%s", T(MSG_SETTINGS_EDIT)); return -1;
     case R_TEMPO:
         if (g->tempo_mode && g->bpm) {
             lv_snprintf(out, size, "%d BPM", g->bpm);
             return (g->bpm - 40) / 260.0f;
         }
-        lv_snprintf(out, size, "DESLIGADO");
+        lv_snprintf(out, size, "%s", T(MSG_COMMON_OFF));
         return 0;
     case R_EXP1_CAL:
     case R_EXP2_CAL: {                      /* the range; the bar is where the pedal is now */
@@ -454,20 +485,21 @@ static float value_text(const struct ui_ctx *ui, int row, char *out, unsigned si
         lv_snprintf(out, size, "%d \xE2\x80\x93 %d", g->exp_min[n], g->exp_max[n]);
         return expression_value(ui->pedals, n) / 255.0f;
     }
-    case R_CALIBRATE:   lv_snprintf(out, size, "ABRIR \xC2\xBB"); return -1;
-    case R_EXP2_JACK:   lv_snprintf(out, size, "%s", exp2_jacks[g->exp2_jack % 3]); return -1;
+    case R_CALIBRATE:   lv_snprintf(out, size, "%s", T(MSG_SETTINGS_OPEN)); return -1;
+    case R_EXP2_JACK:   lv_snprintf(out, size, "%s", T(exp2_jacks[g->exp2_jack % 3])); return -1;
     case R_EXT1:
     case R_EXT2:        lv_snprintf(out, size, "%s", assign_fn_name(g->ext_fn[row == R_EXT2])); return -1;
     case R_BRIGHTNESS:  lv_snprintf(out, size, "%d%%", st->brightness); return st->brightness / 100.0f;
-    case R_CURSOR:      lv_snprintf(out, size, st->touch_cursor ? "LIGADO" : "DESLIGADO"); return -1;
-    case R_CAB_ENGINE:  lv_snprintf(out, size, st->cab_original ? "ORIGINAL" : "WAVEOD"); return -1;
+    case R_CURSOR:      lv_snprintf(out, size, "%s", T(st->touch_cursor ? MSG_COMMON_ON : MSG_COMMON_OFF)); return -1;
+    case R_CAB_ENGINE:  lv_snprintf(out, size, "%s", st->cab_original ? T(MSG_SETTINGS_CAB_ORIGINAL) : "WAVEOD"); return -1;
+    case R_LANGUAGE:    lv_snprintf(out, size, "%s", i18n_lang_names[st->language < LANG_COUNT ? st->language : 0]); return -1;
     case R_SPILL:
         if (st->spill && st->spill < SETTINGS_SPILL_CHOICES)
-            lv_snprintf(out, size, "AT\xC3\x89 %d s", settings_spill_ms[st->spill] / 1000);
+            lv_snprintf(out, size, T(MSG_SETTINGS_SPILL_UP_TO), settings_spill_ms[st->spill] / 1000);
         else
-            lv_snprintf(out, size, "DESLIGADO");
+            lv_snprintf(out, size, "%s", T(MSG_COMMON_OFF));
         return st->spill / (float)(SETTINGS_SPILL_CHOICES - 1);
-    case R_SCENE_EDIT:  lv_snprintf(out, size, st->scene_manual ? "MANUAL" : "AUTO"); return -1;
+    case R_SCENE_EDIT:  lv_snprintf(out, size, "%s", T(st->scene_manual ? MSG_SETTINGS_MANUAL : MSG_SETTINGS_AUTO)); return -1;
     case R_CONTROLS:    lv_snprintf(out, size, "%d \xC2\xBB", ui->rig->global.count); return -1;
     case R_LATENCY: {
         char ms[16];
@@ -475,10 +507,10 @@ static float value_text(const struct ui_ctx *ui, int row, char *out, unsigned si
         lv_snprintf(out, size, "%s \xC2\xBB", ms);
         return -1;
     }
-    case R_DIAG:        lv_snprintf(out, size, diag_shown() ? "MOSTRANDO" : "OCULTO"); return -1;
-    case R_SAFETY_TEST: lv_snprintf(out, size, "%s", safety_tests[s.test]); return -1;
+    case R_DIAG:        lv_snprintf(out, size, "%s", T(diag_shown() ? MSG_SETTINGS_DIAG_SHOWN : MSG_SETTINGS_DIAG_HIDDEN)); return -1;
+    case R_SAFETY_TEST: lv_snprintf(out, size, "%s", T(safety_tests[s.test])); return -1;
     case R_VERSION:     lv_snprintf(out, size, "%s", WAVEOD_VERSION); return -1;
-    case R_BOOT_LOCK:   lv_snprintf(out, size, "%s", boot_lock_names[flash_lock_state() & 3]); return -1;
+    case R_BOOT_LOCK:   lv_snprintf(out, size, "%s", T(boot_lock_names[flash_lock_state() & 3])); return -1;
     case R_CPU_TEMP: {                      /* the bar: 20 .. 95 C, the part's limit */
         int t = sysmon_get()->temp;
         sysmon_temp_text(t, out, size);
@@ -501,7 +533,7 @@ static void card_status(const struct ui_ctx *ui, int c, char *out, unsigned size
         lv_snprintf(out, size, "%s \xC2\xB7 %s", a, b);
         break;
     case 1:
-        lv_snprintf(out, size, "%d Hz \xC2\xB7 %s", st->a4, st->tuner_mute ? "MUDO" : "SOM");
+        lv_snprintf(out, size, "%d Hz \xC2\xB7 %s", st->a4, T(st->tuner_mute ? MSG_SETTINGS_MUTE : MSG_SETTINGS_SOUND));
         break;
     case 2:
         value_text(ui, R_USB_MODE, out, size);
@@ -524,14 +556,14 @@ static void card_status(const struct ui_ctx *ui, int c, char *out, unsigned size
             lv_snprintf(out, size, "%d BPM", g->bpm);
         } else {
             value_text(ui, R_SPILL, a, sizeof a);
-            lv_snprintf(out, size, "RASTRO %s", a);
+            lv_snprintf(out, size, T(MSG_SETTINGS_STATUS_SPILL), a);
         }
         break;
     case 8:
-        lv_snprintf(out, size, "%d LIGA\xC3\x87\xC3\x95" "ES", ui->rig->global.count);
+        lv_snprintf(out, size, T(MSG_SETTINGS_STATUS_LINKS), ui->rig->global.count);
         break;
     case 9:
-        lv_snprintf(out, size, "BRILHO %d%%", st->brightness);
+        lv_snprintf(out, size, T(MSG_SETTINGS_STATUS_BRIGHTNESS), st->brightness);
         break;
     case 10:
         latency_text(out, size);
@@ -675,7 +707,7 @@ static void leave(struct ui_ctx *ui)
     int err = settings_save(ui->settings, &ui->rig->src);
     err |= globals_save(ui->globals, &ui->rig->src);
     if (err)
-        ui_toast("Falha ao gravar as configura\xC3\xA7\xC3\xB5" "es");
+        ui_toast(T(MSG_SETTINGS_SAVE_FAILED));
 }
 
 /* the pedals' values and the latency result are on screen: redraw when they move */
@@ -714,7 +746,7 @@ static void refresh(struct ui_ctx *ui)
         theme_set_border(o->box, sel ? C_ACCENT : C_FRAME);
         lv_obj_set_style_border_width(o->box, sel ? 2 : 1, 0);
         theme_set_icon(o->icon, cards[c].icon, sel ? C_ACCENT : C_LABEL);
-        theme_set_text(o->name, cards[c].name);
+        theme_set_text(o->name, T(cards[c].name));
         theme_set_color(o->name, sel ? C_TEXT : C_NEUTRAL_ON);
         theme_set_text(o->status, status);
         theme_set_color(o->status, sel ? C_LABEL : C_OFF);
@@ -738,7 +770,7 @@ static void refresh(struct ui_ctx *ui)
         if (row == R_CPU_TEMP) {            /* the highest since start-up beside the name; red from 85 C */
             const struct sysmon *m = sysmon_get();
             if (m->temp_max != PLAT_TEMP_NONE)
-                lv_snprintf(source, sizeof source, "M\xC3\x81X %d\xC2\xB0", (m->temp_max + 5) / 10);
+                lv_snprintf(source, sizeof source, T(MSG_SETTINGS_TEMP_MAX), (m->temp_max + 5) / 10);
             if (m->temp != PLAT_TEMP_NONE && m->temp >= 850)
                 fill = vc = C_CLIP;
         }
@@ -746,7 +778,7 @@ static void refresh(struct ui_ctx *ui)
             int lock = flash_lock_state();
             vc = lock == FLASH_LOCK_ON ? C_TUNED : lock == FLASH_LOCK_FAILED ? C_CLIP : C_LABEL;
         }
-        param_cell_set(&s.cell[k], titles[row], source, value, frac, C_LABEL, vc, fill);
+        param_cell_set(&s.cell[k], title(row), source, value, frac, C_LABEL, vc, fill);
         /* a long value ("INTERNO E CLOCK", a footswitch function) in the smaller type, on the same baseline */
         const lv_font_t *font = lv_text_get_width(value, lv_strlen(value), &font_value_20, 0) > CELL_W - 28
                                     ? &font_body_14 : &font_value_20;

@@ -2,6 +2,15 @@
 
 waveod's versions (semantic versioning, see [docs/releasing.md](docs/releasing.md)).
 
+## v0.1.2
+
+- The pedal and waveod Studio in five languages: English (the default), Portuguese, Spanish, German and Italian.
+  The pedal's language is in GLOBAL › DISPLAY › LANGUAGE (and in the Studio's Global tab); the Studio follows the
+  computer's language, or the one chosen in its top bar. Effect, parameter and option names stay as they are.
+- The translations live in plain JSON files (`i18n/<language>/`); adding a language is adding its files
+  (docs/i18n.md).
+- The controls screen's knobs and MIDI bars keep to one line, ending in "…" when the text is longer.
+
 ## v0.1.1
 
 - The update file brings waveod's own effects: the circuit drives (Dark Muff, Dark Muff Lite, Green Drive, Rodent

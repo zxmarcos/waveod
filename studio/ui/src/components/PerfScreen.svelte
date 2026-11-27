@@ -9,9 +9,10 @@
   import { untrack } from 'svelte';
   import Icon from './Icon.svelte';
   import { menuInfo, MENUS, offered } from '../lib/menus';
-  import { blockUse, perf, sameTarget, type Run } from '../lib/perf.svelte';
+  import { i18n, num, t, tn } from '../lib/i18n.svelte';
+  import { blockUse, perf, sameTarget, sectionName, type Run } from '../lib/perf.svelte';
   import { studio } from '../lib/store.svelte';
-  import { BENCH_SECTIONS, CHAIN_SECTION } from '../lib/types';
+  import { CHAIN_SECTION } from '../lib/types';
 
   $effect(() => {
     untrack(() => perf.enter());
@@ -20,11 +21,11 @@
   $effect(() => { void studio.ensureCatalog(perf.menu); });
 
   // ---------------------------------------------------------------- numbers
-  const comma = (v: number, n = 1) => v.toFixed(n).replace('.', ',');
+  const comma = (v: number, n = 1) => num(v, n);
   const kc = (v: number) => (v >= 1e6 ? `${comma(v / 1e6, 2)} M` : v >= 1e4 ? `${comma(v / 1e3, 1)} k` : `${Math.round(v)}`);
   const pct = (v: number, n = 1) => `${comma(100 * v, n)}%`;
   const bytes = (n: number) => (n >= 1024 ? `${comma(n / 1024, 1)} KB` : `${n} B`);
-  const time = (s: number) => new Date(s * 1000).toLocaleTimeString('pt-BR');
+  const time = (s: number) => new Date(s * 1000).toLocaleTimeString(i18n.lang);
 
   // ---------------------------------------------------------------- the preset playing
   const p = $derived(perf.profile);
@@ -69,7 +70,7 @@
   function delta(r: Run) {
     if (!ref || ref.id === r.id || r.result.emu) return '';
     const d = Math.round(1000 * (r.result.median / ref.result.median - 1)) / 10;
-    return d === 0 ? '0,0%' : `${d > 0 ? '+' : ''}${comma(d, 1)}%`;
+    return d === 0 ? `${comma(0, 1)}%` : `${d > 0 ? '+' : ''}${comma(d, 1)}%`;
   }
   function crcMark(r: Run) {
     if (!ref || ref.id === r.id) return 'ref';
@@ -101,51 +102,51 @@
 
 <div class="screen">
   <header class="tools">
-    <h1>Desempenho</h1>
-    <p>Ciclos do processador do pedal por bloco de 64 amostras (1,451 ms a 44,1 kHz). Medido no próprio pedal.</p>
+    <h1>{t('tab.perf')}</h1>
+    <p>{t('perf.sub')}</p>
   </header>
 
   {#if !perf.supported}
-    <div class="cards"><section class="card wide"><p class="note">O firmware do pedal (protocolo {studio.hello?.protocol ?? '?'}) não mede ciclos: grave um waveod com o protocolo 11 ou mais novo.</p></section></div>
+    <div class="cards"><section class="card wide"><p class="note">{t('perf.unsupported', { protocol: studio.hello?.protocol ?? '?' })}</p></section></div>
   {:else}
   <div class="cards">
     {#if perf.emu}
-      <p class="emu wide"><b>Emulador:</b> os ciclos daqui não valem nada (o contador do emulador anda um passo fixo por leitura); o CRC vale, e é igual ao do pedal quando o código calcula o mesmo.</p>
+      <p class="emu wide"><b>{t('perf.emu_label')}</b> {t('perf.emu_text')}</p>
     {/if}
 
     <!-- ============================================================ the preset playing -->
-    <section class="card wide" aria-label="Preset tocando">
+    <section class="card wide" aria-label={t('perf.playing')}>
       <div class="head">
-        <h2>Preset tocando</h2>
+        <h2>{t('perf.playing')}</h2>
         <div class="liveset">
           <button class="toggle" class:on={perf.live} role="switch" aria-checked={perf.live} onclick={() => perf.setLive(!perf.live)}
-                  title="Lê o pedal a cada segundo">
-            <span class="dot"></span>{perf.live ? 'Ao vivo' : 'Parado'}
+                  title={t('perf.live_title')}>
+            <span class="dot"></span>{perf.live ? t('perf.live') : t('perf.stopped')}
           </button>
           {#if !perf.live}
-            <button class="ghost" disabled={perf.reading} onclick={() => perf.readOnce()}>{perf.reading ? 'Lendo…' : 'Ler agora'}</button>
+            <button class="ghost" disabled={perf.reading} onclick={() => perf.readOnce()}>{perf.reading ? t('perf.reading') : t('perf.read_now')}</button>
           {/if}
         </div>
       </div>
 
       {#if p && use}
         <div class="hero">
-          <div class="big {tone}"><b>{pct(share)}</b><span>do bloco</span></div>
+          <div class="big {tone}"><b>{pct(share)}</b><span>{t('perf.of_block')}</span></div>
           <dl class="facts">
-            <div><dt>Efeitos</dt><dd>{kc(use.slots)} <em>{pct(use.slots / use.budget)}</em></dd></div>
-            <div><dt>Firmware</dt><dd>{kc(use.firmware)} <em>{pct(use.firmware / use.budget)}</em></dd></div>
-            <div><dt>Folga</dt><dd>{kc(Math.max(0, use.budget - use.whole))} <em>{pct(Math.max(0, 1 - share))}</em></dd></div>
-            <div><dt>Pior bloco</dt><dd>{comma(p.worst_ms, 3)} ms <em>{pct(p.worst_ms / 1.4512)}</em></dd></div>
+            <div><dt>{t('perf.effects')}</dt><dd>{kc(use.slots)} <em>{pct(use.slots / use.budget)}</em></dd></div>
+            <div><dt>{t('perf.firmware')}</dt><dd>{kc(use.firmware)} <em>{pct(use.firmware / use.budget)}</em></dd></div>
+            <div><dt>{t('perf.room')}</dt><dd>{kc(Math.max(0, use.budget - use.whole))} <em>{pct(Math.max(0, 1 - share))}</em></dd></div>
+            <div><dt>{t('perf.worst')}</dt><dd>{comma(p.worst_ms, 3)} ms <em>{pct(p.worst_ms / 1.4512)}</em></dd></div>
           </dl>
           {#if spark}
-            <figure class="spark" aria-label="Uso do bloco nas últimas leituras">
+            <figure class="spark" aria-label={t('perf.spark_aria')}>
               <svg width="160" height="32" viewBox="0 0 160 32" aria-hidden="true"><polyline points={spark} /></svg>
-              <figcaption>últimas {perf.history.length} leituras</figcaption>
+              <figcaption>{tn('perf.last_readings', perf.history.length)}</figcaption>
             </figure>
           {/if}
         </div>
 
-        <div class="budget" role="img" aria-label="O bloco: {pct(use.slots / use.budget)} efeitos, {pct(use.firmware / use.budget)} firmware"
+        <div class="budget" role="img" aria-label={t('perf.budget_aria', { effects: pct(use.slots / use.budget), firmware: pct(use.firmware / use.budget) })}
              onpointerleave={() => { hot = null; tip = null; }}>
           <div class="fill" style:width="{Math.min(100, 100 * share)}%">
             {#each rows as r (r.slot)}
@@ -154,15 +155,15 @@
                     onpointermove={(e) => segTip(e, `s${r.slot}`, `${r.info.tag} ${r.name} · ${kc(r.mean)} · ${pct(r.mean / use.budget)}`)}></span>
             {/each}
             <span class="part fw" class:hot={hot === 'fw'} style:flex={Math.max(use.firmware, 1)} role="presentation"
-                  onpointermove={(e) => segTip(e, 'fw', `Firmware · ${kc(use.firmware)} · ${pct(use.firmware / use.budget)}`)}></span>
+                  onpointermove={(e) => segTip(e, 'fw', `${t('perf.firmware')} · ${kc(use.firmware)} · ${pct(use.firmware / use.budget)}`)}></span>
           </div>
-          {#if use.worst > 0}<i class="worst" style:left="{Math.min(100, (100 * use.worst) / use.budget)}%" title="Pior bloco"></i>{/if}
+          {#if use.worst > 0}<i class="worst" style:left="{Math.min(100, (100 * use.worst) / use.budget)}%" title={t('perf.worst')}></i>{/if}
           {#if tip}<span class="tip" style:left="{tip.x}px">{tip.text}</span>{/if}
         </div>
-        <div class="scale" aria-hidden="true"><span>0</span><span>25%</span><span>50%</span><span>75%</span><span>{kc(use.budget)} ciclos</span></div>
+        <div class="scale" aria-hidden="true"><span>0</span><span>25%</span><span>50%</span><span>75%</span><span>{t('perf.cycles', { n: kc(use.budget) })}</span></div>
 
         <table class="slots">
-          <thead><tr><th>Bloco</th><th class="n">Média</th><th class="n">Máx</th><th class="n">Último</th><th class="n">Uso</th><th class="barcol"></th></tr></thead>
+          <thead><tr><th>{t('perf.col_block')}</th><th class="n">{t('perf.col_mean')}</th><th class="n">{t('perf.col_max')}</th><th class="n">{t('perf.col_last')}</th><th class="n">{t('perf.col_use')}</th><th class="barcol"></th></tr></thead>
           <tbody>
             {#each rows as r (r.slot)}
               <tr class:hot={hot === `s${r.slot}`} onpointerenter={() => (hot = `s${r.slot}`)} onpointerleave={() => (hot = null)}>
@@ -174,64 +175,61 @@
                 <td class="barcol"><span class="mini"><span style:width="{(100 * r.mean) / top}%" style:background={r.info.color}></span><i style:left="{(100 * r.max) / top}%"></i></span></td>
               </tr>
             {:else}
-              <tr><td colspan="6" class="none">Nenhum bloco no preset.</td></tr>
+              <tr><td colspan="6" class="none">{t('perf.no_blocks')}</td></tr>
             {/each}
             <tr class="fwrow" class:hot={hot === 'fw'}>
               <td><i class="chip fw"></i><button class="link" onclick={() => (showSections = !showSections)} aria-expanded={showSections}>
-                Firmware <Icon name={showSections ? 'down' : 'next'} size={13} stroke={2.2} /></button></td>
+                {t('perf.firmware')} <Icon name={showSections ? 'down' : 'next'} size={13} stroke={2.2} /></button></td>
               <td class="n">{kc(use.firmware)}</td><td class="n"></td><td class="n"></td>
               <td class="n">{pct(use.firmware / use.budget)}</td><td class="barcol"></td>
             </tr>
             {#if showSections}
               {#each p.sections as c, k (k)}
                 {#if k !== CHAIN_SECTION && c > 0}
-                  <tr class="sec"><td>{BENCH_SECTIONS[k] ?? `Seção ${k}`}</td><td class="n">{kc(c)}</td><td></td><td></td><td class="n">{pct(c / use.budget)}</td><td></td></tr>
+                  <tr class="sec"><td>{sectionName(k)}</td><td class="n">{kc(c)}</td><td></td><td></td><td class="n">{pct(c / use.budget)}</td><td></td></tr>
                 {/if}
               {/each}
-              <tr class="sec"><td>Entre os slots (a cadeia sem os efeitos)</td><td class="n">{kc(use.between)}</td><td></td><td></td><td class="n">{pct(use.between / use.budget)}</td><td></td></tr>
+              <tr class="sec"><td>{t('perf.between')}</td><td class="n">{kc(use.between)}</td><td></td><td></td><td class="n">{pct(use.between / use.budget)}</td><td></td></tr>
             {/if}
           </tbody>
         </table>
-        <p class="small">{p.blocks} blocos desde a leitura anterior · núcleo a {Math.round(p.core_hz / 1e6)} MHz · cada slot medido
-          dentro da interrupção de áudio, com a cache e o sinal de verdade.</p>
+        <p class="small">{tn('perf.profile_note', p.blocks, { mhz: Math.round(p.core_hz / 1e6) })}</p>
       {:else}
-        <p class="note">Lendo o pedal…</p>
+        <p class="note">{t('pedal.reading')}</p>
       {/if}
     </section>
 
     <!-- ============================================================ one effect on its own -->
-    <section class="card wide" aria-label="Medir um efeito">
-      <h2>Medir um efeito</h2>
-      <p class="small">O pedal carrega o efeito sozinho e toca nele um sinal de teste: o áudio fica mudo por alguns segundos e o
-        preset volta como estava. Um arquivo vai só para a memória RAM (nada é gravado) e é lido do disco de novo a cada
-        medição; a fonte .c de um bloco é compilada pelo SDK antes (src/sdk/wvfx.h). Com <b>Vigiar</b>, cada vez que o arquivo
-        é salvo ele é medido de novo: edite, salve, compare.</p>
+    <section class="card wide" aria-label={t('perf.bench')}>
+      <h2>{t('perf.bench')}</h2>
+      <!-- the catalog's own text, with <b> around the button's name -->
+      <p class="small">{@html t('perf.bench_text')}</p>
 
       <div class="pick">
-        <div class="seg" role="radiogroup" aria-label="O que medir">
-          <button role="radio" aria-checked={perf.source === 'catalog'} class:on={perf.source === 'catalog'} onclick={() => (perf.source = 'catalog')}>Do pedal</button>
-          <button role="radio" aria-checked={perf.source === 'file'} class:on={perf.source === 'file'} onclick={() => (perf.source = 'file')}>Arquivo .elf / .c</button>
+        <div class="seg" role="radiogroup" aria-label={t('perf.what')}>
+          <button role="radio" aria-checked={perf.source === 'catalog'} class:on={perf.source === 'catalog'} onclick={() => (perf.source = 'catalog')}>{t('perf.from_pedal')}</button>
+          <button role="radio" aria-checked={perf.source === 'file'} class:on={perf.source === 'file'} onclick={() => (perf.source = 'file')}>{t('perf.from_file')}</button>
         </div>
         {#if perf.source === 'catalog'}
-          <select bind:value={perf.menu} aria-label="Menu">
+          <select bind:value={perf.menu} aria-label={t('perf.menu')}>
             {#each menus as m (m.menu)}<option value={m.menu}>{m.name}</option>{/each}
           </select>
-          <select bind:value={perf.index} aria-label="Modelo" disabled={!items.length}>
+          <select bind:value={perf.index} aria-label={t('perf.model')} disabled={!items.length}>
             {#each items as it (it.index)}<option value={it.index}>{it.name}{it.kind === 'library' ? '' : ` · ${it.kind}`}</option>{/each}
           </select>
         {:else}
-          <button class="ghost" onclick={() => perf.pickModule()}><Icon name="file" size={15} stroke={2} /> Escolher arquivo…</button>
+          <button class="ghost" onclick={() => perf.pickModule()}><Icon name="file" size={15} stroke={2} /> {t('perf.pick_file')}</button>
           {#if perf.module}
             {@const m = perf.module}
             <span class="file">
               {#if m.name}<b>{m.name}</b>{/if}
-              {m.file}{#if m.source}<span class="flag">fonte</span>{/if}
-              {#if m.size} · {bytes(m.size)}{/if}{#if m.menu !== undefined} · {menuInfo(m.menu).name}{/if} · salvo às {time(m.modified)}
+              {m.file}{#if m.source}<span class="flag">{t('perf.source_flag')}</span>{/if}
+              {#if m.size} · {bytes(m.size)}{/if}{#if m.menu !== undefined} · {menuInfo(m.menu).name}{/if} · {t('perf.saved_at', { time: time(m.modified) })}
             </span>
             <button class="toggle" class:on={perf.watching} role="switch" aria-checked={perf.watching}
                     onclick={() => perf.setWatch(!perf.watching)}
-                    title="Mede de novo cada vez que o arquivo{m.source ? ' (ou um .c / .h da mesma pasta)' : ''} for salvo">
-              <span class="dot"></span>{perf.watching ? 'Vigiando' : 'Vigiar'}
+                    title={t(m.source ? 'perf.watch_title_src' : 'perf.watch_title')}>
+              <span class="dot"></span>{perf.watching ? t('perf.watching') : t('perf.watch')}
             </button>
           {/if}
         {/if}
@@ -243,24 +241,24 @@
         </div>
       {/if}
       <div class="pick">
-        <div class="seg" role="radiogroup" aria-label="Blocos medidos">
+        <div class="seg" role="radiogroup" aria-label={t('perf.blocks_aria')}>
           {#each perf.emu ? [20, 50, 200] : BLOCKS as n (n)}
             <button role="radio" aria-checked={perf.opts.blocks === n} class:on={perf.opts.blocks === n}
-                    onclick={() => (perf.opts.blocks = n)}>{n} blocos</button>
+                    onclick={() => (perf.opts.blocks = n)}>{tn('perf.n_blocks', n)}</button>
           {/each}
         </div>
-        <label class="check" title="Limpa a cache de dados antes de cada bloco: o pior caso (linhas de delay e tabelas vêm da SDRAM)">
-          <input type="checkbox" bind:checked={perf.opts.cold} /> Cache fria</label>
-        <label class="check" title="Mede o custo do slot desligado">
-          <input type="checkbox" bind:checked={perf.opts.bypass} /> Desligado</label>
-        <button class="primary" disabled={!perf.ready} onclick={() => perf.measure()}>Medir</button>
+        <label class="check" title={t('perf.cold_title')}>
+          <input type="checkbox" bind:checked={perf.opts.cold} /> {t('perf.cold')}</label>
+        <label class="check" title={t('perf.bypass_title')}>
+          <input type="checkbox" bind:checked={perf.opts.bypass} /> {t('perf.bypass')}</label>
+        <button class="primary" disabled={!perf.ready} onclick={() => perf.measure()}>{t('perf.measure')}</button>
       </div>
 
       {#if perf.runs.length}
         <table class="runs">
           <thead><tr>
-            <th>Medição</th><th class="n">Mediana</th><th class="n">p99</th><th class="n">Máx</th><th class="n">Uso</th>
-            <th class="n" title="Mediana contra a referência">Δ</th><th>CRC</th><th class="n">Carga</th><th class="n">Memória</th><th></th>
+            <th>{t('perf.col_run')}</th><th class="n">{t('perf.col_median')}</th><th class="n">p99</th><th class="n">{t('perf.col_max')}</th><th class="n">{t('perf.col_use')}</th>
+            <th class="n" title={t('perf.delta_title')}>Δ</th><th>CRC</th><th class="n">{t('perf.col_load')}</th><th class="n">{t('perf.col_memory')}</th><th></th>
           </tr></thead>
           <tbody>
             {#each perf.runs as r (r.id)}
@@ -269,8 +267,8 @@
               <tr class:shown={perf.shown === r.id} onclick={() => (perf.shown = r.id)}>
                 <td>
                   <i class="chip" style:background={menuInfo(r.result.menu).color}></i>
-                  <b>{r.label}</b>{#if r.result.cold}<span class="flag">fria</span>{/if}{#if r.result.bypass}<span class="flag">desligado</span>{/if}
-                  <small>{r.detail} · {r.result.blocks} blocos{#if r.result.build_s} · compilado em {comma(r.result.build_s, 1)} s{/if} · {new Date(r.at).toLocaleTimeString('pt-BR')}</small>
+                  <b>{r.label}</b>{#if r.result.cold}<span class="flag">{t('perf.flag_cold')}</span>{/if}{#if r.result.bypass}<span class="flag">{t('perf.flag_bypass')}</span>{/if}
+                  <small>{r.detail} · {tn('perf.n_blocks', r.result.blocks)}{#if r.result.build_s} · {t('perf.built_in', { s: comma(r.result.build_s, 1) })}{/if} · {new Date(r.at).toLocaleTimeString(i18n.lang)}</small>
                 </td>
                 <td class="n">{kc(r.result.median)}</td>
                 <td class="n">{kc(r.result.p99)}</td>
@@ -279,20 +277,20 @@
                 <td class="n delta" class:better={d.startsWith('-')} class:worse={d.startsWith('+')}>{d}</td>
                 <td class="crc">
                   <code>{r.result.crc}</code>
-                  {#if m === 'ref'}<span class="mark ref">referência</span>
-                  {:else if m === 'same'}<span class="mark same">= igual</span>
-                  {:else if m === 'diff'}<span class="mark diff" title={sameTarget(r, ref!) ? 'A saída mudou' : 'Outro efeito: outra saída'}>≠ diferente</span>{/if}
+                  {#if m === 'ref'}<span class="mark ref">{t('perf.ref')}</span>
+                  {:else if m === 'same'}<span class="mark same">{t('perf.same')}</span>
+                  {:else if m === 'diff'}<span class="mark diff" title={t(sameTarget(r, ref!) ? 'perf.diff_out' : 'perf.diff_other')}>{t('perf.diff')}</span>{/if}
                 </td>
                 <td class="n">{kc(r.result.load)}</td>
-                <td class="n" title="código {bytes(r.result.pools.code)} · constantes {bytes(r.result.pools.const)} · estado {bytes(r.result.pools.state)} · buffers {bytes(r.result.pools.buffer)}">
+                <td class="n" title={t('perf.pools', { code: bytes(r.result.pools.code), const: bytes(r.result.pools.const), state: bytes(r.result.pools.state), buffer: bytes(r.result.pools.buffer) })}>
                   {bytes(r.result.pools.code + r.result.pools.const + r.result.pools.state + r.result.pools.buffer)}</td>
                 <td class="acts">
-                  <button title="Medir de novo{r.target.kind === 'file' ? ' (o arquivo é lido de novo)' : ''}" aria-label="Medir de novo"
+                  <button title={t(r.target.kind === 'file' ? 'perf.again_file' : 'perf.again')} aria-label={t('perf.again')}
                           onclick={(e) => { e.stopPropagation(); void perf.measure(r); }}><Icon name="loop" size={14} stroke={2} /></button>
                   {#if perf.ref !== r.id}
-                    <button title="Usar como referência" onclick={(e) => { e.stopPropagation(); perf.ref = r.id; }}>ref</button>
+                    <button title={t('perf.use_ref')} onclick={(e) => { e.stopPropagation(); perf.ref = r.id; }}>ref</button>
                   {/if}
-                  <button title="Tirar da lista" aria-label="Tirar da lista" onclick={(e) => { e.stopPropagation(); perf.remove(r.id); }}><Icon name="close" size={14} stroke={2} /></button>
+                  <button title={t('perf.remove')} aria-label={t('perf.remove')} onclick={(e) => { e.stopPropagation(); perf.remove(r.id); }}><Icon name="close" size={14} stroke={2} /></button>
                 </td>
               </tr>
             {/each}
@@ -301,16 +299,16 @@
 
         {#if chart && shown}
           <figure class="chart" bind:clientWidth={chartW}>
-            <figcaption><b>{shown.label}</b> · ciclos de cada bloco medido{shown.result.emu ? ' (emulador: sem valor)' : ''}</figcaption>
-            <svg width={Math.max(200, chartW)} height={CH} role="img" aria-label="Ciclos por bloco de {shown.label}"
+            <figcaption><b>{shown.label}</b> · {t('perf.chart_caption')}{shown.result.emu ? ` (${t('perf.emu_no_value')})` : ''}</figcaption>
+            <svg width={Math.max(200, chartW)} height={CH} role="img" aria-label={t('perf.chart_aria', { name: shown.label })}
                  onpointermove={chartMove} onpointerleave={() => (cross = null)}>
               {#each [chart.r.median, chart.r.p99] as v, k (k)}
                 <line class="rule" x1={PAD.l} x2={PAD.l + chart.w} y1={chart.y(v)} y2={chart.y(v)} />
-                <text class="rlabel" x={PAD.l + chart.w + 6} y={chart.y(v) + (k ? -2 : 10)}>{k ? 'p99' : 'mediana'} {kc(v)}</text>
+                <text class="rlabel" x={PAD.l + chart.w + 6} y={chart.y(v) + (k ? -2 : 10)}>{k ? 'p99' : t('perf.median')} {kc(v)}</text>
               {/each}
               <text class="axis" x={PAD.l - 6} y={PAD.t + 8} text-anchor="end">{kc(chart.hi)}</text>
               <text class="axis" x={PAD.l - 6} y={PAD.t + chart.h} text-anchor="end">{kc(chart.lo)}</text>
-              <text class="axis" x={PAD.l} y={CH - 4}>bloco 1</text>
+              <text class="axis" x={PAD.l} y={CH - 4}>{t('perf.block_n', { n: 1 })}</text>
               <text class="axis" x={PAD.l + chart.w} y={CH - 4} text-anchor="end">{chart.c.length}</text>
               <polyline class="series" points={chart.line} />
               {#if cross !== null}
@@ -319,13 +317,13 @@
               {/if}
             </svg>
             {#if cross !== null}
-              <span class="ctip" style:left="{Math.min(chart.x(cross), Math.max(200, chartW) - 150)}px">bloco {cross + 1} · {chart.c[cross].toLocaleString('pt-BR')} ciclos</span>
+              <span class="ctip" style:left="{Math.min(chart.x(cross), Math.max(200, chartW) - 150)}px">{t('perf.block_n', { n: cross + 1 })} · {t('perf.cycles', { n: chart.c[cross].toLocaleString(i18n.lang) })}</span>
             {/if}
           </figure>
         {/if}
         <div class="foot">
-          <p class="small">Δ é a mediana contra a referência; CRC igual = a mesma saída, bit a bit (o sinal de teste é sempre o mesmo).</p>
-          <button class="ghost" onclick={() => perf.clear()}>Limpar a lista</button>
+          <p class="small">{t('perf.foot')}</p>
+          <button class="ghost" onclick={() => perf.clear()}>{t('perf.clear')}</button>
         </div>
       {/if}
     </section>

@@ -7,6 +7,9 @@ import subprocess
 import sys
 import time
 
+from waveod_studio.i18n import tr
+from waveod_studio.i18n_lazy import TextList, Texts
+
 BENCH_ELF, BENCH, PROFILE = 0x1F00001B, 0x1F00001C, 0x1F00001D
 PROTOCOL = 11
 SOURCE_CATALOG, SOURCE_ELF = 0, 1
@@ -18,13 +21,11 @@ KNOBS = 15
 HEAD = 68 + 4 * KNOBS
 FS, FRAMES = 44100, 64
 NAN = float('nan')
-STATUS = {0: 'ok', -1: 'ELF inválido', -2: 'sem memória nos pools', -3: 'relocação inválida', -4: 'cabeçalho inválido',
-          -5: 'init recusou', -10: 'pedido inválido', -11: 'ELF não enviado'}
+STATUS = Texts({0: 'py.bench_ok', -1: 'py.bench_bad_elf', -2: 'py.bench_no_memory', -3: 'py.bench_bad_reloc',
+                -4: 'py.bench_bad_header', -5: 'py.bench_init', -10: 'py.bench_bad_request', -11: 'py.bench_no_elf'})
 POOLS = ('code', 'const', 'state', 'buffer')
 # enum engine_section (src/engine/audio_engine.h), in order
-SECTIONS = ['conversores -> floats', 'filtro de entrada', 'USB playback', 'buffers / afinador', 'antes da cadeia',
-            'cadeia', 'entre cadeia e nível', 'nível / gravação USB', 'EQ global', 'bateria', 'AUX / USB',
-            'filtro de saída', 'filtro do send', 'DAC', 'latência / estatísticas']
+SECTIONS = TextList('py.esec_%d' % k for k in range(15))     # py.esec_<n>: ESEC_* n's name
 CHAIN_SECTION = 5                                   # ESEC_CHAIN: the slots run inside it
 
 
@@ -50,7 +51,7 @@ def build_source(src, out_dir=None):
     root = os.path.abspath(waveod_root())
     tool = os.path.join(root, 'tools', 'wvfx.py')
     if not os.path.exists(tool):
-        raise BuildError('o SDK do waveod não foi encontrado (%s): defina WAVEOD_ROOT' % tool, '')
+        raise BuildError(tr('py.sdk_missing', tool=tool), '')
     stem = os.path.splitext(os.path.basename(src))[0]
     out = os.path.join(out_dir or os.path.join(root, 'out', 'bench'), stem + '.elf')
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -63,7 +64,7 @@ def build_source(src, out_dir=None):
         lines = log.splitlines()
         if lines and lines[0].startswith('failed: '):      # wvfx.py's own line: the whole command
             lines = lines[1:]
-        raise BuildError('%s não compilou' % os.path.basename(src), '\n'.join(lines).strip() or log)
+        raise BuildError(tr('py.build_failed', file=os.path.basename(src)), '\n'.join(lines).strip() or log)
     with open(out, 'rb') as f:
         return dict(elf=f.read(), path=out, log=log, seconds=time.monotonic() - t0)
 
@@ -100,13 +101,13 @@ def block_cycles(core_hz):
 def send_elf(pedal, data):
     """a module ELF into the pedal's RAM for the next bench (never the flash)"""
     if not data or len(data) > ELF_MAX:
-        raise BenchError('o módulo tem %d bytes: o pedal mede até %d KB' % (len(data), ELF_MAX // 1024))
+        raise BenchError(tr('py.bench_elf_size', size=len(data), max=ELF_MAX // 1024))
     for off in range(0, len(data), ELF_CHUNK):
         part = data[off:off + ELF_CHUNK]
         r = pedal.request(BENCH_ELF, struct.pack('<III', off, len(data), len(part)) + part, timeout=10.0)
         got, err = struct.unpack_from('<Ii', r)
         if got != off or err:
-            raise BenchError('o pedal não aceitou o ELF em %#x: %s' % (off, STATUS.get(err, err)))
+            raise BenchError(tr('py.bench_elf_refused', offset='%#x' % off, error=STATUS.get(err, err)))
 
 
 def measure(pedal, source, menu, index=0, elf=None, knobs=None, blocks=1000, skip=50, cold=False, bypass=False,

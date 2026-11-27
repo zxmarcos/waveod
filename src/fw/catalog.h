@@ -28,7 +28,6 @@ struct catalog {
 };
 
 #define CATALOG_MISSING (-2)        /* the index of an effect of waveod's that is not installed */
-#define CATALOG_MISSING_NAME "AUSENTE"
 
 struct catalog_item {
     uint32_t id;

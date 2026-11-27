@@ -7,6 +7,7 @@
  * press = type it. SAVE or OK = keep the name, EXIT = back without changes. Either way the save screen comes
  * back; the name is written with the preset.
  */
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -139,8 +140,8 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
         s.keys[bottom[i].key] = key_box(root, bottom[i].key, x, KEYS_Y + 4 * PITCH_Y, w);
         x += bottom[i].units * PITCH_X;
     }
-    theme_set_text(s.labels[K_SPACE], "ESPA\xC3\x87O");
-    theme_set_text(s.labels[K_BACK], "APAGAR");
+    theme_set_text(s.labels[K_SPACE], T(MSG_NAME_SPACE));
+    theme_set_text(s.labels[K_BACK], T(MSG_NAME_DELETE));
     theme_set_text(s.labels[K_OK], "OK");
     for (int k = K_SPACE; k <= K_OK; k++)
         lv_obj_center(s.labels[k]);
@@ -166,11 +167,11 @@ static void refresh(struct ui_ctx *ui)
     char title[48], cur[40], count[16];
     ui_preset_title(ui, cur, sizeof cur);
     if (ui->name_key >= 0)
-        lv_snprintf(title, sizeof title, "NOME DO FOOTSWITCH \xC2\xB7 %s", ui->ctl_global ? "GLOBAL" : cur);
+        lv_snprintf(title, sizeof title, T(MSG_NAME_TITLE_FOOTSWITCH), ui->ctl_global ? "GLOBAL" : cur);
     else if (ui->name_scene >= 0)
-        lv_snprintf(title, sizeof title, "NOME DA CENA %d \xC2\xB7 %s", ui->name_scene + 1, cur);
+        lv_snprintf(title, sizeof title, T(MSG_NAME_TITLE_SCENE), ui->name_scene + 1, cur);
     else
-        lv_snprintf(title, sizeof title, "NOME \xC2\xB7 %s", cur);
+        lv_snprintf(title, sizeof title, T(MSG_NAME_TITLE), cur);
     top_bar_sub(title);
     theme_set_text(s.text, s.name);
     lv_obj_update_layout(s.text);

@@ -2,6 +2,7 @@
 #include "platform/sdram.h"
 #include "platform/time.h"
 #include "platform/touch.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 
 #define MAX_BINDINGS  768           /* every screen's, made at start-up (a row list takes 32) */
@@ -118,7 +119,16 @@ static void hold_tick(void)
 
 static void event_cb(lv_event_t *e)
 {
-    const struct binding *b = lv_event_get_user_data(e);
+    struct binding *b = lv_event_get_user_data(e);
+    if (lv_event_get_code(e) == LV_EVENT_DELETE) {  /* the object goes: its slot is free again (ui.c builds the
+                                                       screens again when the language changes) */
+        if (press.hold == b)
+            hold_stop();
+        b->fn = 0;
+        return;
+    }
+    if (!b->fn)
+        return;
     lv_indev_t *indev = lv_indev_active();
     if (!indev)
         return;
@@ -175,10 +185,17 @@ static void event_cb(lv_event_t *e)
 
 static struct binding *bind(lv_obj_t *obj, gesture_handler fn, int tag)
 {
-    LV_ASSERT_MSG(nbindings < MAX_BINDINGS, "raise MAX_BINDINGS");
-    if (nbindings >= MAX_BINDINGS)
-        return 0;
-    struct binding *b = &bindings[nbindings++];
+    struct binding *b = 0;
+    for (int i = 0; i < nbindings && !b; i++)       /* a slot an object deleted left free */
+        if (!bindings[i].fn)
+            b = &bindings[i];
+    if (!b) {
+        LV_ASSERT_MSG(nbindings < MAX_BINDINGS, "raise MAX_BINDINGS");
+        if (nbindings >= MAX_BINDINGS)
+            return 0;
+        b = &bindings[nbindings++];
+    }
+    *b = (struct binding){ 0 };
     b->fn = fn;
     b->tag = tag;
     lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK);
@@ -255,8 +272,11 @@ void gesture_tick(void)
     hold_tick();
     if (!gesture_cursor_on())
         return;
-    char text[24];
-    lv_snprintf(text, sizeof text, "%d,%d%s", last.x, last.y, last.pressed ? "" : " \xC2\xB7 SOLTO");
+    char text[40];
+    if (last.pressed)
+        lv_snprintf(text, sizeof text, "%d,%d", last.x, last.y);
+    else
+        lv_snprintf(text, sizeof text, T(MSG_SYS_CURSOR_RELEASED), last.x, last.y);
     theme_set_text(cursor_text, text);
     theme_set_border(cursor, last.pressed ? C_ACCENT : C_OFF);
     lv_obj_set_pos(cursor, last.x - CURSOR_SIZE / 2, last.y - CURSOR_SIZE / 2);

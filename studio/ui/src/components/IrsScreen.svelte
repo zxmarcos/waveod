@@ -8,6 +8,7 @@
   import Icon from './Icon.svelte';
   import { irs } from '../lib/irs.svelte';
   import { curvePath, response, topOf } from '../lib/irmath';
+  import { num, t, tn } from '../lib/i18n.svelte';
 
   $effect(() => { untrack(() => void irs.enter()); });
 
@@ -21,8 +22,7 @@
   const old = $derived(d && slots?.[d.slot]?.samples ? response(slots[d.slot].samples!) : null);
   const bigTop = $derived(big ? topOf(big) : 0);
   const sheetTop = $derived(fresh ? Math.max(topOf(fresh), old ? topOf(old) : -999) : 0);
-  const pct = (v: number) => `${(v * 100).toFixed(v > 0.999 ? 0 : 1).replace('.', ',')}%`;
-  const num = (v: number, n = 1) => v.toFixed(n).replace('.', ',');
+  const pct = (v: number) => `${num(v * 100, v > 0.999 ? 0 : 1)}%`;
 
   /** the impulse itself, the first 300 samples (6.8 ms), as a line */
   function wave(x: number[], w: number, h: number) {
@@ -55,22 +55,22 @@
   <header class="tools">
     <div class="title">
       <h1>IRs</h1>
-      <span class="sub">os 20 IRs de usuário · no pedal: bloco USER IR (e Cab / IR do waveod)</span>
+      <span class="sub">{t('irs.sub')}</span>
     </div>
-    {#if slots}<span class="count">{used} de 20 com IR</span>{/if}
+    {#if slots}<span class="count">{t('irs.count', { n: used })}</span>{/if}
   </header>
 
   {#if !slots}
-    <p class="note">Lendo os IRs do pedal…</p>
+    <p class="note">{t('irs.loading')}</p>
   {:else}
     <div class="body">
-      <div class="slots" role="listbox" aria-label="IRs de usuário">
+      <div class="slots" role="listbox" aria-label={t('irs.slots_aria')}>
         {#each slots as x, i (x.slot)}
           <button role="option" aria-selected={x.slot === irs.picked} class="slot" class:empty={!x.used}
                   class:picked={x.slot === irs.picked} onclick={() => { irs.picked = x.slot; irs.renaming = false; }}
                   ondblclick={() => { irs.picked = x.slot; void irs.choose(); }}>
             <span class="num">{x.slot + 1}</span>
-            <span class="nm">{x.used ? x.name : 'vazio'}</span>
+            <span class="nm">{x.used ? x.name : t('irs.empty')}</span>
             {#if curves[i]}
               {@const c = curves[i]!}
               <svg class="spark" viewBox="0 0 120 26" preserveAspectRatio="none" aria-hidden="true">
@@ -86,14 +86,14 @@
           <span class="label">IR {s.slot + 1}</span>
           {#if irs.renaming}
             <input class="rename" bind:value={draftName} maxlength="16" spellcheck="false" use:take onkeydown={renameKey}
-                   onblur={() => (irs.renaming = false)} aria-label="Nome do IR (até 16 letras)" />
-            <p class="hint">Enter grava · Esc cancela · até 16 letras</p>
+                   onblur={() => (irs.renaming = false)} aria-label={t('irs.name_aria')} />
+            <p class="hint">{t('irs.rename_hint')}</p>
           {:else}
-            <h2>{s.used ? s.name : 'Vazio'}</h2>
+            <h2>{s.used ? s.name : t('irs.empty_title')}</h2>
           {/if}
           {#if big && s.samples}
             <div class="graph">
-              <svg viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label="Resposta em frequência">
+              <svg viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label={t('irs.response_aria')}>
                 {#each [100, 1000, 10000] as f (f)}<line x1={(Math.log10(f / 20) / 3) * 1000} x2={(Math.log10(f / 20) / 3) * 1000} y1="0" y2="220" />{/each}
                 {#each [1, 2, 3, 4, 5, 6, 7] as k (k)}<line x1="0" x2="1000" y1={(k * 220) / 8} y2={(k * 220) / 8} />{/each}
                 <path class="curve" d={curvePath(big, 1000, 220, bigTop)} />
@@ -102,19 +102,18 @@
                 <span class="db">{bigTop} dB</span><span class="db low">{bigTop - 48} dB</span></div>
             </div>
             <div class="imp">
-              <span>Impulso, 6,8 ms</span>
+              <span>{t('irs.impulse', { ms: num(6.8, 1) })}</span>
               <svg viewBox="0 0 600 60" preserveAspectRatio="none" aria-hidden="true"><path d={wave(s.samples, 600, 60)} /></svg>
             </div>
-            <p class="hint">1024 amostras a 44,1 kHz (23,2 ms), lidas da flash do pedal: é o que o bloco toca.</p>
+            <p class="hint">{t('irs.hint_used')}</p>
           {:else}
-            <p class="hint">Nada guardado aqui. Um .wav gravado neste slot vira um IR de 1024 amostras a 44,1 kHz (23,2 ms):
-              o pedal guarda o começo da resposta, o que basta para um gabinete.</p>
+            <p class="hint">{t('irs.hint_empty')}</p>
           {/if}
           <div class="acts">
             <button class={s.used ? 'warn' : 'primary'} onclick={() => irs.choose()}>
-              <Icon name="file" size={16} stroke={2.1} /> {s.used ? 'Substituir por um .wav…' : 'Gravar um .wav…'}
+              <Icon name="file" size={16} stroke={2.1} /> {s.used ? t('irs.replace_wav') : t('irs.write_wav')}
             </button>
-            {#if s.used}<button onclick={startRename} title="F2"><Icon name="pencil" size={15} stroke={2} /> Renomear</button>{/if}
+            {#if s.used}<button onclick={startRename} title="F2"><Icon name="pencil" size={15} stroke={2} /> {t('irs.rename')}</button>{/if}
           </div>
         </section>
       {/if}
@@ -126,39 +125,39 @@
   {@const was = slots?.[d.slot]}
   <div class="veil" role="presentation" onclick={() => !d.busy && (irs.draft = null)}></div>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ir-title" tabindex="-1" onkeydown={sheetKey}>
-    <h3 id="ir-title">Gravar no IR {d.slot + 1}?</h3>
-    <p class="file"><Icon name="file" size={15} stroke={2} /> {d.file.file} · {d.file.fmt} {d.file.bits} bits · {num(d.file.rate / 1000)} kHz
-      · {d.file.channels === 1 ? 'mono' : `${d.file.channels} canais (vai o primeiro)`} · {num(d.file.ms)} ms</p>
+    <h3 id="ir-title">{t('irs.confirm_title', { n: d.slot + 1 })}</h3>
+    <p class="file"><Icon name="file" size={15} stroke={2} /> {d.file.file} · {d.file.fmt} {d.file.bits} bits · {num(d.file.rate / 1000, 1)} kHz
+      · {d.file.channels === 1 ? t('irs.mono') : t('irs.channels', { n: d.file.channels })} · {num(d.file.ms, 1)} ms</p>
     <div class="graph small">
-      <svg viewBox="0 0 1000 160" preserveAspectRatio="none" role="img" aria-label="O IR novo sobre o atual">
+      <svg viewBox="0 0 1000 160" preserveAspectRatio="none" role="img" aria-label={t('irs.compare_aria')}>
         {#each [100, 1000, 10000] as f (f)}<line x1={(Math.log10(f / 20) / 3) * 1000} x2={(Math.log10(f / 20) / 3) * 1000} y1="0" y2="160" />{/each}
         {#if old}<path class="was" d={curvePath(old, 1000, 160, sheetTop)} />{/if}
         <path class="curve" d={curvePath(fresh, 1000, 160, sheetTop)} />
       </svg>
-      <div class="legend"><span class="k new"></span>o novo{#if old}<span class="k old"></span>o que o slot tem agora{/if}</div>
+      <div class="legend"><span class="k new"></span>{t('irs.legend_new')}{#if old}<span class="k old"></span>{t('irs.legend_old')}{/if}</div>
     </div>
     <dl class="facts">
-      <div><dt>Fica no pedal</dt><dd>{pct(d.file.kept)} da energia</dd></div>
-      <div><dt>Conversão</dt><dd>{[d.file.resampled ? `reamostrado de ${num(d.file.rate / 1000)} kHz` : '', d.file.cut ? 'cortado em 23,2 ms' : '',
-                                   ].filter(Boolean).join(', ') || 'nenhuma'}</dd></div>
-      <div><dt>Pico</dt><dd>{num(d.file.peak_db)} dBFS{d.file.normalized ? ` · ${d.file.gain_db >= 0 ? '+' : ''}${num(d.file.gain_db)} dB` : ''}</dd></div>
+      <div><dt>{t('irs.kept')}</dt><dd>{t('irs.kept_energy', { pct: pct(d.file.kept) })}</dd></div>
+      <div><dt>{t('irs.conversion')}</dt><dd>{[d.file.resampled ? t('irs.resampled', { rate: num(d.file.rate / 1000, 1) }) : '', d.file.cut ? t('irs.cut') : '',
+                                   ].filter(Boolean).join(', ') || t('irs.none')}</dd></div>
+      <div><dt>{t('irs.peak')}</dt><dd>{num(d.file.peak_db, 1)} dBFS{d.file.normalized ? ` · ${d.file.gain_db >= 0 ? '+' : ''}${num(d.file.gain_db, 1)} dB` : ''}</dd></div>
     </dl>
-    <div class="seg" role="radiogroup" aria-label="Nível">
-      <button role="radio" aria-checked={!d.normalize} class:on={!d.normalize} onclick={() => irs.normalize(false)}>Nível do arquivo</button>
-      <button role="radio" aria-checked={d.normalize} class:on={d.normalize} onclick={() => irs.normalize(true)}>Igualar aos gabinetes de fábrica</button>
+    <div class="seg" role="radiogroup" aria-label={t('irs.level_aria')}>
+      <button role="radio" aria-checked={!d.normalize} class:on={!d.normalize} onclick={() => irs.normalize(false)}>{t('irs.level_file')}</button>
+      <button role="radio" aria-checked={d.normalize} class:on={d.normalize} onclick={() => irs.normalize(true)}>{t('irs.level_match')}</button>
     </div>
-    {#if d.file.clipped}<p class="lost">{d.file.clipped} amostras passam do máximo e serão cortadas.</p>{/if}
-    <label class="name"><span>Nome no pedal (até 16 letras)</span>
+    {#if d.file.clipped}<p class="lost">{tn('irs.clipped', d.file.clipped)}</p>{/if}
+    <label class="name"><span>{t('irs.name_label')}</span>
       <input bind:value={d.name} maxlength="16" spellcheck="false" use:take />
     </label>
     <p class="lost" class:safe={!was?.used}>
-      {#if !was?.used}O slot está vazio.
-      {:else}Isto substitui o IR {d.slot + 1}, <b>{was.name}</b>. Os presets que usam este slot passam a tocar o novo.{/if}
+      {#if !was?.used}{t('irs.slot_empty')}
+      {:else}{t('irs.replaces_before', { n: d.slot + 1 })} <b>{was.name}</b>. {t('irs.replaces_after')}{/if}
     </p>
     <footer>
-      <button onclick={() => (irs.draft = null)} disabled={d.busy}>Cancelar</button>
+      <button onclick={() => (irs.draft = null)} disabled={d.busy}>{t('common.cancel')}</button>
       <button class={was?.used ? 'danger' : 'primary'} disabled={d.busy || !d.name.trim()} onclick={() => irs.write()}>
-        {d.busy ? 'Gravando…' : `${was?.used ? 'Substituir' : 'Gravar'} no IR ${d.slot + 1}`}</button>
+        {d.busy ? t('common.writing') : was?.used ? t('irs.replace_in', { n: d.slot + 1 }) : t('irs.write_to', { n: d.slot + 1 })}</button>
     </footer>
   </div>
 {/if}

@@ -12,8 +12,10 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..'))
 
-from waveod_studio import webapp                    # noqa: E402
+from waveod_studio import i18n, webapp              # noqa: E402
 from waveod_studio.usb import qmeupdate as U        # noqa: E402
+
+i18n.set_language('pt-BR')                          # the messages checked below are the Portuguese ones
 
 FW = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', '..', 'out', 'QME-200_waveod_grid.bin')
 failed = 0
@@ -201,15 +203,19 @@ def main():
     except ImportError:
         print('  (pywebview not installed: file filters not checked)')
     else:
-        bad = []
-        for name in dir(webapp):
-            if name.endswith('_FILES'):
-                for t in getattr(webapp, name):
+        bad, seen = [], 0
+        for lang in i18n.STRINGS:                   # every language's labels
+            i18n.set_language(lang)
+            for kind in webapp.FILES:
+                for t in webapp.file_types(kind):
+                    seen += 1
                     try:
                         parse_file_type(t)
                     except ValueError:
                         bad.append(t)
-        check(not bad, 'file dialog filters accepted by pywebview%s' % (': refused %s' % bad if bad else ''))
+        i18n.set_language('pt-BR')
+        check(seen and not bad, 'file dialog filters accepted by pywebview (%d, every language)%s' % (
+            seen, ': refused %s' % bad if bad else ''))
     print('%d failed' % failed)
     return 1 if failed else 0
 

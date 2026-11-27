@@ -10,6 +10,7 @@
   import ModKnobs from './ModKnobs.svelte';
   import * as C from '../lib/controls';
   import { ctl } from '../lib/ctl.svelte';
+  import { decimal, t } from '../lib/i18n.svelte';
   import { presetLabel, studio } from '../lib/store.svelte';
   import type { CtlLink, CtlParam } from '../lib/types';
 
@@ -23,26 +24,26 @@
   const [lo, hi] = $derived(C.ends(key));
   const used = $derived(ctl.table.links.filter((x) => !C.unset(x)).length);
   const isFs = $derived(key < C.FOOTSWITCH_KEYS);
-  const where = $derived(C.everyMode(key) ? 'todos os modos' : `modo ${C.MODE_NAMES[ctl.mode].toLowerCase()}`);
+  const where = $derived(C.everyMode(key) ? t('ctl.all_modes') : t('ctl.in_mode', { mode: C.modeName(ctl.mode).toLowerCase() }));
   const alsoModes = (x: CtlLink) =>
     C.everyMode(x.key) ? [] : C.MODES.filter((m) => x.modes & m.mode && m.mode !== ctl.mode).map((m) => m.name);
-  const fsName = (k: number) => (k === C.AGAIN ? 'PRESET ATIVO DE NOVO' : C.keyName(k));
+  const fsName = (k: number) => (k === C.AGAIN ? t('ctl.again') : C.keyName(k));
 
   let ccText = $state('');
   function addCc() {
     if (ctl.addCc(Number(ccText.trim()))) ccText = '';
-    else studio.say('CC de 1 a 127 (menos 68 e 69, o tempo)', 'error');
+    else studio.say(t('ctl.cc_range'), 'error');
   }
 
   /** a number typed in: applied on Enter / leaving the field, the field then shows what was kept */
-  function num(e: Event, apply: (v: number) => void) {
+  function typed(e: Event, apply: (v: number) => void) {
     const el = e.currentTarget as HTMLInputElement;
     const v = Number(el.value.trim().replace(',', '.'));
     if (el.value.trim() !== '' && Number.isFinite(v)) apply(v);
     el.value = el.defaultValue;
   }
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-  const comma = (s: string) => s.replace('.', ',');
+  const comma = decimal;
   const setEnd = (which: 'off' | 'on', p: CtlParam) => (v: number) => { if (l) l[which] = C.quantize(p, v); };
 
   /** a modulator: the parameter its drawing names on the right (the picked link, else its first), at 0 and 100 % */
@@ -73,36 +74,36 @@
 
 <div class="ctl">
   <header class="tools">
-    <button class="back" onclick={() => ctl.close()} title={o.from === 'grid' ? 'Voltar à grade (Esc)' : 'Voltar aos presets (Esc)'}>
+    <button class="back" onclick={() => ctl.close()} title={t(o.from === 'grid' ? 'ctl.back_grid' : 'ctl.back_presets')}>
       <Icon name="prev" size={18} stroke={2.2} />
     </button>
     <div class="title">
       {#if o.kind === 'global'}
-        <h1>Controles globais</h1>
-        <span class="sub">Valem em todo preset que não tem ligação própria na tecla</span>
+        <h1>{t('ctl.title_global')}</h1>
+        <span class="sub">{t('ctl.global_sub')}</span>
       {:else}
-        <h1>Controles <span class="lbl">{presetLabel(o.index)}</span></h1>
-        <span class="sub">{o.name || 'sem nome'}{o.own ? '' : ' · sem tabela própria: as ligações vêm dos campos de footswitch do formato original'}</span>
+        <h1>{t('ctl.title')} <span class="lbl">{presetLabel(o.index)}</span></h1>
+        <span class="sub">{o.name || t('ctl.unnamed')}{o.own ? '' : t('ctl.no_table')}</span>
       {/if}
     </div>
-    <div class="seg" role="radiogroup" aria-label="Modo dos footswitches">
+    <div class="seg" role="radiogroup" aria-label={t('ctl.fs_mode')}>
       {#each C.MODES as m (m.mode)}
         <button role="radio" aria-checked={ctl.mode === m.mode} class:on={ctl.mode === m.mode}
                 onclick={() => ctl.setMode(m.mode)}>{m.label}</button>
       {/each}
     </div>
-    <span class="usage" class:full={used >= C.CONTROL_MAX}>{used} de {C.CONTROL_MAX} ligações</span>
-    <button class="ghost" onclick={() => ctl.close()} disabled={ctl.busy}>Cancelar</button>
+    <span class="usage" class:full={used >= C.CONTROL_MAX}>{t('ctl.usage', { used, max: C.CONTROL_MAX })}</span>
+    <button class="ghost" onclick={() => ctl.close()} disabled={ctl.busy}>{t('common.cancel')}</button>
     <button class="primary" onclick={() => ctl.write()} disabled={!ctl.dirty || ctl.busy || ctl.loading} title="Ctrl+S">
-      <Icon name="save" size={16} stroke={2.1} /> {ctl.busy ? 'Gravando…' : 'Gravar no pedal'}
+      <Icon name="save" size={16} stroke={2.1} /> {ctl.busy ? t('common.writing') : t('ctl.write')}
     </button>
   </header>
 
   {#if ctl.loading}
-    <p class="loading">Lendo os controles do pedal…</p>
+    <p class="loading">{t('ctl.loading')}</p>
   {:else}
     <div class="cols">
-      <nav class="keys" aria-label="Teclas">
+      <nav class="keys" aria-label={t('ctl.keys')}>
         {#each ctl.keyGroups as g (g.title)}
           <h3>{g.title}</h3>
           {#each g.keys as k (k)}
@@ -119,34 +120,34 @@
               {/if}
               <span class="kn">{fsName(k)}</span>
               {#if k < C.FOOTSWITCH_KEYS && ctl.table.label[k]}<span class="card">{ctl.table.label[k]}</span>{/if}
-              <span class="what" class:g={s.global} title={s.global ? 'dos controles globais' : ''}>
-                {s.silenced ? 'nada' : s.text}{#if s.global}<em>G</em>{/if}{#if s.more}<b>+{s.more}</b>{/if}
+              <span class="what" class:g={s.global} title={s.global ? t('ctl.from_global') : ''}>
+                {s.silenced ? t('ctl.nothing_short') : s.text}{#if s.global}<em>G</em>{/if}{#if s.more}<b>+{s.more}</b>{/if}
               </span>
             </button>
           {/each}
         {/each}
         <form class="addcc" onsubmit={(e) => { e.preventDefault(); addCc(); }}>
-          <input bind:value={ccText} placeholder="CC 1-127" inputmode="numeric" aria-label="Número do CC MIDI" />
+          <input bind:value={ccText} placeholder="CC 1-127" inputmode="numeric" aria-label={t('ctl.cc_number')} />
           <button type="submit"><Icon name="plus" size={14} stroke={2.4} /> CC</button>
         </form>
       </nav>
 
-      <section class="main" aria-label="Ligações de {C.keyName(key)}">
+      <section class="main" aria-label={t('ctl.links_of', { key: C.keyName(key) })}>
         <div class="khead">
           <h2>{fsName(key)}</h2>
           <span class="where">{where}</span>
           {#if isFs}
             <label class="field card-name">
-              <span>Nome no card</span>
-              <input value={ctl.table.label[key]} maxlength={C.LABEL_LEN} placeholder="automático" spellcheck="false"
+              <span>{t('ctl.card_name')}</span>
+              <input value={ctl.table.label[key]} maxlength={C.LABEL_LEN} placeholder={t('ctl.automatic')} spellcheck="false"
                      oninput={(e) => ctl.setLabel(e.currentTarget.value)} />
             </label>
             <label class="field">
-              <span>Cor do LED</span>
+              <span>{t('ctl.led_colour')}</span>
               <span class="swatch-sel">
                 <i class="led" class:auto={!ctl.table.colour[key]} style:--led={C.COLOUR_CSS[ctl.table.colour[key] & 7]}></i>
                 <select value={ctl.table.colour[key] & 7} onchange={(e) => ctl.setColour(Number(e.currentTarget.value))}>
-                  {#each C.COLOUR_NAMES as c, n (n)}<option value={n}>{c}</option>{/each}
+                  {#each C.colourNames() as c, n (n)}<option value={n}>{c}</option>{/each}
                 </select>
               </span>
             </label>
@@ -157,14 +158,14 @@
           {@const m = ctl.mod}
           <div class="modbox">
             <div class="mhead">
-              <div class="seg types" role="radiogroup" aria-label="Tipo do modulador">
-                {#each C.MOD_TYPES as t (t.id)}
-                  <button role="radio" aria-checked={m.type === t.id} class:on={m.type === t.id}
-                          onclick={() => ctl.setModType(t.id)}>{t.label}</button>
+              <div class="seg types" role="radiogroup" aria-label={t('ctl.mod_type')}>
+                {#each C.MOD_TYPES as ty (ty.id)}
+                  <button role="radio" aria-checked={m.type === ty.id} class:on={m.type === ty.id}
+                          onclick={() => ctl.setModType(ty.id)}>{ty.label}</button>
                 {/each}
               </div>
               {#if m.type === 'lfo'}
-                <div class="shapes" role="radiogroup" aria-label="Forma do LFO">
+                <div class="shapes" role="radiogroup" aria-label={t('ctl.lfo_shape')}>
                   {#each C.MOD_SHAPES as s (s.id)}
                     <button role="radio" aria-checked={m.shape === s.id} class:on={m.shape === s.id} title={s.label}
                             aria-label={s.label} onclick={() => (m.shape = s.id)}>
@@ -180,7 +181,7 @@
               <ModKnobs {m} bpm={ctl.bpm} />
             </div>
             {#if m.type !== 'off' && !ctl.own.length}
-              <p class="hint">Ligue o modulador a um parâmetro: Nova ligação, abaixo.</p>
+              <p class="hint">{t('ctl.mod_hint')}</p>
             {/if}
           </div>
         {/if}
@@ -194,9 +195,9 @@
               <button class="lk" onclick={() => ctl.select(i)}>
                 {#if w}<span class="pill" class:hot={x.when !== C.PRESS}>{w}</span>{/if}
                 <span class="lt" class:unset={C.unset(x)}>{C.linkText(x, ctl.blocks, ctl.scenes)}</span>
-                {#if also.length && w}<span class="also" title="A mesma ligação vale nestes modos; ao editá-la aqui ela vira só deste modo">também {also.join(', ')}</span>{/if}
+                {#if also.length && w}<span class="also" title={t('ctl.also_title')}>{t('ctl.also', { modes: also.join(', ') })}</span>{/if}
               </button>
-              <button class="rm" onclick={() => ctl.remove(i)} title="Remover a ligação{also.length ? ' deste modo' : ''}" aria-label="Remover">
+              <button class="rm" onclick={() => ctl.remove(i)} title={t(also.length ? 'ctl.remove_mode' : 'ctl.remove')} aria-label={t('common.remove')}>
                 <Icon name="close" size={15} stroke={2.2} />
               </button>
             </li>
@@ -210,31 +211,31 @@
                 {#if w}<span class="pill">{w}</span>{/if}
                 <span class="lt">{C.linkText(x, ctl.blocks, ctl.scenes)}</span>
               </span>
-              <button class="mini" onclick={() => ctl.copyGroup(gi)} title="Copia as ligações globais desta tecla para o preset, para editar">Copiar</button>
-              <button class="mini" onclick={() => ctl.nothing(gi)} title="A tecla não faz nada aqui neste preset">Sem globais</button>
+              <button class="mini" onclick={() => ctl.copyGroup(gi)} title={t('ctl.copy_title')}>{t('ctl.copy')}</button>
+              <button class="mini" onclick={() => ctl.nothing(gi)} title={t('ctl.no_globals_title')}>{t('ctl.no_globals')}</button>
             </li>
           {/each}
           {#if !ctl.own.length && !ctl.inherited.length}
-            <li class="none">{C.isMod(key) && ctl.mod?.type === 'off' ? 'Modulador desligado.' : 'Nenhuma ligação.'}</li>
+            <li class="none">{t(C.isMod(key) && ctl.mod?.type === 'off' ? 'ctl.mod_is_off' : 'ctl.no_links')}</li>
           {/if}
         </ul>
         <button class="add" onclick={() => ctl.add()} disabled={used >= C.CONTROL_MAX || (C.isMod(key) && !ctl.blocks.length)}>
-          <Icon name="plus" size={15} stroke={2.3} /> Nova ligação
+          <Icon name="plus" size={15} stroke={2.3} /> {t('ctl.new_link')}
         </button>
 
         {#if l}
-          <div class="editor" aria-label="A ligação escolhida">
+          <div class="editor" aria-label={t('ctl.picked')}>
             <div class="row">
               <label class="field">
-                <span>Para onde</span>
+                <span>{t('ctl.dest')}</span>
                 <select value={cur[0]} onchange={(e) => ctl.pickDest(e.currentTarget.value)}>
-                  {#if !cur[0]}<option value="" disabled>escolha…</option>{/if}
+                  {#if !cur[0]}<option value="" disabled>{t('ctl.choose')}</option>{/if}
                   {#each ctl.dests as d (d.id)}<option value={d.id}>{d.label}</option>{/each}
                 </select>
               </label>
               {#if cur[0]}
                 <label class="field">
-                  <span>O quê</span>
+                  <span>{t('ctl.what')}</span>
                   <select value={cur[1]} onchange={(e) => ctl.pickChoice(cur[0], e.currentTarget.value)}>
                     {#if !cur[1]}<option value="" disabled>?</option>{/if}
                     {#each items as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
@@ -243,7 +244,7 @@
               {/if}
               {#if when}
                 <label class="field">
-                  <span>{when[0] === 'CURVA' ? 'Curva' : 'Quando'}</span>
+                  <span>{t(when[0] === 'curve' ? 'ctl.curve' : 'ctl.when')}</span>
                   <select value={when[2]} onchange={(e) => ctl.setWhen(Number(e.currentTarget.value))}>
                     {#each when[1] as w, n (n)}<option value={n}>{w}</option>{/each}
                   </select>
@@ -251,7 +252,7 @@
               {/if}
             </div>
             {#if l.action === C.PARAM && prm}
-              {@const hint = `${comma(C.paramFmt(prm, prm.min))} a ${comma(C.paramFmt(prm, prm.max))}`}
+              {@const hint = t('common.range', { min: comma(C.paramFmt(prm, prm.min)), max: comma(C.paramFmt(prm, prm.max)) })}
               <div class="row">
                 {@render number(lo, comma(C.paramFmt(prm, l.off)), hint, setEnd('off', prm))}
                 <span class="arrow">»</span>
@@ -259,25 +260,25 @@
               </div>
             {:else if l.action === C.MIDI}
               <div class="row">
-                {@render number(C.isPc(l) ? 'PC' : 'CC', `${l.arg}`, '0 a 127', (v) => { if (l) l.arg = Math.round(clamp(v, 0, 127)); })}
+                {@render number(C.isPc(l) ? 'PC' : 'CC', `${l.arg}`, t('common.range', { min: 0, max: 127 }), (v) => { if (l) l.arg = Math.round(clamp(v, 0, 127)); })}
                 <label class="field">
-                  <span>Canal</span>
+                  <span>{t('ctl.channel')}</span>
                   <select value={l.slot & 15} onchange={(e) => { if (l) l.slot = Number(e.currentTarget.value); }}>
                     {#each Array.from({ length: 16 }, (_, n) => n) as n (n)}<option value={n}>{n + 1}</option>{/each}
                   </select>
                 </label>
                 {#if !C.isPc(l)}
-                  {@render number(lo, `${Math.round(l.off)}`, '0 a 127', (v) => { if (l) l.off = Math.round(clamp(v, 0, 127)); })}
+                  {@render number(lo, `${Math.round(l.off)}`, t('common.range', { min: 0, max: 127 }), (v) => { if (l) l.off = Math.round(clamp(v, 0, 127)); })}
                   <span class="arrow">»</span>
-                  {@render number(hi, `${Math.round(l.on)}`, '0 a 127', (v) => { if (l) l.on = Math.round(clamp(v, 0, 127)); })}
+                  {@render number(hi, `${Math.round(l.on)}`, t('common.range', { min: 0, max: 127 }), (v) => { if (l) l.on = Math.round(clamp(v, 0, 127)); })}
                 {/if}
               </div>
             {:else if C.unset(l)}
-              <p class="hint">Escolha para onde a ligação vai (sem isso ela não é gravada).</p>
+              <p class="hint">{t('ctl.dest_hint')}</p>
             {/if}
           </div>
         {:else if ctl.own.length}
-          <p class="hint pick">Clique numa ligação para escolher para onde ela vai.</p>
+          <p class="hint pick">{t('ctl.pick_hint')}</p>
         {/if}
       </section>
     </div>
@@ -288,7 +289,7 @@
   <label class="field">
     <span>{title}</span>
     {#key value}
-      <input class="num" {value} defaultValue={value} onchange={(e) => num(e, apply)}
+      <input class="num" {value} defaultValue={value} onchange={(e) => typed(e, apply)}
              onkeydown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
     {/key}
     <small>{hint}</small>

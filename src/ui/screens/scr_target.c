@@ -16,6 +16,7 @@
 #include "model/control.h"
 #include "model/param_format.h"
 #include "platform/sdram.h"
+#include "ui/i18n.h"
 #include "ui/images/icons.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
@@ -131,9 +132,9 @@ static int when_value(struct ui_ctx *ui)
 
 static const char *when_name(struct ui_ctx *ui, int i)
 {
-    static const char *const whens[3] = { "APERTAR", "SEGURAR", "PISANDO" };   /* while down */
-    static const char *const curves[CC_COUNT] = { "LINEAR", "LENTA", "R\xC3\x81PIDA" };
-    return sweeps(ui) ? curves[i % CC_COUNT] : whens[i % 3];
+    static const uint16_t whens[3] = { MSG_COMMON_WHEN_PRESS, MSG_COMMON_WHEN_HOLD, MSG_TARGET_WHEN_DOWN };
+    static const uint16_t curves[CC_COUNT] = { MSG_SHARED_CURVE_LINEAR, MSG_SHARED_CURVE_SLOW, MSG_SHARED_CURVE_FAST };
+    return T(sweeps(ui) ? curves[i % CC_COUNT] : whens[i % 3]);
 }
 
 /* ---------------------------------------------------------------- the choices */
@@ -561,17 +562,17 @@ static void item_text(struct ui_ctx *ui, const struct item *it, char *out, unsig
             ui_param_label(&p, name, sizeof name);
         lv_snprintf(out, size, "%s", name);
     } else if (it->action == CA_BLOCK) {
-        lv_snprintf(out, size, "%s", pedal(ui) ? (it->arg ? "LIGA AO MOVER" : "COM O GRUPO") :
-                                      it->arg ? "DESLIGA O BLOCO" : "LIGA O BLOCO");
+        lv_snprintf(out, size, "%s", T(pedal(ui) ? (it->arg ? MSG_CTL_ON_MOVE : MSG_CTL_WITH_GROUP) :
+                                        it->arg ? MSG_TARGET_BLOCK_OFF : MSG_TARGET_BLOCK_ON));
     } else if (it->action == CA_SCENE) {
         if (it->arg < SCENE_COUNT) {
             rig_scene_name(ui->rig, it->arg, name);
             lv_snprintf(out, size, "%s", name);
         } else {
-            lv_snprintf(out, size, "%s", it->arg == SCENE_NEXT ? "PR\xC3\x93XIMA CENA" : "CENA ANTERIOR");
+            lv_snprintf(out, size, "%s", T(it->arg == SCENE_NEXT ? MSG_SHARED_SCENE_NEXT : MSG_SHARED_SCENE_PREV));
         }
     } else if (it->action == CA_MIDI) {
-        lv_snprintf(out, size, "%s", it->arg ? "ENVIAR PC" : "ENVIAR CC");
+        lv_snprintf(out, size, "%s", T(it->arg ? MSG_TARGET_SEND_PC : MSG_TARGET_SEND_CC));
     } else {
         lv_snprintf(out, size, "%s", assign_fn_name(it->arg));
     }
@@ -615,8 +616,8 @@ static void refresh_columns(struct ui_ctx *ui)
             theme_set_icon(s.dest.icon[i], ui_menu_icon(menu, 20), k == s.cur_dest ? col : C_LABEL);
             row_style(&s.dest, i, k == s.cur_dest, 0, col, theme_menu_dim(menu));
         } else {
-            lv_snprintf(name, sizeof name, "%s", d->kind == D_SCENE ? "Cenas" : d->kind == D_FN ?
-                        "Fun\xC3\xA7\xC3\xB5" "es" : "MIDI");
+            lv_snprintf(name, sizeof name, "%s", d->kind == D_SCENE ? T(MSG_TARGET_DEST_SCENES) : d->kind == D_FN ?
+                        T(MSG_TARGET_DEST_FUNCTIONS) : "MIDI");
             theme_set_icon(s.dest.icon[i], d->kind == D_SCENE ? &icon_tab_scene : d->kind == D_FN ?
                            &icon_tab_stomp : &icon_next_16, k == s.cur_dest ? col : C_LABEL);
             row_style(&s.dest, i, k == s.cur_dest, 0, col, C_ACCENT_DIM);
@@ -680,11 +681,11 @@ static void show(lv_obj_t *o, int on)
 static const char *end_label(struct ui_ctx *ui, int toe)
 {
     if (pedal(ui))
-        return toe ? "PONTA" : "CALCANHAR";
+        return T(toe ? MSG_TARGET_TOE : MSG_TARGET_HEEL);
     if (modulator(ui))
         return toe ? "MOD 100%" : "MOD 0%";
     if (sweeps(ui))
-        return toe ? "EM 127" : "EM 0";
+        return T(toe ? MSG_TARGET_AT_127 : MSG_TARGET_AT_0);
     return toe ? "ON" : "OFF";
 }
 
@@ -701,8 +702,8 @@ static void refresh_midi(struct ui_ctx *ui)
         show(s.mcells[i].box, (i < M_OFF || !pc) && (i != M_WHEN || when_count(ui)));
     param_cell_set(&s.mcells[M_NUMBER], pc ? "PC" : "CC", "", text[M_NUMBER],
                    (float)midi_field(ui, M_NUMBER) / 127.0f, C_LABEL, C_TEXT, C_ACCENT);
-    param_cell_set(&s.mcells[M_CHANNEL], "CANAL", "", text[M_CHANNEL], -1, C_LABEL, C_TEXT, C_ACCENT);
-    param_cell_set(&s.mcells[M_WHEN], sweeps(ui) ? "CURVA" : "QUANDO", "",
+    param_cell_set(&s.mcells[M_CHANNEL], T(MSG_TARGET_CHANNEL), "", text[M_CHANNEL], -1, C_LABEL, C_TEXT, C_ACCENT);
+    param_cell_set(&s.mcells[M_WHEN], T(sweeps(ui) ? MSG_TARGET_CURVE : MSG_TARGET_WHEN), "",
                    when_count(ui) ? when_name(ui, when_value(ui)) : "", -1, C_LABEL, C_TEXT, C_ACCENT);
     param_cell_set(&s.mcells[M_OFF], end_label(ui, 0), "", text[M_OFF], (float)midi_field(ui, M_OFF) / 127.0f,
                    C_LABEL, C_TEXT, C_ACCENT);
@@ -726,10 +727,8 @@ static void refresh_foot(struct ui_ctx *ui)
     }
     if (!param) {
         char text[64];
-        lv_snprintf(text, sizeof text, "%s", ui->target_new && !s.chosen ?
-                    "TOQUE ONDE A LIGA\xC3\x87\xC3\x83O VAI" : when_count(ui) ?
-                    "K3 = QUANDO \xC2\xB7 MENU SEGURADO REMOVE A LIGA\xC3\x87\xC3\x83O" :
-                    "MENU SEGURADO REMOVE A LIGA\xC3\x87\xC3\x83O");
+        lv_snprintf(text, sizeof text, "%s", T(ui->target_new && !s.chosen ? MSG_TARGET_HINT_NEW : when_count(ui) ?
+                                               MSG_TARGET_HINT_WHEN : MSG_TARGET_HINT_REMOVE));
         theme_set_text(s.hint, text);
         lv_obj_clear_flag(s.hint, LV_OBJ_FLAG_HIDDEN);
         return;
@@ -743,8 +742,8 @@ static void refresh_foot(struct ui_ctx *ui)
     param_cell_set(&s.cells[0], end_label(ui, 0), "", lo, (l->off - p.def.min) / span, C_LABEL, C_TEXT, col);
     param_cell_set(&s.cells[1], end_label(ui, 1), "", hi, (l->on - p.def.min) / span, C_LABEL, C_TEXT, col);
     if (when_count(ui))
-        param_cell_set(&s.cells[2], sweeps(ui) ? "CURVA" : "QUANDO", "", when_name(ui, when_value(ui)), -1,
-                       C_LABEL, C_TEXT, col);
+        param_cell_set(&s.cells[2], T(sweeps(ui) ? MSG_TARGET_CURVE : MSG_TARGET_WHEN), "",
+                       when_name(ui, when_value(ui)), -1, C_LABEL, C_TEXT, col);
     else
         param_cell_set(&s.cells[2], "", "", "", -1, C_LABEL, C_TEXT, col);
 }
@@ -754,14 +753,14 @@ static void refresh(struct ui_ctx *ui)
     if (!valid(ui))
         return;                                     /* tick goes back */
     const struct control *l = link(ui);
-    static const char *const modes[] = { "", "PRESET", "STOMP", "", "CENAS" };
     char title[48];
     const char *pre = ui->ctl_global ? "GLOBAL \xC2\xB7 " : "";
     if (l->key >= CK_TOE)
-        lv_snprintf(title, sizeof title, "%s%s \xC2\xBB PARA ONDE", pre, ui_key_name(l->key));
+        lv_snprintf(title, sizeof title, T(MSG_TARGET_TITLE), pre, ui_key_name(l->key));
     else
-        lv_snprintf(title, sizeof title, "%s%s \xC2\xB7 %s \xC2\xBB PARA ONDE", pre, ui_key_name(l->key),
-                    l->modes == CM_ALL ? "TODOS" : modes[l->modes & CM_STOMP ? 2 : l->modes & CM_SCENE ? 4 : 1]);
+        lv_snprintf(title, sizeof title, T(MSG_TARGET_TITLE_MODES), pre, ui_key_name(l->key),
+                    l->modes == CM_ALL ? T(MSG_TARGET_ALL) : l->modes & CM_STOMP ? "STOMP" :
+                    l->modes & CM_SCENE ? T(MSG_TOP_SCENES) : "PRESET");
     top_bar_sub(title);
     build_dests(ui);
     if (s.cur_dest >= s.ndests)
@@ -785,7 +784,7 @@ static int input(struct ui_ctx *ui, const struct input_event *ev)
     if (ev->type == IN_HOLD && (1u << ev->id) == BTN_MENU) {
         preset_control_remove(ui_ctl_table(ui), ui->target_link);
         ui->target_new = 0;
-        ui_toast("LIGA\xC3\x87\xC3\x83O REMOVIDA");
+        ui_toast(T(MSG_COMMON_LINK_REMOVED));
         edited(ui);
         ui_back();
         return 1;

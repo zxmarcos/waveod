@@ -24,6 +24,7 @@
 #include "engine/scope.h"
 #include "model/globals.h"
 #include "platform/time.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/param_cell.h"
@@ -64,20 +65,21 @@
 #define QUIET_MS    150
 
 struct stage {
-    const char *tag, *name, *mark;
+    const char *tag, *mark;                 /* tag 0: the name (the level) */
+    uint16_t name;                          /* message id */
     int8_t on, f, q, g;                     /* parameter indexes (enum eq_param), -1 = none */
 };
 
 static const struct stage stages[STAGES] = {
-    { "L.CUT", "CORTE DE GRAVES", "L",  EQ_LOCUT_ON,   EQ_LOCUT_F,   EQ_LOCUT_Q,   -1 },
-    { "L.SHF", "SHELF DE GRAVES", "LS", EQ_LOSHELF_ON, EQ_LOSHELF_F, EQ_LOSHELF_Q, EQ_LOSHELF_G },
-    { "B1",    "BANDA 1",         "1",  EQ_B1_ON,      EQ_B1_F,      EQ_B1_Q,      EQ_B1_G },
-    { "B2",    "BANDA 2",         "2",  EQ_B2_ON,      EQ_B2_F,      EQ_B2_Q,      EQ_B2_G },
-    { "B3",    "BANDA 3",         "3",  EQ_B3_ON,      EQ_B3_F,      EQ_B3_Q,      EQ_B3_G },
-    { "B4",    "BANDA 4",         "4",  EQ_B4_ON,      EQ_B4_F,      EQ_B4_Q,      EQ_B4_G },
-    { "H.SHF", "SHELF DE AGUDOS", "HS", EQ_HISHELF_ON, EQ_HISHELF_F, EQ_HISHELF_Q, EQ_HISHELF_G },
-    { "H.CUT", "CORTE DE AGUDOS", "H",  EQ_HICUT_ON,   EQ_HICUT_F,   EQ_HICUT_Q,   -1 },
-    { "N\xC3\x8DVEL", "N\xC3\x8DVEL", "", -1,          EQ_LEVEL,     -1,           -1 },
+    { "L.CUT", "L",  MSG_EQ_LOW_CUT,    EQ_LOCUT_ON,   EQ_LOCUT_F,   EQ_LOCUT_Q,   -1 },
+    { "L.SHF", "LS", MSG_EQ_LOW_SHELF,  EQ_LOSHELF_ON, EQ_LOSHELF_F, EQ_LOSHELF_Q, EQ_LOSHELF_G },
+    { "B1",    "1",  MSG_EQ_BAND_1,     EQ_B1_ON,      EQ_B1_F,      EQ_B1_Q,      EQ_B1_G },
+    { "B2",    "2",  MSG_EQ_BAND_2,     EQ_B2_ON,      EQ_B2_F,      EQ_B2_Q,      EQ_B2_G },
+    { "B3",    "3",  MSG_EQ_BAND_3,     EQ_B3_ON,      EQ_B3_F,      EQ_B3_Q,      EQ_B3_G },
+    { "B4",    "4",  MSG_EQ_BAND_4,     EQ_B4_ON,      EQ_B4_F,      EQ_B4_Q,      EQ_B4_G },
+    { "H.SHF", "HS", MSG_EQ_HIGH_SHELF, EQ_HISHELF_ON, EQ_HISHELF_F, EQ_HISHELF_Q, EQ_HISHELF_G },
+    { "H.CUT", "H",  MSG_EQ_HIGH_CUT,   EQ_HICUT_ON,   EQ_HICUT_F,   EQ_HICUT_Q,   -1 },
+    { 0,       "",   MSG_EQ_LEVEL,      -1,            EQ_LEVEL,     -1,           -1 },
 };
 
 /* the grid: frequencies (the labelled ones get text) and dB */
@@ -184,7 +186,7 @@ static void flatten(struct ui_ctx *ui)
     eq[EQ_LEVEL] = 50.0f;
     s.undo_ok = 1;
     changed(ui);
-    ui_toast("EQ plano \xC2\xB7 VOLTAR desfaz");
+    ui_toast(T(MSG_EQ_FLATTENED));
 }
 
 static void restore(struct ui_ctx *ui)
@@ -397,7 +399,7 @@ static void graph_draw(lv_event_t *e)
     }
 
     char level[24];
-    lv_snprintf(level, sizeof level, "N\xC3\x8DVEL %d", (int)(g->eq[EQ_LEVEL] + 0.5f));
+    lv_snprintf(level, sizeof level, T(MSG_EQ_LEVEL_VALUE), (int)(g->eq[EQ_LEVEL] + 0.5f));
     text_at(layer, level, a.x2 - 100, a.y1 + 2, s.sel == STAGES - 1 ? C_ACCENT : C_LABEL, LV_TEXT_ALIGN_RIGHT, 97);
 
     /* the handles: the selected one last, on top */
@@ -454,7 +456,7 @@ static void on_flat(struct ui_ctx *ui, const struct gesture *g)
     else if (g->kind == GESTURE_TAP && s.undo_ok)
         restore(ui);
     else if (g->kind == GESTURE_TAP)
-        ui_toast("Segure FLAT para deixar o EQ plano");
+        ui_toast(T(MSG_EQ_HOLD_FLAT));
 }
 
 /* the handle nearest to (x, y) in the graph, -1 = none close enough */
@@ -559,7 +561,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     for (int i = 0; i < STAGES; i++) {
         s.chips[i] = theme_box(root, UI_PAD + i * w, STRIP_Y, w, STRIP_H, C_BG);
         s.chip_text[i] = theme_label(s.chips[i], &font_tag_12, C_OFF, 1);
-        lv_label_set_text(s.chip_text[i], stages[i].tag);
+        lv_label_set_text(s.chip_text[i], stages[i].tag ? stages[i].tag : T(stages[i].name));
         lv_obj_align(s.chip_text[i], LV_ALIGN_TOP_MID, 0, 1);
         s.chip_bar[i] = theme_box(s.chips[i], 3, STRIP_H - 5, w - 6, 3, C_BORDER_OFF);
         lv_obj_set_style_outline_color(s.chip_bar[i], rgb(C_TEXT), 0);
@@ -602,7 +604,7 @@ static void leave(struct ui_ctx *ui)
 {
     scope_watch(0, SCOPE_OFF);
     if (globals_save(ui->globals, &ui->rig->src))
-        ui_toast("Falha ao gravar o EQ");
+        ui_toast(T(MSG_EQ_SAVE_FAILED));
 }
 
 /* the spectrum: new samples into the rings; at most every FRAME_MS a new analysis, the curves settled */
@@ -667,13 +669,13 @@ static void refresh(struct ui_ctx *ui)
 {
     const struct globals *g = ui->globals;
     const struct stage *st = &stages[s.sel];
-    top_bar_sub("EQ GLOBAL");
-    theme_set_text(s.name, st->name);
-    set_pill(s.eq_pill, s.eq_text, g->eq_on ? "EQ LIGADO" : "EQ DESLIGADO", g->eq_on);
+    top_bar_sub(T(MSG_EQ_TITLE));
+    theme_set_text(s.name, T(st->name));
+    set_pill(s.eq_pill, s.eq_text, T(g->eq_on ? MSG_EQ_EQ_ON : MSG_EQ_EQ_OFF), g->eq_on);
     set_pill(s.fft_pill, s.fft_text, "FFT", 0);
     theme_set_color(s.fft_text, s.fft ? C_TEXT : C_OFF);
     theme_set_border(s.fft_pill, s.fft ? C_LABEL : C_BORDER_OFF);
-    set_pill(s.flat_pill, s.flat_text, s.undo_ok ? "VOLTAR" : "FLAT", 0);
+    set_pill(s.flat_pill, s.flat_text, s.undo_ok ? T(MSG_EQ_UNDO) : "FLAT", 0);
     theme_set_color(s.flat_text, s.undo_ok ? C_ACCENT : C_LABEL);
     theme_set_border(s.flat_pill, s.undo_ok ? C_ACCENT : C_BORDER_OFF);
     if (st->on >= 0) {
@@ -690,7 +692,6 @@ static void refresh(struct ui_ctx *ui)
         lv_obj_set_style_outline_width(s.chip_bar[i], cur ? 2 : 0, 0);
     }
 
-    static const char *const labels[3] = { "FREQU\xC3\x8ANCIA", "Q", "GANHO" };
     for (int i = 0; i < 3; i++) {
         int k = knob_param(s.sel, i);
         char v[24];
@@ -700,7 +701,8 @@ static void refresh(struct ui_ctx *ui)
         }
         param_text(g, k, v, sizeof v);
         int live = g->eq_on && stage_on(g, s.sel);
-        param_cell_set(&s.cells[i], k == EQ_LEVEL ? "N\xC3\x8DVEL" : labels[i], "", v, frac_of(k, g->eq[k]),
+        const char *label = k == EQ_LEVEL ? T(MSG_EQ_LEVEL) : i == 1 ? "Q" : T(i ? MSG_EQ_GAIN : MSG_EQ_FREQUENCY);
+        param_cell_set(&s.cells[i], label, "", v, frac_of(k, g->eq[k]),
                        C_LABEL, live ? C_TEXT : C_LABEL, live ? C_ACCENT : C_OFF);
     }
     graph_update(g);

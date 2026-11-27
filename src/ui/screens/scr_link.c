@@ -15,6 +15,7 @@
 #include "model/control.h"
 #include "model/param_format.h"
 #include "platform/sdram.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/top_bar.h"
@@ -101,7 +102,7 @@ static void add(struct ui_ctx *ui, int key, int hold)
 {
     int i = control_add_param(ui->rig, key, CM_STOMP, hold ? CW_HOLD : CW_PRESS, ui->link_slot, ui->link_param);
     if (i < 0) {
-        ui_toast("Tabela de controles cheia");
+        ui_toast(T(MSG_COMMON_TABLE_FULL));
         ui_learn(add);
         return;
     }
@@ -115,7 +116,7 @@ static void open(struct ui_ctx *ui, int i)
     if (k >= 0)
         ui_target(k, 0);
     else if (i == MIDI)
-        ui_toast("MANDE UM CC MIDI PARA LIGAR");     /* learning is on */
+        ui_toast(T(MSG_LINK_SEND_CC));              /* learning is on */
     else
         add(ui, card_key[i] == CK_EXP1A && ui->rig->preset.exp_group ? CK_EXP1B : card_key[i], 0);
 }
@@ -128,7 +129,7 @@ static void remove_card(struct ui_ctx *ui, int i)
         n++;
     }
     if (n) {
-        ui_toast("LIGA\xC3\x87\xC3\x83O REMOVIDA");
+        ui_toast(T(MSG_COMMON_LINK_REMOVED));
         edited(ui);
     }
 }
@@ -171,9 +172,10 @@ static void link_line(struct ui_ctx *ui, const struct control *l, char *out, uns
     if (CK_IS_MIDI(l->key))
         lv_snprintf(cc, sizeof cc, "CC %d ", l->key - CK_MIDI);
     const char *pre = CK_IS_MIDI(l->key) ? cc : l->key == CK_EXP1A ? "A " : l->key == CK_EXP1B ? "B " :
-                      l->key == CK_TOE ? "BICO " :
-                      l->key >= CK_TOE ? "" : l->when == CW_HOLD ? "SEG " : l->when == CW_MOMENT ? "MOM " :
-                      !(l->modes & CM_STOMP) ? (l->modes & CM_SCENE ? "CENAS " : "PRESET ") : "";
+                      l->key == CK_TOE ? T(MSG_CTLMAP_PREFIX_TOE) :
+                      l->key >= CK_TOE ? "" : l->when == CW_HOLD ? T(MSG_CTLMAP_PREFIX_HOLD) :
+                      l->when == CW_MOMENT ? "MOM " :
+                      !(l->modes & CM_STOMP) ? (l->modes & CM_SCENE ? T(MSG_LINK_PREFIX_SCENES) : "PRESET ") : "";
     lv_snprintf(out, size, "%s%s \xC2\xBB %s", pre, lo, hi);
 }
 
@@ -240,7 +242,7 @@ static void refresh(struct ui_ctx *ui)
     char title[64], label[24] = "?";
     if (param(ui, &p) >= 0)
         ui_param_label(&p, label, sizeof label);
-    lv_snprintf(title, sizeof title, "%s \xC2\xBB DE ONDE \xC2\xB7 PISE, MEXA, MANDE OU TOQUE", label);
+    lv_snprintf(title, sizeof title, T(MSG_LINK_TITLE), label);
     top_bar_sub(title);
 
     uint32_t col = rig_slot_used(ui->rig, ui->link_slot) ? theme_menu_color(ui->rig->preset.slot[ui->link_slot].menu)
@@ -256,14 +258,14 @@ static void refresh(struct ui_ctx *ui)
             for (int j = k; j >= 0; j = card_link(ui, i, j + 1))
                 n++;
             if (n > 1)
-                lv_snprintf(more, sizeof more, "+%d LIGA\xC3\x87\xC3\x95" "ES", n - 1);
+                lv_snprintf(more, sizeof more, T(MSG_LINK_MORE), n - 1);
         } else {
             int others = 0;                         /* what the key does already (stomp mode) */
             for (int j = 0; j < c->count; j++)
                 others += on_card(i, c->c[j].key) && (pedal_card(i) || (c->c[j].modes & CM_STOMP));
             lv_snprintf(text, sizeof text, "+");
             if (others)
-                lv_snprintf(more, sizeof more, "J\xC3\x81 FAZ %d", others);
+                lv_snprintf(more, sizeof more, T(MSG_LINK_IN_USE), others);
         }
         theme_set_text(cd->line[0], text);
         theme_set_color(cd->line[0], lit ? C_TEXT : C_DIM);
@@ -277,7 +279,8 @@ static void refresh(struct ui_ctx *ui)
     }
 
     int m = card_link(ui, MIDI, 0);
-    char mtext[40] = "MIDI: MANDE UM CC";
+    char mtext[40];
+    lv_snprintf(mtext, sizeof mtext, "%s", T(MSG_LINK_MIDI_SEND));
     if (m >= 0) {
         int n = 0;
         for (int j = m; j >= 0; j = card_link(ui, MIDI, j + 1))
@@ -294,7 +297,7 @@ static void refresh(struct ui_ctx *ui)
     lv_obj_center(s.midi_text);
 
     int scene = rig_scene_param(ui->rig, ui->link_slot, ui->link_param);
-    theme_set_text(s.scene_text, scene ? "UM VALOR POR CENA: SIM" : "UM VALOR POR CENA: N\xC3\x83O");
+    theme_set_text(s.scene_text, T(scene ? MSG_LINK_SCENE_YES : MSG_LINK_SCENE_NO));
     theme_set_color(s.scene_text, scene ? C_TEXT : C_LABEL);
     theme_set_border(s.scene, scene ? C_ACCENT : 0x2A2926);
     lv_obj_center(s.scene_text);

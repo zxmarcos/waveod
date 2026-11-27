@@ -9,6 +9,7 @@
  * sideways = knob 1. Changes are part of the preset (EDITADO) and saved with it.
  */
 #include "platform/sdram.h"
+#include "ui/i18n.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
 #include "ui/widgets/row_list.h"
@@ -116,9 +117,9 @@ static void activate(struct ui_ctx *ui, int row)
 static void target_text(struct ui_ctx *ui, int slot, int k, char *out, unsigned size)
 {
     if (slot == QK_BPM) {
-        lv_snprintf(out, size, "BPM DO PRESET");
+        lv_snprintf(out, size, "%s", T(MSG_ASSIGN_PRESET_BPM));
     } else if (slot == QK_VOLUME) {
-        lv_snprintf(out, size, "VOLUME DO PRESET");
+        lv_snprintf(out, size, "%s", T(MSG_ASSIGN_PRESET_VOLUME));
     } else if (slot >= 0 && slot < PRESET_SLOTS && rig_slot_used(ui->rig, slot)) {
         struct rig_param p;
         char name[24] = "?";
@@ -173,7 +174,7 @@ static void create(struct ui_ctx *ui, lv_obj_t *root)
     row_list_create(&s.list, root, R_COUNT, UI_TOPBAR_H, ROW_H, on_row);
     for (int i = 0; i < QUICK_KNOBS; i++)
         lv_snprintf(s.titles[R_QK + i], sizeof s.titles[0], "KNOB %d", i + 1);
-    lv_snprintf(s.titles[R_EXP_GROUP], sizeof s.titles[0], "EXP 1 COME\xC3\x87" "A EM");
+    lv_snprintf(s.titles[R_EXP_GROUP], sizeof s.titles[0], "%s", T(MSG_ASSIGN_EXP_START));
     for (int r = 0; r < R_COUNT; r++)
         row_list_title(&s.list, r, s.titles[r]);
 }
@@ -187,7 +188,7 @@ static void enter(struct ui_ctx *ui)
 
 static void refresh(struct ui_ctx *ui)
 {
-    top_bar_sub("KNOBS R\xC3\x81PIDOS E EXP 1");
+    top_bar_sub(T(MSG_ASSIGN_TITLE));
     row_list_refresh(&s.list, value_text, ui);
 }
 

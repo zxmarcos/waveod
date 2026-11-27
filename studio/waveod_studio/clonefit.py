@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 
+from waveod_studio.i18n import tr
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 EXE_NAME = 'clonefit.exe' if os.name == 'nt' else 'clonefit'
@@ -55,7 +57,7 @@ def convert(nam_path, progress=None, di=None):
     RuntimeError with the converter's message when the model does not load or the fit fails."""
     x = exe()
     if not x:
-        raise RuntimeError('o conversor não foi encontrado (no código-fonte: rode  python tools/wvbuild.py clonefit)')
+        raise RuntimeError(tr('py.clonefit_missing'))
     di = di or editor_di() or 'builtin'
     fd, out = tempfile.mkstemp(suffix='.clo')
     os.close(fd)
@@ -71,8 +73,8 @@ def convert(nam_path, progress=None, di=None):
                 if progress:
                     progress(min(done, STEPS), STEPS)
         if p.wait():
-            msg = next((l for l in reversed(log) if l), 'falhou')
-            raise RuntimeError('a conversão não deu certo: %s' % msg)
+            msg = next((l for l in reversed(log) if l), None) or tr('py.failed')
+            raise RuntimeError(tr('py.clonefit_failed', error=msg))
         data = open(out, 'rb').read()
     finally:
         try:
@@ -80,5 +82,5 @@ def convert(nam_path, progress=None, di=None):
         except OSError:
             pass
     if not is_capture(data):
-        raise RuntimeError('a conversão não gerou uma captura do Clone')
+        raise RuntimeError(tr('py.clonefit_no_capture'))
     return data

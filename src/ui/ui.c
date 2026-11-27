@@ -10,6 +10,7 @@
 #include "ui/leds.h"
 #include "model/expression.h"
 #include "ui/gesture.h"
+#include "ui/i18n.h"
 #include "ui/images/icons.h"
 #include "ui/theme.h"
 #include "ui/ui_internal.h"
@@ -95,7 +96,7 @@ void ui_slot_name(const struct ui_ctx *ui, int slot, char *out, unsigned size)
     if (rig_slot_item(ui->rig, slot, &item) == 0)
         lv_snprintf(out, size, "%s", item.name);
     else
-        lv_snprintf(out, size, "Slot vazio");
+        lv_snprintf(out, size, "%s", T(MSG_UI_EMPTY_SLOT));
 }
 
 /* the design's icon of each library menu (FX = filter, IR = cabinet, Clone = amp, loop / send / return) */
@@ -114,11 +115,12 @@ const lv_image_dsc_t *ui_menu_icon(int menu, int size)
 
 const char *ui_menu_name(int menu)
 {
-    static const char *const names[LIB_MAX_MENUS] = {
-        "Din\xC3\xA2mica", "Efeitos", "Wah", "Drive", "Amp", "Gabinete", "IR", "EQ",
-        "Modula\xC3\xA7\xC3\xA3o", "Delay", "Reverb", "Clone", "FX Loop", "Send", "Return", "Volume",
+    static const uint16_t names[LIB_MAX_MENUS] = {
+        MSG_UI_MENU_DYN, MSG_UI_MENU_FX, MSG_UI_MENU_WAH, MSG_UI_MENU_DRV, MSG_UI_MENU_AMP, MSG_UI_MENU_CAB,
+        MSG_UI_MENU_IR, MSG_UI_MENU_EQ, MSG_UI_MENU_MOD, MSG_UI_MENU_DLY, MSG_UI_MENU_RVB, MSG_UI_MENU_CLONE,
+        MSG_UI_MENU_LOOP, MSG_UI_MENU_SND, MSG_UI_MENU_RTN, MSG_UI_MENU_VOL,
     };
-    return menu >= 0 && menu < LIB_MAX_MENUS ? names[menu] : "?";
+    return menu >= 0 && menu < LIB_MAX_MENUS ? T(names[menu]) : "?";
 }
 
 int ui_menus(const struct ui_ctx *ui, int *out)
@@ -133,7 +135,7 @@ int ui_menus(const struct ui_ctx *ui, int *out)
 void ui_lane_name(const struct ui_ctx *ui, int pos, char *out, unsigned size)
 {
     if (pos < 0 || pos >= ui->topo.count) {
-        lv_snprintf(out, size, "NOVO BLOCO");
+        lv_snprintf(out, size, "%s", T(MSG_UI_NEW_BLOCK));
         return;
     }
     ui_cell_lane(ui, ui->topo.node[pos].cell, out, size);
@@ -148,15 +150,15 @@ void ui_cell_lane(const struct ui_ctx *ui, int cell, char *out, unsigned size)
         return;
     }
     if (r->mode == ROUTE_SERIAL) {
-        lv_snprintf(out, size, "S\xC3\x89RIE \xC2\xB7 %d", cell + 1);
+        lv_snprintf(out, size, T(MSG_UI_SERIES), cell + 1);
         return;
     }
-    static const char *const names[2][4] = {
-        { "PR\xC3\x89", "PISTA A", "PISTA B", "P\xC3\x93S" },
-        { "PR\xC3\x89", "SA\xC3\x8D" "DA L", "SA\xC3\x8D" "DA R", "P\xC3\x93S" },
+    static const uint16_t names[2][4] = {
+        { MSG_UI_LANE_PRE, MSG_UI_LANE_PATH_A, MSG_UI_LANE_PATH_B, MSG_UI_LANE_POST },
+        { MSG_UI_LANE_PRE, MSG_UI_LANE_OUT_L, MSG_UI_LANE_OUT_R, MSG_UI_LANE_POST },
     };
     int n = lane == ROUTE_PRE ? col + 1 : lane == ROUTE_POST ? col - end + 1 : col - r->split + 1;
-    lv_snprintf(out, size, "%s \xC2\xB7 %d", names[r->mode == ROUTE_DUAL][lane], n);
+    lv_snprintf(out, size, "%s \xC2\xB7 %d", T(names[r->mode == ROUTE_DUAL][lane]), n);
 }
 
 void ui_preset_title(const struct ui_ctx *ui, char *out, unsigned size)
@@ -282,7 +284,7 @@ static void global_leave(enum screen_id id)
     if (ctx.global_dirty) {
         ctx.global_dirty = 0;
         if (rig_store_global(ctx.rig) != 0)
-            ui_toast("Controles globais: falha ao gravar");
+            ui_toast(T(MSG_UI_GLOBAL_SAVE_FAILED));
     }
 }
 
@@ -359,7 +361,9 @@ void ui_set_mode(int mode)
 {
     static const enum screen_id tab[3] = { [FS_MODE_PRESET] = SCR_PRESET, [FS_MODE_STOMP] = SCR_STOMP,
                                            [FS_MODE_SCENE] = SCR_SCENE };
-    static const char *const name[3] = { "MODO PRESET", "MODO STOMP", "MODO CENAS" };
+    static const uint16_t name[3] = { [FS_MODE_PRESET] = MSG_COMMON_MODE_PRESET,
+                                      [FS_MODE_STOMP] = MSG_COMMON_MODE_STOMP,
+                                      [FS_MODE_SCENE] = MSG_COMMON_MODE_SCENES };
     if (mode < 0 || mode > 2)
         return;
     if (ctx.current == SCR_PRESET || ctx.current == SCR_STOMP || ctx.current == SCR_SCENE) {
@@ -369,7 +373,7 @@ void ui_set_mode(int mode)
     if (mode == footswitch_mode(&ctx))
         return;
     footswitch_set_mode(&ctx, mode);            /* another screen (chain, edit...): it stays */
-    ui_toast(name[mode]);
+    ui_toast(T(name[mode]));
     ctx.rev++;
 }
 
@@ -527,11 +531,17 @@ const int ui_function_count = (int)(sizeof ui_functions / sizeof ui_functions[0]
 
 const char *ui_key_name(int key)
 {
-    static const char *const names[CK_COUNT] = {
-        "A", "B", "C", "D", "BANK \xE2\x88\x92", "BANK +", "A + B", "B + C", "C + D", "BANK \xE2\x88\x92 E +",
-        "PRESET ATIVO", "BICO DO EXP 1", "EXP 1A", "EXP 1B", "EXP 2", "MOD 1", "MOD 2", "MOD 3", "MOD 4",
+    static const char *const names[CK_COUNT] = {      /* 0: from the catalog (below) */
+        "A", "B", "C", "D", "BANK \xE2\x88\x92", "BANK +", "A + B", "B + C", "C + D", 0,
+        0, 0, "EXP 1A", "EXP 1B", "EXP 2", "MOD 1", "MOD 2", "MOD 3", "MOD 4",
     };
     _Static_assert(CK_COUNT == 19, "a name for every key");
+    if (key == CK_COMBO + 3)
+        return T(MSG_SHARED_KEY_BANKS);
+    if (key == CK_AGAIN)
+        return T(MSG_SHARED_KEY_AGAIN);
+    if (key == CK_TOE)
+        return T(MSG_SHARED_KEY_TOE);
     if (key >= 0 && CK_IS_MIDI(key)) {          /* two at a time ("CC 1 · CC 2") */
         static char midi[2][12];
         static int turn;
@@ -563,6 +573,7 @@ void ui_init(struct rig *rig, struct settings *settings, struct globals *globals
     ctx.assign_row = -1;
     loads_seen = rig->loads;
     rig->scene_auto = !settings->scene_manual;
+    i18n_set(settings->language);
     top_bar_init();
     gesture_cursor_set(settings->touch_cursor);
     ui_changed();
@@ -581,6 +592,21 @@ void ui_init(struct rig *rig, struct settings *settings, struct globals *globals
     /* the mode the pedal was left in */
     show(settings->scene_mode ? SCR_SCENE : globals->fs_group == FS_STOMP ? SCR_STOMP : SCR_PRESET);
     boot_start();
+}
+
+/* The language changed: every screen is built again in it (texts set once at creation follow too), the one shown
+   entered again where it was. Called from ui_tick, never while a screen handles an event. */
+static void relang(void)
+{
+    i18n_set(ctx.settings->language);
+    top_bar_close();
+    for (int i = 0; i < SCR_COUNT; i++) {
+        lv_obj_clean(roots[i]);
+        screens[i]->create(&ctx, roots[i]);
+    }
+    if (screens[ctx.current]->enter)
+        screens[ctx.current]->enter(&ctx);
+    ui_changed();
 }
 
 /* ---------------------------------------------------------------- input */
@@ -674,9 +700,7 @@ void ui_tick(void)
     if (engine_overload_take()) {
         rig_overload_bypass(ctx.rig);
         ui_changed();
-        alert_show("SOBRECARGA DO DSP",
-                   "O processamento passou do limite e todos os blocos foram desligados. Reorganize a cadeia "
-                   "ou use efeitos mais leves.");
+        alert_show(T(MSG_UI_OVERLOAD_TITLE), T(MSG_UI_OVERLOAD_TEXT));
     }
     if (ctx.rig->loads != loads_seen) {        /* a preset loaded elsewhere (the editor): as ui_load_preset */
         loads_seen = ctx.rig->loads;
@@ -690,6 +714,8 @@ void ui_tick(void)
     if (settings_generation() != settings_gen) {      /* waveod's settings changed by the editor: what the UI owns */
         settings_gen = settings_generation();
         gesture_cursor_set(ctx.settings->touch_cursor);
+        if (ctx.settings->language != i18n_lang)
+            relang();
         ui_changed();
     }
     if (ctx.rig->gen != rig_gen || globals_generation() != globals_gen) {      /* changed elsewhere (the editor) */

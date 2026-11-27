@@ -2,6 +2,7 @@
   import Icon from './Icon.svelte';
   import { BROWSABLE, menuInfo, offered } from '../lib/menus';
   import { studio } from '../lib/store.svelte';
+  import { t } from '../lib/i18n.svelte';
   import type { CatalogItem } from '../lib/types';
 
   let query = $state('');
@@ -25,18 +26,18 @@
       return out;
     }
     for (const item of items(studio.browseMenu)) {
-      const t = item.type && item.type !== '-' && item.type !== '/' ? item.type : menu.name;
-      let g = out.find((x) => x.title === t);
-      if (!g) out.push((g = { title: t, menu: studio.browseMenu, items: [] }));
+      const title = item.type && item.type !== '-' && item.type !== '/' ? item.type : menu.name;
+      let g = out.find((x) => x.title === title);
+      if (!g) out.push((g = { title, menu: studio.browseMenu, items: [] }));
       g.items.push(item);
     }
     return out;
   });
 
   const hint = $derived(
-    target ? `Clique num modelo para trocar ${target.name}` :
-    studio.selection?.kind === 'cell' ? 'Clique num modelo para pô-lo no lugar escolhido' :
-    'Arraste um modelo para a grade, ou clique para pô-lo no primeiro lugar livre');
+    target ? t('browser.hint_replace', { name: target.name }) :
+    studio.selection?.kind === 'cell' ? t('browser.hint_cell') :
+    t('browser.hint'));
 
   function drag(e: DragEvent, m: number, item: CatalogItem) {
     e.dataTransfer?.setData('application/x-waveod-model', `${m}:${item.index}`);
@@ -45,7 +46,7 @@
 </script>
 
 <aside class="browser">
-  <nav class="rail" aria-label="Categorias">
+  <nav class="rail" aria-label={t('browser.categories')}>
     {#each BROWSABLE as m (m.menu)}
       <button class:active={studio.browseMenu === m.menu && !query} style:--c={m.color} title={m.name}
               aria-label={m.name} aria-current={studio.browseMenu === m.menu}
@@ -58,11 +59,11 @@
   <div class="list">
     <label class="search">
       <Icon name="search" size={16} stroke={2} />
-      <input type="search" placeholder="Buscar modelo" bind:value={query} spellcheck="false" />
+      <input type="search" placeholder={t('browser.search')} bind:value={query} spellcheck="false" />
     </label>
     <header style:--c={menu.color}>
       {#if query}
-        <h2>Resultados</h2>
+        <h2>{t('browser.results')}</h2>
       {:else}
         <h2>{menu.name}</h2>
         <span class="count">{items(studio.browseMenu).length}</span>
@@ -91,7 +92,7 @@
           </ul>
         </section>
       {:else}
-        <p class="empty">{query ? 'Nenhum modelo com esse nome.' : 'Lendo o catálogo do pedal…'}</p>
+        <p class="empty">{query ? t('browser.none') : t('browser.reading')}</p>
       {/each}
     </div>
   </div>

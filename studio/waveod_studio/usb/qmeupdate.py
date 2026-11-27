@@ -40,6 +40,8 @@ elsewhere in the flash (0x40A000-0x440000) and survive.
 """
 import math, os, struct, sys, time
 
+from waveod_studio.i18n import tr
+from waveod_studio.i18n_lazy import Texts
 from waveod_studio.usb import htmidi
 
 ADDR_SOFTWARE_STATE = 0x12000000            # request; only the bootloader answers
@@ -48,7 +50,7 @@ CMD_SYS_JUMP = 0x0500000E                   # app: reboot into the bootloader
 LOC_MCU, LOC_IR, LOC_BANK, LOC_DSP, LOC_DONE = 0, 1, 2, 0x10, 0x83
 ORDER = (LOC_MCU, LOC_IR, LOC_BANK, LOC_DSP)
 NEXT = {LOC_MCU: LOC_IR, LOC_IR: LOC_BANK, LOC_BANK: LOC_DSP, LOC_DSP: LOC_DONE}
-LOC_NAMES = {LOC_MCU: 'MCU (app)', LOC_IR: 'IR (cabinets)', LOC_BANK: 'Bank (presets)', LOC_DSP: 'DSP (efeitos)'}
+LOC_NAMES = Texts({LOC_MCU: 'py.loc_mcu', LOC_IR: 'py.loc_ir', LOC_BANK: 'py.loc_bank', LOC_DSP: 'py.loc_dsp'})
 FILE_ORDER = (LOC_MCU, LOC_DSP, LOC_IR, LOC_BANK)  # (offset, size) pairs at 0x30 of the .bin
 DEVICE = b'QME-200'
 
@@ -85,21 +87,20 @@ class Image:
         data = bytes(data)
         self.path = path
         if len(data) < 0x60 or data[:4] != b'FRMW':
-            raise FirmwareError('não é um firmware (falta o cabeçalho FRMW)')
+            raise FirmwareError(tr('py.fw_no_header'))
         if data[16:23] != DEVICE:
-            raise FirmwareError('o firmware é de outro aparelho (%r, esperado QME-200)'
-                                % data[16:32].split(b'\0')[0].decode('latin-1'))
+            raise FirmwareError(tr('py.fw_other_device', device=repr(data[16:32].split(b'\0')[0].decode('latin-1'))))
         n = struct.unpack_from('<I', data, 4)[0]
         if n > len(data) - 0x30:
-            raise FirmwareError('cabeçalho diz %d bytes de dados, o arquivo tem %d' % (n, len(data) - 0x30))
+            raise FirmwareError(tr('py.fw_size', size=n, have=len(data) - 0x30))
         if sum(data[0x30:0x30 + n]) & 0xFF != data[0x0E]:
-            raise FirmwareError('checksum não confere (o editor recusaria o arquivo)')
+            raise FirmwareError(tr('py.fw_checksum'))
         self.release = struct.unpack_from('<H', data, 8)[0]
         self.sections = {}
         for k, loc in enumerate(FILE_ORDER):
             off, size = struct.unpack_from('<II', data, 0x30 + 8 * k)
             if off + 0x30 + size > len(data):
-                raise FirmwareError('seção %s fora do arquivo' % LOC_NAMES[loc])
+                raise FirmwareError(tr('py.fw_section', section=LOC_NAMES[loc]))
             self.sections[loc] = data[0x30 + off:0x30 + off + size]
         self.version = '%s%d%d%d' % ('V' if self.release == 3 else 'B', data[0x0B], data[0x0A], data[0x21])
         self.raw = data
@@ -207,14 +208,14 @@ class Updater:
             return
         if self.state == S_QUERY:
             if self.qtick > TICKS_MAX - 1:
-                return self._fail('o pedal não respondeu à consulta (está no modo de atualização?)')
+                return self._fail(tr('py.up_no_answer'))
             if self.qtick % QUERY_EVERY == 0:
                 self.send(MSG_QUERY, 'query')
             self.qtick += 1
         elif self.idle < TICKS_MAX:
             self.idle += 1
         else:
-            self._fail('o pedal parou de responder (%s, pacote %d)' % (LOC_NAMES.get(self.loc, self.loc), self.idx))
+            self._fail(tr('py.up_stopped', section=LOC_NAMES.get(self.loc, self.loc), n=self.idx))
 
     def on_message(self, m):
         """FUN_180085d40"""
@@ -233,7 +234,7 @@ class Updater:
             self.device = dict(name=text(m[4:0x14]), version=text(m[0x14:0x24]), raw=m)    # "QME-200", "V1.0.0"
             self.pkt = m[0x24] << 4 | m[0x25]
             if not self.pkt:
-                return self._fail('o pedal informou pacote de tamanho 0')
+                return self._fail(tr('py.up_packet_zero'))
             for loc in ORDER:
                 self.count[loc] = math.ceil(len(self.enc[loc]) / (2 * self.pkt))
             self.log('pedal: %r, bootloader %r, %d bytes por pacote, %d pacotes'
@@ -242,11 +243,11 @@ class Updater:
             self._location()
         elif st == S_LOCATION:
             if len(m) > 5 and m[5] == 0x7E:
-                return self._fail('o pedal recusou a seção %s' % LOC_NAMES.get(self.loc, self.loc))
+                return self._fail(tr('py.up_section_refused', section=LOC_NAMES.get(self.loc, self.loc)))
             self._header()
         elif st == S_HEADER:
             if not is_ack(m):
-                return self._fail('o pedal recusou o cabeçalho da seção %s' % LOC_NAMES.get(self.loc, self.loc))
+                return self._fail(tr('py.up_header_refused', section=LOC_NAMES.get(self.loc, self.loc)))
             self._version()
             self._data()
         elif st == S_DATA:
@@ -260,12 +261,11 @@ class Updater:
                 self.naks += 1
                 self.log('NAK no pacote %d de %s: reenviando' % (self.idx, LOC_NAMES[self.loc]))
                 if self.naks > MAX_NAKS:
-                    return self._fail('%d NAKs seguidos no pacote %d de %s'
-                                      % (self.naks, self.idx, LOC_NAMES[self.loc]))
+                    return self._fail(tr('py.up_naks', naks=self.naks, n=self.idx, section=LOC_NAMES[self.loc]))
             self._data()
         elif st == S_SECTION_END:
             if not is_ack(m):
-                return self._fail('o pedal recusou o fim da seção')
+                return self._fail(tr('py.up_end_refused'))
             if self.loc != LOC_DONE:
                 self._location()
             else:
@@ -278,7 +278,7 @@ class Updater:
                 self.log('MCU id %s' % self.mcuid.hex())
                 self._jump()
             else:
-                self._fail('resposta inesperada ao pedido de MCU id: %s' % m.hex(' '))
+                self._fail(tr('py.up_mcuid', data=m.hex(' ')))
 
     # -------------------------------------------------------------- the editor's send* functions
     def send(self, msg, what):
@@ -384,7 +384,7 @@ def wait_bootloader(want=None, timeout=25.0, log=None, cancel=None):
                 log('erro na sondagem: %s' % ex)
         port.close()
         time.sleep(0.5)
-    raise UpdateError('o pedal não voltou em modo de atualização em %.0f s' % timeout)
+    raise UpdateError(tr('py.up_not_back', s='%.0f' % timeout))
 
 
 def flash(port, img, progress=None, log=None, cancel=None):
@@ -398,7 +398,7 @@ def run(port, up, cancel=None, clock=time.time):
     next_tick = clock() + TICK
     while not (up.finished or up.failed):
         if cancel and cancel():
-            up._fail('cancelado')
+            up._fail(tr('py.cancelled'))
             break
         msgs = port.receive()
         for m in msgs:
@@ -445,16 +445,16 @@ def main():
     if a.cmd in ('probe', 'jump'):
         with htmidi.Port(a.port) as port:
             boot = probe(port, log=print)
-            print('%s: %s' % (port.name, 'modo de atualização (bootloader)' if boot else 'app (modo normal)'))
+            print('%s: %s' % (port.name, tr('py.cli_boot_mode') if boot else tr('py.cli_app_mode')))
             if a.cmd == 'jump' and not boot:
                 request_jump(port)
-                print('pedido de reinício no modo de atualização enviado')
+                print(tr('py.cli_jump_sent'))
         return
 
     img = Image.load(a.fw)
     print(img.describe())
-    print('A atualização regrava as quatro seções, inclusive o Bank: os presets do pedal serão substituídos.')
-    if not a.yes and input('Continuar? [s/N] ').strip().lower() not in ('s', 'sim', 'y', 'yes'):
+    print(tr('py.cli_warning'))
+    if not a.yes and input(tr('py.cli_continue') + ' ').strip().lower() not in ('y', 'yes', 's', 'sim', 'si', 'sí', 'j', 'ja'):
         return
     trace = open(a.trace, 'w', encoding='utf-8') if a.trace else None
     t0 = time.time()
@@ -469,12 +469,11 @@ def main():
     try:
         if not probe(port):
             if not a.jump:
-                raise SystemExit('o pedal está no modo normal: use --jump ou ligue-o segurando a combinação de '
-                                 'footswitches')
+                raise SystemExit(tr('py.cli_normal_mode'))
             request_jump(port)
             port.close()
             port = None
-            print('reiniciando o pedal no modo de atualização…')
+            print(tr('py.cli_rebooting'))
             port = wait_bootloader(a.port, log=log)
         last = [0]
 
@@ -483,10 +482,10 @@ def main():
             if now - last[0] > 0.25 or done == total:
                 last[0] = now
                 rate = done / max(now - t0, 1e-3)
-                print('\r%5.1f%%  %d/%d pacotes  %4.0f s restantes' % (
-                    100 * done / max(total, 1), done, total, (total - done) / max(rate, 1e-3)), end='', flush=True)
+                print('\r' + tr('py.cli_progress', pct='%5.1f' % (100 * done / max(total, 1)), done=done, total=total,
+                                 left='%4.0f' % ((total - done) / max(rate, 1e-3))), end='', flush=True)
         flash(port, img, progress, log)
-        print('\nconcluído em %.0f s: o pedal reinicia no firmware novo' % (time.time() - t0))
+        print('\n' + tr('py.cli_done', s='%.0f' % (time.time() - t0)))
     finally:
         if port:
             port.close()

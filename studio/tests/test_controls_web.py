@@ -4,7 +4,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from waveod_studio import controls as C, webapp, wvpreset as WP     # noqa: E402
+from waveod_studio import controls as C, i18n, webapp, wvpreset as WP     # noqa: E402
+
+i18n.set_language('pt-BR')                          # the messages checked below are the Portuguese ones
 
 failed = 0
 

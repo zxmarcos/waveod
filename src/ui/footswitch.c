@@ -7,6 +7,7 @@
 #include "model/settings.h"
 #include "model/tempo.h"
 #include "platform/time.h"
+#include "ui/i18n.h"
 
 #define COMBO_MS   180                      /* second key of a pair within this: the pair (18 ticks) */
 #define REPEAT_MS  200                      /* bank / preset steps while held */
@@ -63,9 +64,9 @@ void footswitch_tap(struct ui_ctx *ui)
     bpm = bpm < 40 ? 40 : bpm > 300 ? 300 : bpm;
     char text[32];
     if (tempo_set(ui->rig, ui->globals, (int)bpm, TEMPO_TAP))
-        lv_snprintf(text, sizeof text, "TEMPO %d BPM", (int)bpm);
+        lv_snprintf(text, sizeof text, T(MSG_SYS_TEMPO_BPM), (int)bpm);
     else
-        lv_snprintf(text, sizeof text, "TEMPO: CLOCK MIDI EXTERNO");
+        lv_snprintf(text, sizeof text, "%s", T(MSG_SYS_TEMPO_MIDI));
     ui_toast(text);
 }
 
@@ -151,11 +152,11 @@ static void run(struct ui_ctx *ui, int fn)
         return;
     case FSF_DRUM:
         if (!drums_available()) {
-            ui_toast("Bateria: o firmware base n\xC3\xA3o trouxe os ritmos");
+            ui_toast(T(MSG_SYS_DRUMS_MISSING));
             return;
         }
         drums_play(!drums_playing());
-        ui_toast(drums_playing() ? "BATERIA LIGADA" : "BATERIA PARADA");
+        ui_toast(T(drums_playing() ? MSG_SYS_DRUMS_ON : MSG_SYS_DRUMS_STOPPED));
         ui_changed();
         return;
     case FSF_DRUM_NEXT:

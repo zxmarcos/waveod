@@ -93,6 +93,19 @@ export class DemoBackend implements Backend {
   private born = Date.now();
   private tries = 0;
 
+  // the page's preferences in the browser's storage; ?lang=CODE chooses the language (screenshots)
+  async prefs(): Promise<Record<string, unknown>> {
+    const q = new URLSearchParams(location.search).get('lang');
+    let kept: Record<string, unknown> = {};
+    try { kept = JSON.parse(localStorage.getItem('waveod.prefs') ?? '{}'); } catch { /* none */ }
+    return q ? { ...kept, language: q } : kept;
+  }
+  async setPrefs(changes: Record<string, unknown>) {
+    const p = { ...(await this.prefs()), ...changes };
+    localStorage.setItem('waveod.prefs', JSON.stringify(p));
+  }
+  async setLanguage(_code: string) { /* the demonstration's messages stay as they are */ }
+
   async status(): Promise<LinkStatus> {
     const base = { transport: 'demonstração', attempts: ++this.tries, name: 'Matribox II Pro', version: FIX.info.version,
                    protocol: FIX.info.protocol, message: '', connections: 1 };
@@ -441,7 +454,9 @@ export class DemoBackend implements Backend {
   }
 
   // ---------------------------------------------------------------- the GLOBAL screen (protocol 9)
-  private sets: SettingsReply | null = FIX.settings ? clone(FIX.settings) : null;
+  // the captured settings predate the pedal's language (protocol 9 setting 40): English, as a new pedal starts
+  private sets: SettingsReply | null = FIX.settings
+    ? { language: { value: 0, min: 0, max: 1, step: 1, ro: false }, ...clone(FIX.settings) } : null;
   private tmax: number | null = null;
   private tmin: number | null = null;
 

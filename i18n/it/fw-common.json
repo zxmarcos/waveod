@@ -1,0 +1,16 @@
+{
+  "fw.common.on": "ON",
+  "fw.common.off": "OFF",
+  "fw.common.menu_arrow": "MENU »",
+  "fw.common.new_link": "+ COLLEGAMENTO",
+  "fw.common.more": "+%d ALTRI",
+  "fw.common.table_full": "Tabella controlli piena",
+  "fw.common.link_removed": "COLLEGAMENTO RIMOSSO",
+  "fw.common.mode_preset": "MODALITÀ PRESET",
+  "fw.common.mode_stomp": "MODALITÀ STOMP",
+  "fw.common.mode_scenes": "MODALITÀ SCENE",
+  "fw.common.when_press": "PREMI",
+  "fw.common.when_hold": "TIENI",
+  "fw.common.when_moment": "FINCHÉ PREMUTO",
+  "fw.common.missing": "MANCANTE"
+}

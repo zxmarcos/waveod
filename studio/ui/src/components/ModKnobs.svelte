@@ -11,6 +11,7 @@
   import Knob from './Knob.svelte';
   import * as C from '../lib/controls';
   import * as W from '../lib/modwave';
+  import { num, t } from '../lib/i18n.svelte';
   import type { ModSettings, Param } from '../lib/types';
 
   let { m, bpm }: { m: ModSettings; bpm: number } = $props();
@@ -18,7 +19,6 @@
   const D = C.modDefault('lfo');
   const LOG = 1000;                   // a log knob's positions
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-  const comma = (v: number, d: number) => v.toFixed(d).replace('.', ',');
 
   function param(name: string, value: number, min: number, max: number, step: number, def: number, text: string,
                  options: string[] = []): Param {
@@ -28,8 +28,8 @@
   const pos = (v: number, lo: number, hi: number) => (LOG * Math.log(clamp(v, lo, hi) / lo)) / Math.log(hi / lo);
   const val = (u: number, lo: number, hi: number) => lo * Math.pow(hi / lo, clamp(u, 0, LOG) / LOG);
 
-  const hz = (v: number) => (v < 10 ? `${comma(v, 2)} Hz` : `${comma(v, 1)} Hz`);
-  const ms = (v: number) => (v >= 1000 ? `${comma(v / 1000, 2)} s` : `${Math.round(v)} ms`);
+  const hz = (v: number) => `${num(v, v < 10 ? 2 : 1)} Hz`;
+  const ms = (v: number) => (v >= 1000 ? `${num(v / 1000, 2)} s` : `${Math.round(v)} ms`);
   /** a rate in Hz as the pedal keeps it: hundredths */
   const rate = (v: number) => Math.round(clamp(v, 0.05, 20) * 100) / 100;
   const synced = $derived(m.sync > 0);
@@ -37,13 +37,13 @@
   const knobs = $derived.by(() => {
     const out: { p: Param; set: (v: number) => void; reset: () => void; dim?: boolean }[] = [];
     const sync = () => out.push({
-      p: param('Sincronia', m.sync, 0, C.DIVISIONS.length - 1, 1, 0, C.DIVISIONS[m.sync] ?? '?', C.DIVISIONS),
-      set: (v) => (m.sync = Math.round(clamp(v, 0, C.DIVISIONS.length - 1))), reset: () => (m.sync = 0),
+      p: param(t('mod.knob_sync'), m.sync, 0, C.DIVISION_COUNT - 1, 1, 0, C.divisions()[m.sync] ?? '?', C.divisions()),
+      set: (v) => (m.sync = Math.round(clamp(v, 0, C.DIVISION_COUNT - 1))), reset: () => (m.sync = 0),
     });
     const speed = () => {
       const now = synced ? 1 / W.period(m, bpm) : m.rate;
       out.push({
-        p: param('Velocidade', pos(now, 0.05, 20), 0, LOG, 1, pos(D.rate, 0.05, 20), hz(now)),
+        p: param(t('mod.knob_rate'), pos(now, 0.05, 20), 0, LOG, 1, pos(D.rate, 0.05, 20), hz(now)),
         set: (u) => { m.rate = rate(val(u, 0.05, 20)); m.sync = 0; },
         reset: () => { m.rate = D.rate; m.sync = 0; },
         dim: synced,
@@ -52,24 +52,24 @@
     if (m.type === 'lfo') {
       sync();
       speed();
-      out.push({ p: param('Fase inicial', m.phase, 0, 95, 1, 0, `${m.phase}%`),
+      out.push({ p: param(t('mod.knob_phase'), m.phase, 0, 95, 1, 0, `${m.phase}%`),
                  set: (v) => (m.phase = Math.round(clamp(v, 0, 95))), reset: () => (m.phase = 0) });
     } else if (m.type === 'env') {
       out.push(
-        { p: param('Sensibilidade', m.sens, -20, 40, 1, D.sens, `${m.sens > 0 ? '+' : ''}${m.sens} dB`),
+        { p: param(t('mod.knob_sens'), m.sens, -20, 40, 1, D.sens, `${m.sens > 0 ? '+' : ''}${m.sens} dB`),
           set: (v) => (m.sens = Math.round(clamp(v, -20, 40))), reset: () => (m.sens = D.sens) },
-        { p: param('Ataque', pos(m.attack, 1, 2000), 0, LOG, 1, pos(D.attack, 1, 2000), ms(m.attack)),
+        { p: param(t('mod.knob_attack'), pos(m.attack, 1, 2000), 0, LOG, 1, pos(D.attack, 1, 2000), ms(m.attack)),
           set: (u) => (m.attack = Math.round(val(u, 1, 2000))), reset: () => (m.attack = D.attack) },
-        { p: param('Retorno', pos(m.release, 10, 5000), 0, LOG, 1, pos(D.release, 10, 5000), ms(m.release)),
+        { p: param(t('mod.knob_release'), pos(m.release, 10, 5000), 0, LOG, 1, pos(D.release, 10, 5000), ms(m.release)),
           set: (u) => (m.release = Math.round(val(u, 10, 5000))), reset: () => (m.release = D.release) },
       );
     } else if (m.type === 'seq') {
       sync();
       speed();
       out.push(
-        { p: param('Passos', m.steps, 1, C.MOD_STEPS, 1, D.steps, `${m.steps}`),
+        { p: param(t('mod.knob_steps'), m.steps, 1, C.MOD_STEPS, 1, D.steps, `${m.steps}`),
           set: (v) => (m.steps = Math.round(clamp(v, 1, C.MOD_STEPS))), reset: () => (m.steps = D.steps) },
-        { p: param('Deslize', m.glide, 0, 100, 1, 0, `${m.glide}%`),
+        { p: param(t('mod.knob_glide'), m.glide, 0, 100, 1, 0, `${m.glide}%`),
           set: (v) => (m.glide = Math.round(clamp(v, 0, 100))), reset: () => (m.glide = 0) },
       );
     }
@@ -79,8 +79,8 @@
 
 {#if knobs.length}
   <div class="knobs">
-    {#each knobs as k (k.p.name)}
-      <div class="slot" class:dim={k.dim} title={k.dim ? 'A sincronia manda: girar solta a velocidade' : undefined}>
+    {#each knobs as k, i (i)}
+      <div class="slot" class:dim={k.dim} title={k.dim ? t('mod.synced_title') : undefined}>
         <Knob param={k.p} color={k.dim ? 'var(--dim)' : 'var(--accent)'} onchange={k.set} onreset={k.reset} onhold={() => {}} />
       </div>
     {/each}

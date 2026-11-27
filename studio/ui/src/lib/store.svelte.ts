@@ -5,6 +5,7 @@
 // latest value once the previous one is answered.
 
 import { connectBackend, errorText, type Backend } from './api';
+import { i18n, t, tn, type Choice, type MsgKey, isText } from './i18n.svelte';
 import { EDIT } from './types';
 import type {
   CatalogItem, CtlTable, Hello, LinkStatus, ModSettings, Param, PresetDetail, PresetEntry, Progress, Rig,
@@ -74,6 +75,13 @@ class Studio {
   /** the window opened: follow the connection for good (the pedal may come, go and come back) */
   async start() {
     this.backend = await connectBackend();
+    const b = this.backend;
+    const prefs = await b.prefs().catch(() => ({} as Record<string, unknown>));
+    i18n.persist = (choice, lang) => {
+      void b.setPrefs({ language: choice }).catch(() => {});
+      void b.setLanguage(lang).catch(() => {});
+    };
+    i18n.set(typeof prefs.language === 'string' ? (prefs.language as Choice) : 'system');
     void this.watchLink();
   }
 
@@ -134,7 +142,7 @@ class Studio {
       this.polling = true;
       this.poll();
     }
-    if (again) this.say('Pedal conectado de novo');
+    if (again) this.say(t('store.reconnected'));
     else this.demoSetup();
   }
 
@@ -177,10 +185,9 @@ class Studio {
       return;
     }
     const id = await this.ask({
-      title: 'Cancelar a gravação?',
-      text: 'O pedal fica no modo de atualização, sem firmware completo, até uma nova gravação terminar. Dá para ' +
-            'tentar de novo depois.',
-      actions: [{ id: 'go', label: 'Cancelar a gravação', kind: 'danger' }, { id: 'no', label: 'Continuar gravando' }],
+      title: t('store.cancel_update_title'),
+      text: t('store.cancel_update_text'),
+      actions: [{ id: 'go', label: t('store.cancel_update_go'), kind: 'danger' }, { id: 'no', label: t('store.cancel_update_keep') }],
     });
     if (id === 'go') await this.backend?.cancelUpdate();
   }
@@ -233,14 +240,14 @@ class Studio {
 
   /** a call to the pedal from another screen's store, in the same queue as every other */
   call<T>(fn: (b: Backend) => Promise<T>): Promise<T> {
-    if (!this.backend) return Promise.reject(new Error('pedal não conectado'));
+    if (!this.backend) return Promise.reject(new Error(t('store.not_connected')));
     const b = this.backend;
     return this.run(() => fn(b));
   }
 
   /** a long call from another screen's store, with the pedal's progress shown over the window */
   callLong<T>(label: string, fn: (b: Backend) => Promise<T>): Promise<T> {
-    if (!this.backend) return Promise.reject(new Error('pedal não conectado'));
+    if (!this.backend) return Promise.reject(new Error(t('store.not_connected')));
     const b = this.backend;
     return this.withProgress(label, () => fn(b));
   }
@@ -258,7 +265,7 @@ class Studio {
     try {
       const r = await this.run(() => this.backend!.edit(op, a, b, c, v, text));
       this.ownGen = r.gen;
-      if (r.result < 0 && !quiet) this.say(EDIT_ERRORS[op] ?? 'O pedal recusou a mudança', 'error');
+      if (r.result < 0 && !quiet) this.say(t(EDIT_ERRORS[op] ?? 'store.edit_refused'), 'error');
       return r;
     } catch (e) {
       this.say(errorText(e), 'error');
@@ -267,7 +274,7 @@ class Studio {
   }
 
   say(text: string, kind: 'info' | 'error' = 'info', action?: { label: string; run: () => void }) {
-    if (kind === 'error' && (!this.online || /desconectado/.test(text))) {
+    if (kind === 'error' && (!this.online || ['py.pedal_disconnected', 'py.pedal_gone', 'py.link_lost'].some((k) => isText(k as MsgKey, text)))) {
       void this.checkLink();            // the waiting screen says what happened; no toast for each failed call
       return;
     }
@@ -353,7 +360,7 @@ class Studio {
     }
     const target = cell ?? (sel?.kind === 'cell' ? sel.cell : this.firstFreeCell());
     if (target < 0) {
-      this.say('A cadeia está cheia (12 blocos)', 'error');
+      this.say(t('store.chain_full'), 'error');
       return;
     }
     const r = await this.edit(EDIT.PLACE, target, menu, index);
@@ -396,7 +403,7 @@ class Studio {
 
   async sceneCopy(from: number, to: number) {
     const r = await this.edit(EDIT.SCENE_COPY, from, to);
-    if (r && r.result >= 0) this.say(`Cena ${from + 1} copiada para a cena ${to + 1}`);
+    if (r && r.result >= 0) this.say(t('store.scene_copied', { from: from + 1, to: to + 1 }));
     await this.refresh(true);
   }
 
@@ -407,14 +414,14 @@ class Studio {
 
   async sceneRevert(n: number) {
     const r = await this.edit(EDIT.SCENE_REVERT, n, 0, 0, 0, true);
-    this.say(r && r.result >= 0 ? `Cena ${n + 1} como está salva` : 'O preset ainda não foi salvo: não há cena guardada', r && r.result >= 0 ? 'info' : 'error');
+    this.say(r && r.result >= 0 ? t('store.scene_reverted', { n: n + 1 }) : t('store.scene_not_saved'), r && r.result >= 0 ? 'info' : 'error');
     await this.refresh(true);
   }
 
   /** parameter k of slot: a value per scene, or the preset's again */
   async sceneParam(slot: number, k: number) {
     const r = await this.edit(EDIT.SCENE_PARAM, slot, k, 0, 0, true);
-    if (r && r.result < 0) this.say('Não deu: já são 32 parâmetros de cena, ou este não pode ter um valor por cena', 'error');
+    if (r && r.result < 0) this.say(t('store.scene_param_full'), 'error');
     await this.refresh(true);
     await this.fetchParams(slot);
   }
@@ -441,7 +448,8 @@ class Studio {
       // an older firmware: the stored preset renamed after the save (the pedal reloads it; nothing unsaved is lost)
       await this.run(() => this.backend!.rename(i, n!)).catch((e) => this.say(errorText(e), 'error'));
     }
-    if (ok) this.say(`Preset salvo em ${presetLabel(i)}${renamed ? ` como “${n || 'sem nome'}”` : ''}`);
+    if (ok) this.say(renamed ? t('store.saved_as', { label: presetLabel(i), name: n || t('ctl.unnamed') })
+                             : t('store.saved', { label: presetLabel(i) }));
     this.forget([i, from]);
     await this.refresh(true);
     await this.reloadList();
@@ -476,10 +484,11 @@ class Studio {
     const r = this.rig;
     if (!r?.dirty) return true;
     const id = await this.ask({
-      title: `${presetLabel(r.index)} tem alterações não salvas`,
-      text: `O pedal está com edições de ${presetLabel(r.index)} ${r.name ? `“${r.name}” ` : ''}que ainda não foram gravadas. ${what}`,
-      actions: [{ id: 'save', label: 'Salvar e continuar', kind: 'primary' }, { id: 'discard', label: 'Descartar e continuar' },
-                { id: 'cancel', label: 'Cancelar' }],
+      title: t('ctl.unsaved_title', { label: presetLabel(r.index) }),
+      text: r.name ? t('store.unsaved_text_named', { label: presetLabel(r.index), name: r.name, what })
+                   : t('store.unsaved_text', { label: presetLabel(r.index), what }),
+      actions: [{ id: 'save', label: t('ctl.save_continue'), kind: 'primary' }, { id: 'discard', label: t('store.discard_continue') },
+                { id: 'cancel', label: t('common.cancel') }],
     });
     if (id === 'save') await this.save();
     return id === 'save' || id === 'discard';
@@ -571,7 +580,7 @@ class Studio {
   /** make `index` the pedal's preset; edits of the active one are dealt with first */
   async activate(index: number) {
     if (this.rig?.index === index) return true;
-    if (!(await this.keepEdits(`Ativar ${presetLabel(index)} descarta o que não for salvo.`))) return false;
+    if (!(await this.keepEdits(t('store.activate_loses', { label: presetLabel(index) })))) return false;
     await this.load(index);
     return true;
   }
@@ -581,11 +590,11 @@ class Studio {
     const p = this.presets[index];
     if (!this.backend || !p || n === p.name.trim()) return;
     if (this.rig?.index === index && this.rig.dirty &&
-        !(await this.keepEdits('Renomear grava o preset guardado e o pedal o carrega de novo.'))) return;
+        !(await this.keepEdits(t('store.rename_reloads')))) return;
     let got = n;
     const ok = await this.change(async () => { got = await this.backend!.rename(index, n); });
     this.forget([index]);
-    if (ok) this.say(`${presetLabel(index)} agora é “${got}”`);
+    if (ok) this.say(t('store.renamed', { label: presetLabel(index), name: got }));
   }
 
   /** a preset's edited control table (and modulators) into the stored preset; the pedal reloads it when it is the
@@ -594,25 +603,24 @@ class Studio {
     if (!this.backend) return false;
     if (this.rig?.index === index && this.rig.dirty) {
       const id = await this.ask({
-        title: `${presetLabel(index)} tem alterações não salvas`,
-        text: 'Gravar os controles grava o preset guardado e o pedal o carrega de novo: as edições feitas no pedal desde ' +
-              'que o editor abriu se perdem.',
-        actions: [{ id: 'go', label: 'Gravar mesmo assim', kind: 'danger' }, { id: 'cancel', label: 'Cancelar' }],
+        title: t('ctl.unsaved_title', { label: presetLabel(index) }),
+        text: t('store.controls_text'),
+        actions: [{ id: 'go', label: t('store.write_anyway'), kind: 'danger' }, { id: 'cancel', label: t('common.cancel') }],
       });
       if (id !== 'go') return false;
     }
     let n = 0;
     const ok = await this.change(async () => { n = await this.backend!.writeControls(index, table, mods); });
     this.forget([index]);
-    if (ok) this.say(`Controles de ${presetLabel(index)} gravados (${n} ${n === 1 ? 'ligação' : 'ligações'})`);
+    if (ok) this.say(tn('store.controls_saved', n, { label: presetLabel(index) }));
     return ok;
   }
 
   /** the pedal's MOVE: out of src, into dst, the presets between slide one place (undone by moving it back) */
   async movePreset(src: number, dst: number, undo = false) {
     if (!this.backend || src === dst) return;
-    const name = this.presets[src]?.name || 'sem nome';
-    const other = this.presets[dst]?.name || 'sem nome';
+    const name = this.presets[src]?.name || t('ctl.unnamed');
+    const other = this.presets[dst]?.name || t('ctl.unnamed');
     const ok = await this.change(() => this.backend!.move(src, dst));
     if (!ok) {
       this.forget('all');
@@ -621,25 +629,26 @@ class Studio {
     this.slideDetails(src, dst);
     this.picked = dst;
     if (undo) {
-      this.say(`“${name}” voltou para ${presetLabel(dst)}`);
+      this.say(t('store.moved_back', { name, label: presetLabel(dst) }));
       return;
     }
-    const between = Math.abs(dst - src) === 1 ? ` Trocou de lugar com “${other}”.`
-      : src < dst ? ` ${presetLabel(src)}…${presetLabel(dst - 1)} agora têm os que estavam uma posição adiante.`
-                  : ` ${presetLabel(dst + 1)}…${presetLabel(src)} agora têm os que estavam uma posição antes.`;
-    this.say(`“${name}” foi de ${presetLabel(src)} para ${presetLabel(dst)}.${between}`, 'info',
-             { label: 'Desfazer', run: () => void this.movePreset(dst, src, true) });
+    const between = Math.abs(dst - src) === 1 ? t('store.move_swapped', { name: other })
+      : src < dst ? t('store.move_slid_later', { from: presetLabel(src), to: presetLabel(dst - 1) })
+                  : t('store.move_slid_earlier', { from: presetLabel(dst + 1), to: presetLabel(src) });
+    this.say(t('store.moved', { name, from: presetLabel(src), to: presetLabel(dst), between }), 'info',
+             { label: t('store.undo'), run: () => void this.movePreset(dst, src, true) });
   }
 
   async copyPreset(src: number, dst: number) {
     if (!this.backend || src === dst) return;
     const to = this.presets[dst];
     if (!isVacant(to)) {
-      const live = this.rig?.index === dst && this.rig.dirty ? ' As edições não salvas dele no pedal também se perdem.' : '';
+      const live = this.rig?.index === dst && this.rig.dirty ? t('store.copy_live_lost') : '';
       const id = await this.ask({
-        title: `Copiar por cima de ${presetLabel(dst)}?`,
-        text: `${presetLabel(dst)} “${to.name || 'sem nome'}” será substituído por uma cópia de ${presetLabel(src)} “${this.presets[src]?.name || 'sem nome'}”.${live}`,
-        actions: [{ id: 'go', label: 'Substituir', kind: 'danger' }, { id: 'cancel', label: 'Cancelar' }],
+        title: t('store.copy_over_title', { label: presetLabel(dst) }),
+        text: t('store.copy_over_text', { dst: presetLabel(dst), dst_name: to.name || t('ctl.unnamed'), src: presetLabel(src),
+                                          src_name: this.presets[src]?.name || t('ctl.unnamed'), live }),
+        actions: [{ id: 'go', label: t('store.replace'), kind: 'danger' }, { id: 'cancel', label: t('common.cancel') }],
       });
       if (id !== 'go') return;
     }
@@ -647,7 +656,7 @@ class Studio {
     this.forget([dst]);
     if (ok) {
       this.picked = dst;
-      this.say(`${presetLabel(src)} copiado para ${presetLabel(dst)}`);
+      this.say(t('store.copied', { src: presetLabel(src), dst: presetLabel(dst) }));
     }
   }
 
@@ -655,7 +664,7 @@ class Studio {
     if (!this.backend) return;
     try {
       const file = await this.run(() => this.backend!.exportPreset(index));
-      if (file) this.say(`${presetLabel(index)} salvo em ${file}`);
+      if (file) this.say(t('store.exported', { label: presetLabel(index), file }));
     } catch (e) {
       this.say(errorText(e), 'error');
     }
@@ -674,16 +683,17 @@ class Studio {
     const to = this.presets[index];
     if (!isVacant(to) || (this.rig?.index === index && this.rig.dirty)) {
       const id = await this.ask({
-        title: `Importar por cima de ${presetLabel(index)}?`,
-        text: `“${f.name || 'sem nome'}” (${f.file}) vai substituir ${presetLabel(index)} “${to?.name || 'sem nome'}”.` +
-              (this.rig?.index === index && this.rig.dirty ? ' As edições não salvas dele no pedal se perdem.' : ''),
-        actions: [{ id: 'go', label: 'Importar', kind: 'danger' }, { id: 'cancel', label: 'Cancelar' }],
+        title: t('store.import_over_title', { label: presetLabel(index) }),
+        text: t('store.import_over_text', { name: f.name || t('ctl.unnamed'), file: f.file, label: presetLabel(index),
+                                            old: to?.name || t('ctl.unnamed'),
+                                            live: this.rig?.index === index && this.rig.dirty ? t('store.import_live_lost') : '' }),
+        actions: [{ id: 'go', label: t('store.import'), kind: 'danger' }, { id: 'cancel', label: t('common.cancel') }],
       });
       if (id !== 'go') return;
     }
     const ok = await this.change(() => this.backend!.importPreset(index, f.path));
     this.forget([index]);
-    if (ok) this.say(`“${f.name}” importado em ${presetLabel(index)}`);
+    if (ok) this.say(t('store.imported', { name: f.name, label: presetLabel(index) }));
   }
 
   /** a long call with the pedal's progress shown (the backend's progress() runs beside it) */
@@ -708,8 +718,8 @@ class Studio {
   async backup() {
     if (!this.backend) return;
     try {
-      const r = await this.withProgress('Backup', () => this.backend!.backup());
-      if (r) this.say(`Backup de ${r.presets} presets${r.global ? ' e dos controles globais' : ''} em ${r.file}`);
+      const r = await this.withProgress(t('store.backup'), () => this.backend!.backup());
+      if (r) this.say(tn(r.global ? 'store.backup_done_global' : 'store.backup_done', r.presets, { file: r.file }));
     } catch (e) {
       this.say(errorText(e), 'error');
     }
@@ -725,20 +735,19 @@ class Studio {
       return;
     }
     if (!b?.path) return;
-    const when = b.created ? ` (feito em ${b.created.replace('T', ' ')})` : '';
+    const when = b.created ? t('store.restore_when', { date: b.created.replace('T', ' ') }) : '';
     const id = await this.ask({
-      title: 'Restaurar o backup?',
-      text: `Grava ${b.presets} presets de ${b.file}${when} por cima dos que estão nas mesmas posições do pedal. ` +
-            (b.global ? 'Os controles globais do pedal também são substituídos pelos do backup.' :
-                        'O backup não tem controles globais: os do pedal ficam como estão.'),
-      actions: [{ id: 'go', label: 'Restaurar', kind: 'danger' }, { id: 'cancel', label: 'Cancelar' }],
+      title: t('store.restore_title'),
+      text: tn('store.restore_text', b.presets, { file: b.file, when }) +
+            (b.global ? t('store.restore_global') : t('store.restore_no_global')),
+      actions: [{ id: 'go', label: t('store.restore'), kind: 'danger' }, { id: 'cancel', label: t('common.cancel') }],
     });
     if (id !== 'go') return;
     const path = b.path;
     this.epoch++;
     try {
-      const n = await this.withProgress('Restaurando', () => this.backend!.restore(path));
-      this.say(`${n} presets restaurados${b.global ? ' e os controles globais' : ''}`);
+      const n = await this.withProgress(t('store.restoring'), () => this.backend!.restore(path));
+      this.say(tn(b.global ? 'store.restored_global' : 'store.restored', n));
     } catch (e) {
       this.say(errorText(e), 'error');
     }
@@ -748,12 +757,12 @@ class Studio {
   }
 }
 
-const EDIT_ERRORS: Record<number, string> = {
-  [EDIT.PLACE]: 'Não coube: falta memória ou a cadeia está cheia',
-  [EDIT.REPLACE]: 'Não coube: falta memória para esse efeito',
-  [EDIT.MOVE]: 'Não dá para mover para esse lugar',
-  [EDIT.SAVE]: 'Falha ao gravar o preset',
-  [EDIT.NAME]: 'O pedal recusou o nome do preset',
+const EDIT_ERRORS: Record<number, MsgKey> = {
+  [EDIT.PLACE]: 'store.err_place',
+  [EDIT.REPLACE]: 'store.err_replace',
+  [EDIT.MOVE]: 'store.err_move',
+  [EDIT.SAVE]: 'store.err_save',
+  [EDIT.NAME]: 'store.err_name',
 };
 
 export function presetLabel(i: number) {

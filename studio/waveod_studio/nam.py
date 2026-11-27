@@ -18,6 +18,8 @@ import os
 import struct
 import zlib
 
+from waveod_studio.i18n import tr
+
 C = 3
 KERNELS = [6] * 14 + [15, 15] + [6] * 7
 DILATIONS = [1, 3, 7, 17, 41, 101, 239] * 2 + [1, 13] + [1, 3, 7, 17, 41, 101, 239]
@@ -74,7 +76,7 @@ def find_lite(m):
 def pack(weights):
     """the .nam's weight list in the engine's order"""
     if len(weights) != NUM_WEIGHTS:
-        raise ValueError('esperados %d pesos, o arquivo tem %d' % (NUM_WEIGHTS, len(weights)))
+        raise ValueError(tr('py.nam_weights', need=NUM_WEIGHTS, have=len(weights)))
     it = iter(weights)
     out = [next(it) for _ in range(C)]                       # rechannel (1 -> C)
     for K in KERNELS:
@@ -112,7 +114,7 @@ def capture(path, native_rate=False, m=None):
     m = m if m is not None else load(path)
     lite = find_lite(m)
     if not lite:
-        raise ValueError('%s: não tem a rede A2-Lite (WaveNet A2 de 3 canais)' % os.path.basename(path))
+        raise ValueError(tr('py.nam_no_lite', file=os.path.basename(path)))
     w = pack(lite['weights'])
     meta = lite.get('metadata') or m.get('metadata') or {}
     loud = meta.get('loudness')
@@ -124,7 +126,7 @@ def capture(path, native_rate=False, m=None):
     assert len(data) <= SLOT_BYTES - 48         # the original firmware's editor buffer takes 0x2000 - 48
     at48 = 47000 < fs < 49000 and not native_rate
     return data, dict(weights=len(w), loudness=loud, sample_rate=fs, bytes=len(data),
-                      runs_at='48 kHz (reamostrado)' if at48 else '44,1 kHz')
+                      runs_at=tr('py.runs_48k') if at48 else tr('py.runs_44k'))
 
 
 def is_capture(data):

@@ -7,6 +7,7 @@
   import { untrack } from 'svelte';
   import Icon from './Icon.svelte';
   import { KIND, nam } from '../lib/nam.svelte';
+  import { decimal, num, t } from '../lib/i18n.svelte';
 
   $effect(() => { untrack(() => void nam.enter()); });
 
@@ -15,8 +16,8 @@
   const d = $derived(nam.draft);
   const n = $derived(slots ? slots.filter((x) => x.kind === KIND.NAM || x.kind === KIND.NAM48).length : 0);
   const tone = (k: number) => (k === KIND.EMPTY ? 'empty' : k === KIND.ORIGINAL ? 'orig' : k === KIND.BROKEN ? 'bad' : 'nam');
-  const khz = (hz?: number) => (hz ? `${(hz / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kHz` : '–');
-  const db = (v?: number | null) => (v === undefined || v === null ? '–' : `${v.toFixed(1).replace('.', ',')} dB`);
+  const khz = (hz?: number) => (hz ? `${decimal(String(Math.round(hz / 100) / 10))} kHz` : '–');
+  const db = (v?: number | null) => (v === undefined || v === null ? '–' : `${num(v, 1)} dB`);
   function take(node: HTMLInputElement) { node.focus(); node.select(); }
   function key(e: KeyboardEvent) {
     if (e.key === 'Escape' && d && !d.busy) {
@@ -30,51 +31,48 @@
   <header class="tools">
     <div class="title">
       <h1>NAM</h1>
-      <span class="sub">os 10 slots do Clone · no pedal: CLONE › NAM</span>
+      <span class="sub">{t('nam.sub')}</span>
     </div>
-    {#if slots}<span class="count">{n} de 10 com captura NAM</span>{/if}
+    {#if slots}<span class="count">{t('nam.count', { n })}</span>{/if}
   </header>
 
   {#if !slots}
-    <p class="note">Lendo os slots do Clone…</p>
+    <p class="note">{t('nam.loading')}</p>
   {:else}
     <div class="body">
-      <div class="slots" role="listbox" aria-label="Slots do Clone">
+      <div class="slots" role="listbox" aria-label={t('nam.slots_aria')}>
         {#each slots as x (x.slot)}
           <button role="option" aria-selected={x.slot === nam.picked} class="slot {tone(x.kind)}"
                   class:picked={x.slot === nam.picked} onclick={() => (nam.picked = x.slot)}
                   ondblclick={() => { nam.picked = x.slot; void nam.choose(); }}>
             <span class="num">{x.slot + 1}</span>
-            <span class="nm">{x.kind === KIND.EMPTY ? 'vazio' : x.name}</span>
+            <span class="nm">{x.kind === KIND.EMPTY ? t('nam.empty') : x.name}</span>
             <span class="kd">{x.kind === KIND.EMPTY ? '' : x.kind_text}</span>
           </button>
         {/each}
       </div>
 
       {#if s}
-        <section class="detail {tone(s.kind)}" aria-label="Slot {s.slot + 1}">
-          <span class="label">Slot {s.slot + 1}</span>
-          <h2>{s.kind === KIND.EMPTY ? 'Vazio' : s.name}</h2>
+        <section class="detail {tone(s.kind)}" aria-label={t('nam.slot', { n: s.slot + 1 })}>
+          <span class="label">{t('nam.slot', { n: s.slot + 1 })}</span>
+          <h2>{s.kind === KIND.EMPTY ? t('nam.empty_title') : s.name}</h2>
           <p class="kind"><Icon name="nam" size={17} stroke={2} /> {s.kind_text}</p>
           {#if s.sample_rate !== undefined}
             <dl class="facts">
-              <div><dt>Treinada a</dt><dd>{khz(s.sample_rate)}</dd></div>
-              <div><dt>Roda a</dt><dd>{s.kind === KIND.NAM48 ? '48 kHz, com reamostragem (+1,4 ms)' : '44,1 kHz'}</dd></div>
-              <div><dt>Loudness</dt><dd>{db(s.loudness)}</dd></div>
-              <div><dt>CRC dos pesos</dt><dd>{(s.crc ?? 0).toString(16).toUpperCase().padStart(8, '0')}</dd></div>
+              <div><dt>{t('nam.trained')}</dt><dd>{khz(s.sample_rate)}</dd></div>
+              <div><dt>{t('nam.runs')}</dt><dd>{s.kind === KIND.NAM48 ? t('nam.runs_48') : t('nam.runs_44')}</dd></div>
+              <div><dt>{t('nam.loudness')}</dt><dd>{db(s.loudness)}</dd></div>
+              <div><dt>{t('nam.crc')}</dt><dd>{(s.crc ?? 0).toString(16).toUpperCase().padStart(8, '0')}</dd></div>
             </dl>
           {/if}
           <p class="hint">
-            {#if s.kind === KIND.EMPTY}Nada guardado aqui: uma captura .nam com a rede A2-Lite roda no motor NAM do waveod;
-              qualquer .nam (A1, A2, LSTM, de qualquer tamanho) pode ser convertida para o Clone original.
-            {:else if s.kind === KIND.ORIGINAL}Uma captura do Clone original (do editor original ou convertida pelo Studio):
-              roda no bloco Clone. Gravar outra captura aqui a substitui, e o pedal não tem como desfazer.
-            {:else if s.kind === KIND.BROKEN}Os pesos guardados não conferem com o CRC: o slot não toca. Grave a captura de novo.
-            {:else}Roda no motor NAM do waveod. Capturas treinadas a 48 kHz rodam a 48 kHz com reamostragem, ou a 44,1 kHz
-              se gravadas assim (mais leves, um pouco mais brilhantes).{/if}
+            {#if s.kind === KIND.EMPTY}{t('nam.hint_empty')}
+            {:else if s.kind === KIND.ORIGINAL}{t('nam.hint_original')}
+            {:else if s.kind === KIND.BROKEN}{t('nam.hint_broken')}
+            {:else}{t('nam.hint_nam')}{/if}
           </p>
           <button class={s.kind === KIND.EMPTY ? 'primary' : 'warn'} onclick={() => nam.choose()}>
-            <Icon name="file" size={16} stroke={2.1} /> {s.kind === KIND.EMPTY ? 'Gravar captura .nam…' : 'Substituir por uma captura .nam…'}
+            <Icon name="file" size={16} stroke={2.1} /> {s.kind === KIND.EMPTY ? t('nam.write_capture') : t('nam.replace_capture')}
           </button>
         </section>
       {/if}
@@ -86,45 +84,42 @@
   {@const old = slots?.[d.slot]}
   <div class="veil" role="presentation" onclick={() => !d.busy && (nam.draft = null)}></div>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="nam-title" tabindex="-1" onkeydown={key}>
-    <h3 id="nam-title">Gravar no slot {d.slot + 1} do Clone?</h3>
+    <h3 id="nam-title">{t('nam.confirm_title', { n: d.slot + 1 })}</h3>
     <p class="file"><Icon name="file" size={15} stroke={2} /> {d.file.file}</p>
     <dl class="facts">
-      <div><dt>Rede</dt><dd>{d.engine === 'nam' ? `A2-Lite · ${d.file.weights} pesos` : d.file.arch}</dd></div>
-      <div><dt>Treinada a</dt><dd>{khz(d.file.sample_rate)}</dd></div>
-      <div><dt>Loudness</dt><dd>{d.file.loudness === null ? 'não informado (-18 dB)' : db(d.file.loudness)}</dd></div>
+      <div><dt>{t('nam.network')}</dt><dd>{d.engine === 'nam' ? t('nam.weights', { n: d.file.weights }) : d.file.arch}</dd></div>
+      <div><dt>{t('nam.trained')}</dt><dd>{khz(d.file.sample_rate)}</dd></div>
+      <div><dt>{t('nam.loudness')}</dt><dd>{d.file.loudness === null ? t('nam.loudness_none') : db(d.file.loudness)}</dd></div>
     </dl>
-    <label class="name"><span>Nome no pedal (até 16 letras)</span>
+    <label class="name"><span>{t('nam.name_label')}</span>
       <input bind:value={d.name} maxlength="16" spellcheck="false" use:take />
     </label>
     {#if d.file.lite && d.file.convert}
-      <div class="seg" role="radiogroup" aria-label="Motor">
+      <div class="seg" role="radiogroup" aria-label={t('nam.engine_aria')}>
         <button role="radio" aria-checked={d.engine === 'nam'} class:on={d.engine === 'nam'} disabled={d.busy}
-                onclick={() => (d.engine = 'nam')}>Motor NAM (a rede)</button>
+                onclick={() => (d.engine = 'nam')}>{t('nam.engine_nam')}</button>
         <button role="radio" aria-checked={d.engine === 'clone'} class:on={d.engine === 'clone'} disabled={d.busy}
-                onclick={() => (d.engine = 'clone')}>Clone original (convertida)</button>
+                onclick={() => (d.engine = 'clone')}>{t('nam.engine_clone')}</button>
       </div>
     {/if}
     {#if d.engine === 'clone'}
-      <p class="hint">Convertida aqui no PC para o modelo do Clone original (filtro, saturação, filtro), como o editor original
-        faz, mas de qualquer rede: {d.file.arch}. Uma aproximação, bem mais leve que o motor NAM. Leva de 10 s a um minuto e meio.
-        Sinal de referência: {d.file.di === 'editor' ? 'o do editor original (instalado neste PC)' : 'o do waveod'}.</p>
+      <p class="hint">{t('nam.convert_hint', { arch: d.file.arch, di: d.file.di === 'editor' ? t('nam.di_editor') : t('nam.di_waveod') })}</p>
     {/if}
     {#if d.engine === 'nam' && d.file.rate48}
-      <div class="seg" role="radiogroup" aria-label="Taxa">
-        <button role="radio" aria-checked={!d.native} class:on={!d.native} onclick={() => (d.native = false)}>48 kHz, como foi treinada</button>
-        <button role="radio" aria-checked={d.native} class:on={d.native} onclick={() => (d.native = true)}>44,1 kHz, sem reamostragem</button>
+      <div class="seg" role="radiogroup" aria-label={t('nam.rate_aria')}>
+        <button role="radio" aria-checked={!d.native} class:on={!d.native} onclick={() => (d.native = false)}>{t('nam.rate_48')}</button>
+        <button role="radio" aria-checked={d.native} class:on={d.native} onclick={() => (d.native = true)}>{t('nam.rate_44')}</button>
       </div>
-      <p class="hint">{d.native ? 'Mais leve; o som fica um pouco mais brilhante.' : 'Reamostrada: +1,4 ms e um pouco mais de DSP.'}</p>
+      <p class="hint">{d.native ? t('nam.native_hint') : t('nam.resampled_hint')}</p>
     {/if}
     <p class="lost" class:safe={!old || old.kind === KIND.EMPTY}>
-      {#if !old || old.kind === KIND.EMPTY}O slot está vazio.
-      {:else}Isto substitui o que o slot {d.slot + 1} tem agora: <b>{old.name}</b> ({old.kind_text}). Não dá para desfazer
-        pelo pedal; guarde uma cópia antes se for uma captura sua.{/if}
+      {#if !old || old.kind === KIND.EMPTY}{t('nam.slot_empty')}
+      {:else}{t('nam.replaces_before', { n: d.slot + 1 })} <b>{old.name}</b> {t('nam.replaces_after', { kind: old.kind_text })}{/if}
     </p>
     <footer>
-      <button onclick={() => (nam.draft = null)} disabled={d.busy}>Cancelar</button>
+      <button onclick={() => (nam.draft = null)} disabled={d.busy}>{t('common.cancel')}</button>
       <button class={!old || old.kind === KIND.EMPTY ? 'primary' : 'danger'} disabled={d.busy || !d.name.trim()}
-              onclick={() => nam.write()}>{!old || old.kind === KIND.EMPTY ? 'Gravar' : 'Substituir'} no slot {d.slot + 1}</button>
+              onclick={() => nam.write()}>{!old || old.kind === KIND.EMPTY ? t('nam.write_to', { n: d.slot + 1 }) : t('nam.replace_in', { n: d.slot + 1 })}</button>
     </footer>
   </div>
 {/if}

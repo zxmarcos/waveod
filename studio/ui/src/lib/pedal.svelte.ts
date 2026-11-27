@@ -1,14 +1,16 @@
 // The pedal screen's state: what the pedal is and holds, and its latency test (protocol 4).
 
 import { errorText } from './api';
+import { t } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { DumpDone, FirmwareFile, Latency, PedalInfo } from './types';
 
+// getters: the texts follow the language
 export const ROUTES = [
-  { route: 0, label: 'Saída L', cable: 'um cabo da saída L na entrada (INPUT)' },
-  { route: 1, label: 'Saída R', cable: 'um cabo da saída R na entrada (INPUT)' },
-  { route: 2, label: 'Send → Return', cable: 'um cabo do FX SEND no FX RETURN' },
-  { route: 3, label: 'Preset (sem cabo)', cable: '' },
+  { route: 0, get label() { return t('pedal.route_l'); }, get cable() { return t('pedal.cable_l'); } },
+  { route: 1, get label() { return t('pedal.route_r'); }, get cable() { return t('pedal.cable_r'); } },
+  { route: 2, label: 'Send → Return', get cable() { return t('pedal.cable_send'); } },
+  { route: 3, get label() { return t('pedal.route_preset'); }, cable: '' },
 ];
 
 class Pedal {
@@ -29,7 +31,7 @@ class Pedal {
         this.agree = false;
       }
     } catch (e) {
-      studio.ask({ title: 'Arquivo de firmware', text: errorText(e), actions: [{ id: 'ok', label: 'Fechar' }] });
+      studio.ask({ title: t('pedal.fw_file'), text: errorText(e), actions: [{ id: 'ok', label: t('pedal.close') }] });
     }
   }
 
@@ -39,20 +41,18 @@ class Pedal {
     if (!f || !this.agree) return;
     this.fw = null;
     try {
-      const r = await studio.callLong('Gravando o firmware', (b) => b.updateFirmware(f.path));
+      const r = await studio.callLong(t('pedal.writing_fw'), (b) => b.updateFirmware(f.path));
       const m = Math.floor(r.seconds / 60), s = Math.round(r.seconds % 60);
       await studio.ask({
-        title: 'Firmware gravado',
-        text: `${f.file} (${r.version}) gravado em ${m ? `${m} min ${s} s` : `${s} s`}. O pedal reinicia com ele e o Studio ` +
-              `conecta sozinho quando ele voltar. Log: ${r.log}`,
-        actions: [{ id: 'ok', label: 'Fechar', kind: 'primary' }],
+        title: t('pedal.fw_done'),
+        text: t('pedal.fw_done_text', { file: f.file, version: r.version, time: m ? `${m} min ${s} s` : `${s} s`, log: r.log }),
+        actions: [{ id: 'ok', label: t('pedal.close'), kind: 'primary' }],
       });
     } catch (e) {
       const id = await studio.ask({
-        title: 'A gravação não terminou',
-        text: `${errorText(e)}. O pedal deve estar no modo de atualização (o bootloader nunca é regravado): dá para ` +
-              'tentar de novo. Se ele não responder, ligue-o segurando a combinação de footswitches do modo de atualização.',
-        actions: [{ id: 'retry', label: 'Tentar de novo', kind: 'primary' }, { id: 'close', label: 'Fechar' }],
+        title: t('pedal.fw_failed'),
+        text: t('pedal.fw_failed_text', { error: errorText(e) }),
+        actions: [{ id: 'retry', label: t('pedal.retry'), kind: 'primary' }, { id: 'close', label: t('pedal.close') }],
       });
       if (id === 'retry') {
         this.fw = f;
@@ -80,14 +80,14 @@ class Pedal {
     const r = ROUTES[this.route];
     if (r.cable) {
       const id = await studio.ask({
-        title: 'Medir a latência?',
-        text: `Ligue ${r.cable}. O teste toca um clique nessa saída: desligue o amplificador e o fone antes.`,
-        actions: [{ id: 'go', label: 'Medir', kind: 'primary' }, { id: 'cancel', label: 'Cancelar' }],
+        title: t('pedal.measure_q'),
+        text: t('pedal.measure_text', { cable: r.cable }),
+        actions: [{ id: 'go', label: t('pedal.measure'), kind: 'primary' }, { id: 'cancel', label: t('common.cancel') }],
       });
       if (id !== 'go') return;
     }
     try {
-      this.latency = await studio.callLong('Medindo a latência', (b) => b.measureLatency(r.route));
+      this.latency = await studio.callLong(t('pedal.measuring'), (b) => b.measureLatency(r.route));
     } catch (e) {
       studio.say(errorText(e), 'error');
     }
@@ -96,11 +96,11 @@ class Pedal {
   async makeDump() {
     const kind = this.dumpKind;
     try {
-      const r = await studio.callLong(kind === 'all' ? 'Copiando a flash inteira' : 'Copiando o bootloader',
+      const r = await studio.callLong(t(kind === 'all' ? 'pedal.copying_all' : 'pedal.copying_boot'),
                                       (b) => b.dumpFlash(kind));
       if (!r) return;
       if (r.summary) this.dump = r;
-      studio.say(`${r.file}: ${Math.round(r.size / 1024)} KB em ${Math.round(r.seconds)} s`);
+      studio.say(t('pedal.dumped', { file: r.file, kb: Math.round(r.size / 1024), s: Math.round(r.seconds) }));
     } catch (e) {
       studio.say(errorText(e), 'error');
     }
@@ -112,7 +112,7 @@ class Pedal {
       const r = await studio.call((b) => b.pickDump());
       if (r) this.dump = r;
     } catch (e) {
-      studio.ask({ title: 'Cópia da flash', text: errorText(e), actions: [{ id: 'ok', label: 'Fechar' }] });
+      studio.ask({ title: t('pedal.dump_title'), text: errorText(e), actions: [{ id: 'ok', label: t('pedal.close') }] });
     }
   }
 }

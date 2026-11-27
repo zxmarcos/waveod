@@ -9,6 +9,7 @@
   import DrumRoll from './DrumRoll.svelte';
   import DrumImport from './DrumImport.svelte';
   import { drums, pedalName } from '../lib/drums.svelte';
+  import { decimal, num, t, tn } from '../lib/i18n.svelte';
 
   $effect(() => { untrack(() => void drums.enter()); });
 
@@ -54,33 +55,33 @@
   }
   /** the first empty place, for "Importar MIDI…" when the picked one is in use */
   const target = $derived(slot ? (st?.slots.findIndex((s) => !s) ?? -1) : i);
-  const minutes = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${s.toFixed(1)} s`);
+  const minutes = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${num(s, 1)} s`);
 </script>
 
 <div class="screen">
   <header class="tools">
     <div class="title">
-      <h1>Bateria</h1>
-      <span class="sub">Meus ritmos · no pedal: BATERIA › estilo MEUS RITMOS</span>
+      <h1>{t('tab.drums')}</h1>
+      <span class="sub">{t('drums.sub')}</span>
     </div>
     <div class="transport" class:on={st?.playing} aria-live="polite">
       {#if st?.playing}
         <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span>Tocando <b>{playingSlot ? `M${(st.playing_place ?? 0) + 1} ${playingSlot.name}` : 'um ritmo do banco'}</b></span>
-        <button onclick={() => drums.stop()}><Icon name="stop" size={14} stroke={2.4} /> Parar</button>
+        <span>{t('drums.playing')} <b>{playingSlot ? `M${(st.playing_place ?? 0) + 1} ${playingSlot.name}` : t('drums.bank_rhythm')}</b></span>
+        <button onclick={() => drums.stop()}><Icon name="stop" size={14} stroke={2.4} /> {t('drums.stop')}</button>
       {:else}
-        <span>Bateria parada</span>
+        <span>{t('drums.stopped')}</span>
       {/if}
     </div>
     <button class="primary" disabled={target < 0} onclick={() => drums.importFor(target)}
-            title={target < 0 ? 'Os 20 lugares estão em uso: esvazie um ou substitua' : `Converte um arquivo .mid e grava em M${target + 1}`}>
-      <Icon name="file" size={16} stroke={2.1} /> Importar MIDI…
+            title={target < 0 ? t('drums.full_title') : t('drums.import_title', { n: target + 1 })}>
+      <Icon name="file" size={16} stroke={2.1} /> {t('drums.import')}
     </button>
   </header>
 
   <div class="body">
-    <section class="places" aria-label="Os 20 lugares">
-      <div class="phead"><span>Lugares</span><span class="count">{used} de {st?.places ?? 20} em uso</span></div>
+    <section class="places" aria-label={t('drums.places_aria')}>
+      <div class="phead"><span>{t('drums.places')}</span><span class="count">{t('drums.count', { n: used, max: st?.places ?? 20 })}</span></div>
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <ol onkeydown={listKey}>
         {#each st?.slots ?? Array(20).fill(null) as s, k (k)}
@@ -90,11 +91,11 @@
                     ondblclick={() => (s ? drums.toggle(k) : drums.importFor(k))}
                     aria-current={k === i ? 'true' : undefined}>
               <span class="m">M{k + 1}</span>
-              <span class="pn">{s ? s.name : 'vazio'}</span>
+              <span class="pn">{s ? s.name : t('drums.empty')}</span>
               {#if drums.isPlaying(k)}
-                <span class="eq small" aria-label="tocando"><i></i><i></i><i></i></span>
+                <span class="eq small" aria-label={t('drums.playing_aria')}><i></i><i></i><i></i></span>
               {:else if s}
-                <span class="meta" title={s.once ? 'Toca uma vez e para' : 'Em loop'}>
+                <span class="meta" title={s.once ? t('drums.once_title') : t('drums.loop_title')}>
                   <Icon name={s.once ? 'once' : 'loop'} size={14} stroke={2} />{s.bpm ? ` ${s.bpm}` : ''}
                 </span>
               {/if}
@@ -104,18 +105,16 @@
       </ol>
     </section>
 
-    <section class="detail" aria-label="Ritmo M{i + 1}">
+    <section class="detail" aria-label={t('drums.rhythm_aria', { n: i + 1 })}>
       {#if !st}
-        <p class="note">Lendo os ritmos do pedal…</p>
+        <p class="note">{t('drums.loading')}</p>
       {:else if !slot}
         <div class="empty">
           <span class="big">M{i + 1}</span>
-          <h2>Lugar vazio</h2>
-          <p>Importe um arquivo MIDI de bateria. As notas de bateria General MIDI viram os 13 sons do pedal; não há
-            tons, essas notas ficam de fora (o Studio mostra quais). Um ritmo em loop recomeça no fim de um compasso
-            inteiro; “uma vez” para no fim, bom para uma música inteira.</p>
+          <h2>{t('drums.vacant_title')}</h2>
+          <p>{t('drums.vacant_text')}</p>
           <button class="primary" onclick={() => drums.importFor(i)}>
-            <Icon name="file" size={16} stroke={2.1} /> Importar MIDI para M{i + 1}…
+            <Icon name="file" size={16} stroke={2.1} /> {t('drums.import_to', { n: i + 1 })}
           </button>
         </div>
       {:else}
@@ -124,32 +123,31 @@
           {#if drums.renaming}
             <input class="rename" bind:this={input} value={draft} maxlength="16" spellcheck="false"
                    oninput={(e) => { draft = pedalName(e.currentTarget.value); e.currentTarget.value = draft; }}
-                   aria-label="Nome no pedal (até 16 letras)" onkeydown={renameKey} onblur={() => (drums.renaming = false)} />
+                   aria-label={t('drums.name_label')} onkeydown={renameKey} onblur={() => (drums.renaming = false)} />
           {:else}
             <h2>{slot.name}</h2>
           {/if}
         </div>
         <dl class="facts">
-          <div><dt>Fim</dt><dd>{slot.once ? 'para (uma vez)' : 'volta ao começo'}</dd></div>
-          <div><dt>Tempo do MIDI</dt><dd>{slot.bpm ? `${slot.bpm} BPM` : '–'}</dd></div>
-          <div><dt>Duração</dt><dd>{pat ? `${pat.length / 120} tempos${slot.bpm ? ` · ${minutes((pat.length / 120) * 60 / slot.bpm)}` : ''}` : '…'}</dd></div>
-          <div><dt>Eventos</dt><dd>{slot.events} de {st.max_events}</dd></div>
+          <div><dt>{t('drums.end')}</dt><dd>{slot.once ? t('drums.end_once') : t('drums.end_loop')}</dd></div>
+          <div><dt>{t('drums.midi_tempo')}</dt><dd>{slot.bpm ? `${slot.bpm} BPM` : '–'}</dd></div>
+          <div><dt>{t('drums.length')}</dt><dd>{pat ? `${tn('drums.beats', pat.length / 120, { n: decimal(String(pat.length / 120)) })}${slot.bpm ? ` · ${minutes((pat.length / 120) * 60 / slot.bpm)}` : ''}` : '…'}</dd></div>
+          <div><dt>{t('drums.events')}</dt><dd>{t('drums.of', { n: slot.events, max: st.max_events })}</dd></div>
         </dl>
         <div class="actions">
-          <button class="play" class:on={drums.isPlaying(i)} onclick={() => drums.toggle(i)} title="Espaço">
+          <button class="play" class:on={drums.isPlaying(i)} onclick={() => drums.toggle(i)} title={t('drums.space')}>
             <Icon name={drums.isPlaying(i) ? 'stop' : 'play'} size={16} stroke={2.4} />
-            {drums.isPlaying(i) ? 'Parar' : 'Tocar no pedal'}
+            {drums.isPlaying(i) ? t('drums.stop') : t('drums.play')}
           </button>
-          <button onclick={() => (drums.renaming = true)} title="F2"><Icon name="pencil" size={15} stroke={2} /> Renomear</button>
-          <button onclick={() => drums.importFor(i)}><Icon name="file" size={15} stroke={2} /> Substituir por outro MIDI…</button>
-          <button class="danger" onclick={() => drums.empty(i)}><Icon name="trash" size={15} stroke={2} /> Esvaziar</button>
+          <button onclick={() => (drums.renaming = true)} title="F2"><Icon name="pencil" size={15} stroke={2} /> {t('drums.rename')}</button>
+          <button onclick={() => drums.importFor(i)}><Icon name="file" size={15} stroke={2} /> {t('drums.replace')}</button>
+          <button class="danger" onclick={() => drums.empty(i)}><Icon name="trash" size={15} stroke={2} /> {t('drums.empty_action')}</button>
         </div>
         {#if pat}
           <DrumRoll roll={pat} />
-          <p class="hint">O tempo do arquivo vira o da bateria ao escolher o ritmo, a não ser que ela siga o tempo dos
-            efeitos. Linhas fortes a cada 4 tempos.</p>
+          <p class="hint">{t('drums.roll_hint')}</p>
         {:else}
-          <p class="note">Lendo o ritmo…</p>
+          <p class="note">{t('drums.loading_one')}</p>
         {/if}
       {/if}
     </section>
