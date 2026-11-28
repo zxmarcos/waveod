@@ -5,6 +5,8 @@ import { t } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { IrFile, IrSlot } from './types';
 
+const MENU_IR = 6;                          // the browser's IR menu, which lists the slots by name
+
 export interface IrDraft { slot: number; file: IrFile; name: string; normalize: boolean; busy: boolean }
 
 class Irs {
@@ -54,6 +56,7 @@ class Irs {
       this.slots = await studio.call((b) => b.writeIr(d.slot, d.file.path, d.name, d.normalize));
       this.draft = null;
       studio.say(t('irs.written', { n: d.slot + 1, name: d.name.trim() }));
+      void studio.reloadCatalogs([MENU_IR]);
     } catch (e) {
       d.busy = false;
       studio.say(errorText(e), 'error');
@@ -68,6 +71,7 @@ class Irs {
       const names = await studio.call((b) => b.renameIr(s.slot, name));
       if (this.slots) this.slots.forEach((x, i) => { x.name = names[i] ?? x.name; });
       studio.say(t('irs.renamed', { n: s.slot + 1, name: names[s.slot] }));
+      void studio.reloadCatalogs([MENU_IR]);
     } catch (e) {
       studio.say(errorText(e), 'error');
     }

@@ -279,8 +279,12 @@ Not run on the pedal yet. Installing them writes waveod's library in the flash (
 
 ## NAM captures on the pedal
 
-Not run on the pedal yet. Writing a capture replaces a Clone slot, and all 10 hold the user's own captures: pick a
-slot with the user first (and keep a copy: the PC editor exports Clone captures).
+Not run on the pedal yet. Writing a capture replaces a Clone slot, and the original's 10 hold the user's own
+captures: pick a slot with the user first (and keep a copy: the PC editor exports Clone captures). Slots 11..20
+(waveod's, docs/nam.md) start empty: the first test of them writes there and loses nothing.
+
+0. Slots 11..20: Studio › NAM lists 20; a capture written in slot 16 plays from a preset (CLONE › NAM on the
+   pedal lists it), the original's 10 read as before; after a restart slot 16 is still there.
 
 1. Install the firmware; the Clone slots that were not written play as before, on the original's module.
 2. Studio › NAM: the slots as the pedal has them; select one, "Gravar captura no slot…" (a .nam with the A2-Lite

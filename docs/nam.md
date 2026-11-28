@@ -17,15 +17,43 @@ written by either works on both firmwares (on the original only with the researc
 
 Writing one: the original's own Clone command (0x18000001, what the PC editor uses for its Clone import), which
 waveod answers like the original (`editor/media_msgs.c`). waveod Studio's NAM tab (`ui/namview.py`) lists the
-10 slots with what each holds (waveod's command 0x1F000010, protocol 6: original capture, NAM at 44.1 kHz, NAM
+20 slots with what each holds (waveod's command 0x1F000010, protocol 6: original capture, NAM at 44.1 kHz, NAM
 at 48 kHz resampled, NAM with a broken CRC, empty; the rate, loudness and CRC of a NAM capture) and writes a
 `.nam` into the selected slot, after a dialog with its name, the rate choice for a 48 kHz capture and what the
 slot loses. The same from the command line:
 
 ```
 python -m waveod_studio nam amp.nam --slot 4 [--name "Plexi"] [--44k]
-python -m waveod_studio clone                 # the names of the 10 slots
+python -m waveod_studio clone                 # the names of the 20 slots
 ```
+
+## Twenty slots
+
+The original has 10 Clone slots; waveod has 20 (`fw/ir_store.h` IR_CLONE_SLOTS). Slots 11..20 live in the same
+file system (flash 0x40A000: 3 directory sectors and 25 blocks of 8 KB), as entries 10..19 of its first directory
+part, which holds 92. The original's code leaves them alone, which `tools/check_irfs.py` (run 4) shows with the
+original's own code in Unicorn:
+
+- its mount (`FUN_00024C28`) reads every entry of the part and marks the blocks of slots 11..20 used, so it never
+  writes over their data;
+- its write and rename (`FUN_00025D30`, `FUN_00024D80`) copy the whole part when they move it to a new sector,
+  so slots 11..20 come along;
+- its reads, write, rename and delete stop at 10 (`FUN_00024C24` returns 10): it never shows nor touches them.
+
+The header still says 10 (the original's), so going back to the original firmware changes nothing for its 10
+slots: slots 11..20 stay stored, unseen, and come back with waveod. A preset that uses one of them gets on the
+original whatever it does with an unknown Clone id.
+
+The IR directory (update section 2) has entries for the original's 10 only (ids 0x0F000000..09, "Clone 1".."Clone
+10"); waveod continues them for its slots: ids 0x0F00000A..13 (no directory entry has them) and "Clone 11".."Clone
+20" for a slot never named. The PC editor's Clone names message stays the original's 10; waveod's 0x1F000010 has
+the 20 (its length says how many a firmware has: 10 before them).
+
+The original frees the block a replaced entry names even when that entry was deleted (its marker cleared, the
+block number left): after a restart that block may hold another capture, and the next write overwrites it. Its
+own slots live with that. waveod's slots 11..20 never take a block a deleted entry still names (while another
+is free), and rewriting one of them frees its old block only when that entry was in use, so the original can
+never free a block of theirs. Slots 1..10 stay byte for byte the original's (the same check).
 
 ## On the pedal
 

@@ -226,8 +226,10 @@ class Ctl {
     });
   }
 
+  /** a link out: of this mode on a preset; of every mode on the global table (a function off the key everywhere) */
   remove(i: number) {
-    C.remove(this.table, i, this.mode);
+    if (this.isGlobal) C.removeAlike(this.table, i);
+    else C.remove(this.table, i, this.mode);
     this.sel = null;
   }
 
@@ -262,11 +264,15 @@ class Ctl {
   }
 
   pickDest(destId: string) {
-    const first = this.choicesOf(destId)[0];
+    const first = this.choicesOf(destId).find((x) => x.id !== C.REMOVE_CHOICE);
     if (first && this.link) first.apply(this.link);
   }
 
   pickChoice(destId: string, choiceId: string) {
+    if (choiceId === C.REMOVE_CHOICE) {
+      if (this.sel !== null) this.remove(this.sel);
+      return;
+    }
     const c = this.choicesOf(destId).find((x) => x.id === choiceId);
     if (c && this.link) c.apply(this.link);
   }

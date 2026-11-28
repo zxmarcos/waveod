@@ -6,6 +6,8 @@
  * n bytes of data}, applied after mounting like the pedal does at start-up.
  */
 #include "editor/lzo.h"
+#include "fw/catalog.h"
+#include "fw/library.h"
 #include "fw/flash_map.h"
 #include "fw/ir_fs.h"
 #include "fw/ir_store.h"
@@ -74,12 +76,95 @@ static void test_fs(void)
     CHECK(at && memcmp(flash + at, cap, sizeof cap) == 0, "its data reads back");
     CHECK(irfs_delete_clone(2) == 0 && ir_fs_name(1, 2, name) != 0, "a deleted capture is gone");
     CHECK(irfs_write(IRFS_USER, 60, "x", ir, 16) != 0, "a slot beyond the directory (50) is refused");
+
+    /* waveod's Clone slots past the original's 10 (fw/ir_store.h IR_CLONE_SLOTS) */
+    cap[0] = 0x5a;
+    CHECK(irfs_write(IRFS_CLONE, 15, "Plexi 16", cap, sizeof cap) == 0, "Clone slot 16 is written");
+    at = ir_clone_data(&d, 15);
+    CHECK(at && memcmp(flash + at, cap, sizeof cap) == 0 && ir_fs_name(1, 15, name) == 0 &&
+          strcmp(name, "Plexi 16") == 0, "its data and name read back (%s)", name);
+    CHECK(ir_clone_data(&d, 16) == 0 && ir_fs_name(1, 16, name) != 0, "slot 17 stays empty");
+    CHECK(irfs_write(IRFS_CLONE, 20, "x", cap, 16) != 0 && ir_clone_data(&d, 20) == 0, "slot 21 does not exist");
+    CHECK(irfs_rename(IRFS_CLONE, 15, "Plexi B") == 0 && ir_fs_name(1, 15, name) == 0 && strcmp(name, "Plexi B") == 0
+          && ir_clone_data(&d, 15) == at, "a rename keeps the data");
+    for (int s = 0; s < IR_CLONE_SLOTS; s++) {             /* every slot at once: 20 of the 25 blocks */
+        cap[1] = (uint8_t)s;
+        irfs_write(IRFS_CLONE, s, "All", cap, sizeof cap);
+    }
+    for (int round = 0; round < 3; round++)                 /* rewriting them over and over: one spare block is enough */
+        for (int s = 0; s < IR_CLONE_SLOTS; s++) {
+            cap[1] = (uint8_t)(s + 100 * round);
+            CHECK(irfs_write(IRFS_CLONE, s, "Again", cap, sizeof cap) == 0, "rewrite %d of slot %d", round, s + 1);
+        }
+    int same = 1;
+    for (int s = 0; s < IR_CLONE_SLOTS; s++) {
+        uint32_t a = ir_clone_data(&d, s);
+        cap[1] = (uint8_t)(s + 200);
+        same &= a && memcmp(flash + a, cap, sizeof cap) == 0;
+    }
+    CHECK(same, "all 20 hold their last capture");
+    irfs_mount();                                           /* as after a restart */
+    CHECK(irfs_write(IRFS_CLONE, 19, "After", cap, sizeof cap) == 0 && ir_fs_name(1, 19, name) == 0 &&
+          strcmp(name, "After") == 0, "and after a fresh mount");
+}
+
+/* the catalog lists 20 Clone items: the directory's 10, then 10 with the directory's ids continued (with the
+   firmware's library and IR directory: after host_flash_load_firmware) */
+static void clone_catalog(void)
+{
+    struct catalog cat;
+    if (catalog_open(&cat) != 0 || !cat.irs.base) {
+        CHECK(0, "catalog_open with the IR directory");
+        return;
+    }
+    static uint8_t cap[IRFS_CLONE_DATA];
+    memset(cap, 0x33, sizeof cap);
+    CHECK(irfs_write(IRFS_CLONE, 17, "Slot 18", cap, sizeof cap) == 0 &&
+          irfs_write(IRFS_CLONE, 19, "After", cap, sizeof cap) == 0, "slots 18 and 20 written");
+    CHECK(catalog_count(&cat, MENU_CLONE) == IR_CLONE_SLOTS, "%d Clone items", catalog_count(&cat, MENU_CLONE));
+    struct catalog_item it;
+    int ok = 1;
+    for (int i = 0; i < IR_CLONE_SLOTS; i++)
+        ok &= catalog_item(&cat, MENU_CLONE, i, &it) == 0 && it.id == IR_CLONE_ID(i);
+    CHECK(ok, "their ids are 0x0F000000 + slot (the directory's for the first 10)");
+    for (int i = IR_CLONE_COUNT; i < IR_CLONE_SLOTS; i++)
+        ok &= ir_dir_find(&cat.irs, IR_CLONE_ID(i)) < 0;
+    CHECK(ok, "no directory entry has the ids of slots 11..20");
+    CHECK(catalog_item(&cat, MENU_CLONE, 12, &it) == 0 && strcmp(it.name, "Clone 13") == 0,
+          "an empty slot past 10 is named like the directory's (%s)", it.name);
+    CHECK(catalog_item(&cat, MENU_CLONE, 19, &it) == 0 && strcmp(it.name, "After") == 0,
+          "a written one by its stored name (%s)", it.name);
+    int menu = MENU_CLONE, index = -1;
+    CHECK(catalog_resolve(&cat, &menu, IR_CLONE_ID(17), &index) == RESOLVE_EXACT && menu == MENU_CLONE && index == 17,
+          "a preset's id 0x0F000011 finds slot 18 (%d)", index);
+    CHECK(catalog_data(&cat, MENU_CLONE, 17) == ir_clone_data(&cat.irs, 17) && catalog_data(&cat, MENU_CLONE, 17),
+          "and its data");
+    CHECK(catalog_item(&cat, MENU_CLONE, IR_CLONE_SLOTS, &it) != 0, "no item 21");
+}
+
+/* the two areas as they were around fn, for the tests after it */
+static void keeping_areas(void (*fn)(void))
+{
+    static uint8_t user[FLASH_USER_IR_FS_SIZE], clone[FLASH_CLONE_FS_SIZE];
+    uint8_t *flash = host_flash_image();
+    memcpy(user, flash + FLASH_USER_IR_FS, sizeof user);
+    memcpy(clone, flash + FLASH_CLONE_FS, sizeof clone);
+    irfs_mount();
+    fn();
+    memcpy(flash + FLASH_USER_IR_FS, user, sizeof user);
+    memcpy(flash + FLASH_CLONE_FS, clone, sizeof clone);
+    irfs_mount();
+}
+
+void test_clone_catalog(void)
+{
+    keeping_areas(clone_catalog);
 }
 
 void test_editor(void)
 {
     test_lzo();
-    test_fs();
+    keeping_areas(test_fs);
 }
 
 int irfs_apply(const char *in_path, const char *ops_path, const char *out_path)

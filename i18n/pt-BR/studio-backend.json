@@ -234,7 +234,7 @@
   "studio.py.area_wvpresets": "Presets do waveod",
   "studio.py.area_wvpresets_note": "presets, ritmos e controles do waveod",
   "studio.py.area_clone": "Capturas Clone",
-  "studio.py.area_clone_note": "os 10 slots do Clone (capturas originais ou NAM)",
+  "studio.py.area_clone_note": "os 20 slots do Clone (capturas originais ou NAM)",
   "studio.py.area_factory": "Presets de fábrica (seção 3)",
   "studio.py.area_factory_note": "os 120 presets do arquivo de firmware",
   "studio.py.area_effects": "Biblioteca de efeitos (seção 1)",

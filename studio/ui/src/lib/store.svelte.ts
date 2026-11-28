@@ -177,6 +177,20 @@ class Studio {
     } catch { /* shown as still reading; the next selection tries again */ }
   }
 
+  /** menus whose items changed on the pedal (an IR or a capture written or renamed, the module library replaced;
+   *  all of them when not given) read again, the old list shown until the new one comes; then the chain, whose
+   *  blocks may carry the names that changed */
+  async reloadCatalogs(menus: number[] = [...Array(16).keys()]) {
+    if (!this.backend) return;
+    for (const m of menus) {
+      try {
+        const items = await this.run(() => this.backend!.catalog(m));
+        this.catalogs = { ...this.catalogs, [m]: items };
+      } catch { /* the old list stays */ }
+    }
+    try { await this.refresh(true); } catch { /* shown when an edit fails */ }
+  }
+
   /** the progress box's Cancelar: a flash dump stops at once (nothing is lost); a firmware update is asked
    *  about first, then the backend stops at the next packet */
   async cancelLong() {

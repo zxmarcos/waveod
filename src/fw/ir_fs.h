@@ -23,7 +23,8 @@ enum irfs_kind { IRFS_USER, IRFS_CLONE };
 
 void irfs_mount(void);
 
-/* store data (up to the kind's size) and name (17 characters) in slot (0..19 user IRs, 0..9 Clone) */
+/* store data (up to the kind's size) and name (17 characters) in slot (0..19 user IRs; Clone 0..19, of which the
+   original reads 0..9: fw/ir_store.h IR_CLONE_SLOTS) */
 int irfs_write(enum irfs_kind kind, int slot, const char *name, const uint8_t *data, uint32_t len);
 
 int irfs_rename(enum irfs_kind kind, int slot, const char *name);

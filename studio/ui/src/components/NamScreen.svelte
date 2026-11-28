@@ -1,5 +1,5 @@
 <!--
-  The ten Clone slots: what each holds (empty, the original's capture, a NAM capture and the rate it runs at), and a
+  The Clone slots (20; 10 on a firmware before waveod's own 10): what each holds (empty, the original's capture, a NAM capture and the rate it runs at), and a
   .nam going into one after saying exactly what the slot loses. A slot is the player's own capture: never a click away
   from being overwritten.
 -->
@@ -15,6 +15,7 @@
   const s = $derived(nam.slot);
   const d = $derived(nam.draft);
   const n = $derived(slots ? slots.filter((x) => x.kind === KIND.NAM || x.kind === KIND.NAM48).length : 0);
+  const total = $derived(slots?.length ?? 20);
   const tone = (k: number) => (k === KIND.EMPTY ? 'empty' : k === KIND.ORIGINAL ? 'orig' : k === KIND.BROKEN ? 'bad' : 'nam');
   const khz = (hz?: number) => (hz ? `${decimal(String(Math.round(hz / 100) / 10))} kHz` : '–');
   const db = (v?: number | null) => (v === undefined || v === null ? '–' : `${num(v, 1)} dB`);
@@ -31,9 +32,9 @@
   <header class="tools">
     <div class="title">
       <h1>NAM</h1>
-      <span class="sub">{t('nam.sub')}</span>
+      <span class="sub">{t('nam.sub', { total })}</span>
     </div>
-    {#if slots}<span class="count">{t('nam.count', { n })}</span>{/if}
+    {#if slots}<span class="count">{t('nam.count', { n, total })}</span>{/if}
   </header>
 
   {#if !slots}

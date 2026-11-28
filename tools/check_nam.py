@@ -53,12 +53,14 @@ def check(cond, what):
 
 
 def clone_ids(fw):
-    """the item ids of the 10 Clone slots: the last 10 entries of the IR directory (section 2: header {u16 0x5AA5,
-    .., u8 count @0xA}, 0x48-byte entries from +0x10 {u16 index, u16 block, u32 id, name[16]})"""
+    """the item ids of the 20 Clone slots: the last 10 entries of the IR directory (section 2: header {u16 0x5AA5,
+    .., u8 count @0xA}, 0x48-byte entries from +0x10 {u16 index, u16 block, u32 id, name[16]}), then waveod's 10
+    more continuing them (src/fw/ir_store.h IR_CLONE_ID)"""
     _, secs = mkfw.read_frmw(open(fw, 'rb').read())
     d = secs[2]
     n = d[0x0A]
-    return [struct.unpack_from('<I', d, 0x10 + 0x48 * i + 4)[0] for i in range(n - 10, n)]
+    ids = [struct.unpack_from('<I', d, 0x10 + 0x48 * i + 4)[0] for i in range(n - 10, n)]
+    return ids + [ids[0] + k for k in range(10, 20)]
 
 
 def with_clone(data, item_id, knobs):
@@ -211,6 +213,7 @@ def main():
         rec = Recorder(w.b)
         pedal.write_clone(0, 'NAM 48k', cap48)
         pedal.write_clone(1, 'NAM 44k', cap44)
+        pedal.write_clone(15, 'NAM slot 16', cap44)          # one of waveod's slots past the original's 10
         names = pedal.clone_names()
         check(names[:2] == ['NAM 48k', 'NAM 44k'], 'Clone slots written over USB: %s' % names[:3])
         slots = pedal.clones()
@@ -218,12 +221,16 @@ def main():
         check(kinds[:2] == [(protocol.CLONE_NAM_48K, 'NAM 48k', 48000), (protocol.CLONE_NAM, 'NAM 44k', 48000)] and
               kinds[2][0] in (protocol.CLONE_EMPTY, protocol.CLONE_ORIGINAL),
               'the slots as the Studio reads them (protocol 6): %s' % [protocol.CLONE_KINDS[k] for k, _, _ in kinds])
+        check(len(slots) == 20 and (slots[15]['kind'], slots[15]['name']) == (protocol.CLONE_NAM, 'NAM slot 16') and
+              len(names) == 10,
+              '20 slots, slot 16 written (%s, %s); the original\'s names message still has 10' %
+              (len(slots), slots[15]['name'] if len(slots) > 15 else '-'))
         _, data = pedal.get(0)
         base = cb.empty(data)
         pedal.put(cb.EMPTY, base)
         knobs = {K_GAIN: 50, K_VOLUME: 50, K_BASS: 50, K_MIDDLE: 50, K_TREBLE: 50}
         plain = play(w, pedal, rec, cb.EMPTY, count=6)
-        for slot, cap, what in ((0, cap48, '48 kHz'), (1, cap44, '44.1 kHz')):
+        for slot, cap, what in ((0, cap48, '48 kHz'), (1, cap44, '44.1 kHz'), (15, cap44, 'slot 16, 44.1 kHz')):
             pedal.put(PRESET, with_clone(base, ids[slot], knobs))
             inits = rec.inits
             cost = play(w, pedal, rec, PRESET, {K_GAIN: 72, K_TREBLE: 35}, count=6)

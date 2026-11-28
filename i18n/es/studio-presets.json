@@ -256,5 +256,7 @@
   "studio.connect.old_step2": "Cuando el pedal se reinicie con él, el Studio se conecta solo.",
   "studio.connect.updating_lead": "No apagues el pedal ni desconectes el cable. Cuando termine, se reinicia y el Studio se conecta solo.",
   "studio.connect.attempt": "intento {n}",
-  "studio.connect.retry": "Intentar ahora"
+  "studio.connect.retry": "Intentar ahora",
+  "studio.grid.turn_off": "Apagar el bloque (doble clic)",
+  "studio.grid.turn_on": "Encender el bloque (doble clic)"
 }

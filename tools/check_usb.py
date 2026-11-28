@@ -94,6 +94,11 @@ def main():
     check(f == struct.pack('<I', 44100), 'clock: 44.1 kHz', f.hex() if f else 'stalled')
     r = u.control(setup(0xa1, 2, 0x0100, 0x1100, 14))
     check(r == bytes.fromhex('010044ac000044ac000000000000'), 'clock range')
+    # the rate the range has is taken; another is refused, and the clock goes on reporting the one it runs at
+    check(u.control(setup(0x21, 1, 0x0100, 0x1100, 4), struct.pack('<I', 44100)) == b'', 'clock: SET 44.1 kHz')
+    check(u.control(setup(0x21, 1, 0x0100, 0x1100, 4), struct.pack('<I', 48000)) is None, 'clock: SET 48 kHz stalls')
+    f = u.control(setup(0xa1, 1, 0x0100, 0x1100, 4))
+    check(f == struct.pack('<I', 44100), 'clock: still 44.1 kHz after SET 48 kHz', f.hex() if f else 'stalled')
     v = u.control(setup(0xa1, 1, 0x0201, 0x0900, 2))
     check(v == b'\x64\x00', 'recording channel 1 volume 100')
     check(u.control(setup(0x21, 1, 0x0201, 0x0c00, 2), b'\x32\x00') == b'', 'playback channel 1 volume -> 50')

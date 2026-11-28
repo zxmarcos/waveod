@@ -7,6 +7,9 @@
  * sets the link at once, so it is heard; below, its values follow the knobs (a parameter: OFF / ON or heel / toe,
  * then when / the curve; MIDI out: number, channel, when / curve, then the CC's OFF / ON values by touch).
  *
+ * The functions start with NENHUMA (REMOVER): taking it removes the link, like MENU held. On the global table a
+ * removal takes the link out of every mode it is in (a footswitch pair's looper off the pair everywhere).
+ *
  * Controls: MENU turns = the cursor through every choice, MENU press = take it, MENU hold = remove the link;
  * knobs: a parameter's values / when or curve, MIDI out's number / channel / when or curve, else destination /
  * choice / when; EXIT or ‹ = back (a new link left without a choice is dropped).
@@ -173,6 +176,7 @@ static void build_items(struct ui_ctx *ui)
         add_item(CA_SCENE, SCENE_NEXT, -1);
         add_item(CA_SCENE, SCENE_PREV, -1);
     } else if (d->kind == D_FN) {
+        add_item(CA_NONE, 0, -1);                       /* NENHUMA (REMOVER): the link goes */
         for (int i = 0; i < ui_function_count; i++)
             add_item(CA_FN, ui_functions[i], -1);
     } else if (d->kind == D_MIDI) {
@@ -216,7 +220,7 @@ static int applied_dest(struct ui_ctx *ui)
 static int is_applied(struct ui_ctx *ui, const struct item *it)
 {
     const struct control *l = link(ui);
-    if (applied_dest(ui) != s.cur_dest || it->action != l->action)
+    if (it->action == CA_NONE || applied_dest(ui) != s.cur_dest || it->action != l->action)
         return 0;
     if (it->action == CA_PARAM) {
         struct rig_param p;
@@ -246,12 +250,34 @@ static void set_dest(struct ui_ctx *ui, int i)
     ui->rev++;
 }
 
+/* the link out (NENHUMA (REMOVER), MENU held), then back: on the global table out of every mode it is in (a
+   footswitch's function off the key everywhere), on a preset out of this one only */
+static void remove_here(struct ui_ctx *ui)
+{
+    struct preset_controls *c = ui_ctl_table(ui);
+    int key = c->c[ui->target_link].key, modes = 0;
+    if (ui->ctl_global) {
+        modes = preset_control_remove_alike(c, ui->target_link);
+    } else {
+        preset_control_remove(c, ui->target_link);
+    }
+    int several = key < CK_TOE && (modes & (modes - 1));          /* more than one mode bit */
+    ui->target_new = 0;
+    ui_toast(T(several ? MSG_CTL_REMOVED_ALL_MODES : MSG_COMMON_LINK_REMOVED));
+    edited(ui);
+    ui_back();
+}
+
 /* the link takes the choice under the cursor */
 static void take(struct ui_ctx *ui)
 {
     if (s.cur_item < 0 || s.cur_item >= s.nitems)
         return;
     const struct item *it = &s.items[s.cur_item];
+    if (it->action == CA_NONE) {
+        remove_here(ui);
+        return;
+    }
     struct control *l = link(ui);
     s.chosen = 1;
     if (is_applied(ui, it)) {                       /* again: keeps its values */
@@ -573,6 +599,8 @@ static void item_text(struct ui_ctx *ui, const struct item *it, char *out, unsig
         }
     } else if (it->action == CA_MIDI) {
         lv_snprintf(out, size, "%s", T(it->arg ? MSG_TARGET_SEND_PC : MSG_TARGET_SEND_CC));
+    } else if (it->action == CA_NONE) {
+        lv_snprintf(out, size, "%s", T(MSG_TARGET_REMOVE));
     } else {
         lv_snprintf(out, size, "%s", assign_fn_name(it->arg));
     }
@@ -782,11 +810,7 @@ static int input(struct ui_ctx *ui, const struct input_event *ev)
         return 1;
     }
     if (ev->type == IN_HOLD && (1u << ev->id) == BTN_MENU) {
-        preset_control_remove(ui_ctl_table(ui), ui->target_link);
-        ui->target_new = 0;
-        ui_toast(T(MSG_COMMON_LINK_REMOVED));
-        edited(ui);
-        ui_back();
+        remove_here(ui);
         return 1;
     }
     if (ui_pressed(ev, BTN_MENU)) {

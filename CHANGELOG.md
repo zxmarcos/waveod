@@ -2,6 +2,24 @@
 
 waveod's versions (semantic versioning, see [docs/releasing.md](docs/releasing.md)).
 
+## v0.2.0
+
+- Synth (FX › Synth): the guitar as a monophonic synthesizer, from its pitch and envelope: twelve waveforms, a
+  second oscillator, a resonant filter with its envelope, glide, and the notes followed or held.
+- 20 NAM / Clone capture slots instead of 10. The original's ten are untouched; the new ones live in the same
+  Clone area, where the original firmware does not look. The Studio's NAM screen shows all twenty.
+- CONTROLES has a list view: every key (footswitches, pairs, the active preset's key, pedals, modulators, the MIDI
+  CCs with links, the quick knobs) on one screen with its first links; the button at the top right, or CTRL held,
+  switches between the cards and the list, and the pedal remembers which.
+- A global link can be removed: NONE (REMOVE) at the top of PARA ONDE, or MENU held on the links screen. On the
+  global table it goes from every mode it was in.
+- waveod Studio: a status bar with the pedal, its firmware and the protocol; the language as a short code at the
+  top right; power and remove buttons on a grid block under the pointer; the browser's IR and capture names follow
+  a write or a rename at once.
+- USB audio refuses a sample rate the pedal does not run instead of streaming at the wrong one.
+- Editor protocol 15: the pedal's controls driven over USB (buttons, encoders, touch, pedals) and its display read
+  back. The simulator loads a pedal's flash, plays a WAV into the input and records its screen and outputs.
+
 ## v0.1.2
 
 - The pedal and waveod Studio in five languages: English (the default), Portuguese, Spanish, German and Italian.

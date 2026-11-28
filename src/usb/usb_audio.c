@@ -8,6 +8,7 @@
 #define ISO_MAX         256                 /* wMaxPacketSize of both endpoints */
 #define REC_TARGET      48                  /* frames the recording ring keeps on average */
 #define PLAY_START      80                  /* frames buffered before the playback starts */
+#define USB_AUDIO_RATE  44100u              /* the clock source's only rate (its range, below) */
 #define RATE_NOMINAL    361267u             /* 44100 / 8000 frames per microframe, 16.16 */
 
 /* UAC2 */
@@ -36,7 +37,6 @@ static struct {
     int32_t play_last[USB_PLAY_CHANNELS];
     struct feature rec_fu, play_fu;
     volatile float rec_gain[USB_REC_CHANNELS], play_gain[USB_PLAY_CHANNELS];
-    uint32_t freq;
     struct usb_audio_stats st;
 } ua;
 
@@ -72,7 +72,6 @@ void usb_audio_init(void)
     memset(&ua, 0, sizeof ua);
     for (int c = 0; c < 7; c++)
         ua.rec_fu.volume[c] = ua.play_fu.volume[c] = 100;
-    ua.freq = 44100;
     update_gains();
 }
 
@@ -300,8 +299,8 @@ int usb_audio_request(const struct usb_setup *s, uint8_t *data, int len)
     }
     if (entity == USB_ENT_CLOCK) {
         if (in && s->request == REQ_CUR && cs == CS_FREQ) {
-            uint8_t v[4] = { (uint8_t)ua.freq, (uint8_t)(ua.freq >> 8), (uint8_t)(ua.freq >> 16),
-                             (uint8_t)(ua.freq >> 24) };
+            static const uint8_t v[4] = { (uint8_t)USB_AUDIO_RATE, (uint8_t)(USB_AUDIO_RATE >> 8),
+                                          (uint8_t)(USB_AUDIO_RATE >> 16), (uint8_t)(USB_AUDIO_RATE >> 24) };
             return put(data, len, v, 4);
         }
         if (in && s->request == REQ_CUR && cs == CS_VALID) {
@@ -312,10 +311,14 @@ int usb_audio_request(const struct usb_setup *s, uint8_t *data, int len)
             static const uint8_t range[14] = { 1, 0, 0x44, 0xac, 0, 0, 0x44, 0xac, 0, 0, 0, 0, 0, 0 };
             return put(data, len, range, sizeof range);
         }
-        if (!in && s->request == REQ_CUR && cs == CS_FREQ && len >= 4) {   /* kept, the rate stays 44.1 kHz */
-            ua.freq = (uint32_t)data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 |
-                      (uint32_t)data[3] << 24;
-            return 0;
+        if (!in && s->request == REQ_CUR && cs == CS_FREQ && len >= 4) {
+            /* The clock is "host programmable" in the original's descriptor, but it only runs at the rate of its
+               range. The original kept any rate and reported it back (GET_CUR) while it went on streaming at 44.1
+               kHz: a host asking for 48 kHz then believed it had it. Another rate is refused (stall), so the host
+               knows the change failed and stays at the device's rate. */
+            uint32_t want = (uint32_t)data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 |
+                            (uint32_t)data[3] << 24;
+            return want == USB_AUDIO_RATE ? 0 : -1;
         }
     }
     return -1;

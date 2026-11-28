@@ -51,8 +51,8 @@ source of truth; the app shows what the pedal reports.
 - Name: waveod (lowercase), "waveod Studio" for the app.
 - The pedal's own visual identity is binding: its palette (src/ui/theme.c: near-black, amber accent, one
   colour per effect menu) and its line icons (tools/mkicons.py, the SVG paths of the claude.ai/design project).
-- Structure in the spirit of Neural DSP's Cortex Control (grid of blocks, side browser, knob panel), chosen by
-  the user; its look and icons are not copied.
+- Structure chosen by the user: a grid of blocks, a side browser, a knob panel; no other editor's look or icons
+  are copied.
 - Effects ported from other products are never named after their source in files or commits.
 
 ## Evidence on Hand

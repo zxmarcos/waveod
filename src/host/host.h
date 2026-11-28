@@ -26,10 +26,16 @@ void host_touch_set(int pressed, int x, int y);
 
 /* display */
 int host_display_save_png(const char *path);
+const uint32_t *host_display_pixels(void);       /* the shown frame buffer, DISPLAY_W x DISPLAY_H */
 
 /* audio: run the registered callback for `blocks` silent blocks */
 void host_audio_run(int blocks);
 void host_audio_tone(double hz, double level);         /* 0 Hz = silence */
+/* a WAV file on the guitar input from now on, its first channel at gain_db (0 dB: full scale = what full scale on
+   USB playback channel 3, the re-amping, brings into the chain); 0 / "" = none, -1 = not read */
+int host_audio_wav(const char *path, double gain_db);
+/* the outputs (L, R) from now on into path as float32 pairs, 1.0 = the converters' full scale; 0 / "" = stop */
+int host_audio_out(const char *path);
 /* a cable from output word out_word (0 = L, 1 = FX send, 2 = R; -1 = none) to the guitar input (the FX return
    for the send), extra samples beyond the 128 of the buffers */
 void host_audio_loop(int out_word, int extra);

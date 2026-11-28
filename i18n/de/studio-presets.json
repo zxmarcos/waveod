@@ -256,5 +256,7 @@
   "studio.connect.old_step2": "Wenn das Pedal damit neu startet, verbindet sich das Studio von selbst.",
   "studio.connect.updating_lead": "Schalten Sie das Pedal nicht aus und ziehen Sie das Kabel nicht ab. Danach startet es neu, und das Studio verbindet sich von selbst.",
   "studio.connect.attempt": "Versuch {n}",
-  "studio.connect.retry": "Jetzt versuchen"
+  "studio.connect.retry": "Jetzt versuchen",
+  "studio.grid.turn_off": "Block ausschalten (Doppelklick)",
+  "studio.grid.turn_on": "Block einschalten (Doppelklick)"
 }

@@ -63,5 +63,11 @@
   "fw.mods.title": "MODULATOREN · DIESES PRESET",
   "fw.mods.link": "ZIEL",
   "fw.mods.off_hint": "AUS · REGLER 1 DREHT TYP",
-  "fw.ctl.row_global": "GLOBAL · "
+  "fw.ctl.row_global": "GLOBAL · ",
+  "fw.ctl.removed_all_modes": "IN ALLEN MODI ENTFERNT",
+  "fw.ctlmap.group_fs": "FUSSSCHALTER",
+  "fw.ctlmap.group_pairs": "PAARE",
+  "fw.ctlmap.group_pedals": "EXPRESSION",
+  "fw.ctlmap.group_mods": "MODULATOREN",
+  "fw.ctlmap.hint_list": "MENU: ÖFFNEN · EFX: NÄCHSTER MODUS · CTRL HALTEN: KARTEN"
 }

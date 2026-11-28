@@ -63,5 +63,11 @@
   "fw.mods.title": "MODULATORS · THIS PRESET",
   "fw.mods.link": "TO",
   "fw.mods.off_hint": "OFF · TURN KNOB 1 ON TYPE",
-  "fw.ctl.row_global": "GLOBAL · "
+  "fw.ctl.row_global": "GLOBAL · ",
+  "fw.ctl.removed_all_modes": "REMOVED IN EVERY MODE",
+  "fw.ctlmap.group_fs": "FOOTSWITCHES",
+  "fw.ctlmap.group_pairs": "PAIRS",
+  "fw.ctlmap.group_pedals": "EXPRESSION",
+  "fw.ctlmap.group_mods": "MODULATORS",
+  "fw.ctlmap.hint_list": "MENU: OPEN · EFX: NEXT MODE · HOLD CTRL: CARDS"
 }

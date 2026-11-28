@@ -22,6 +22,9 @@ void ui_alert(const char *title, const char *text);
 /* Run LVGL and refresh what changed; call from the main loop. */
 void ui_tick(void);
 
+/* The picture on the display: DISPLAY_W x DISPLAY_H pixels, 0x00RRGGBB (the frame buffer last shown). */
+const uint32_t *ui_screen(void);
+
 /* MIDI control (ui/midi_control.c, midi/midi.h): a program change (preset 0..239), a control change, a tempo
    measured on the MIDI clock. */
 void ui_midi_program(int preset);

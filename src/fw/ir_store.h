@@ -16,8 +16,17 @@
 #include <stdint.h>
 
 #define IR_USER_COUNT   20
-#define IR_CLONE_COUNT  10
+#define IR_CLONE_COUNT  10                      /* the directory's Clone entries: the original's slots */
 #define IR_NAME_LEN     16
+
+/*
+ * waveod's Clone slots: the original's 10, then 10 more in the same file system, entries 10..19 of its first
+ * directory part. The original keeps them as they are (its mount marks their blocks used, its writes and renames
+ * copy the whole part: tools/check_irfs.py) and never reads them (it stops at 10). The directory has no entry for
+ * them: their ids and names continue the Clone entries' (0x0F000000 + n, "Clone n + 1").
+ */
+#define IR_CLONE_SLOTS  20
+#define IR_CLONE_ID(n)  (0x0F000000u + (uint32_t)(n))
 
 struct ir_dir {
     const uint8_t *base;

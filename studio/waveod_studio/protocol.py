@@ -18,7 +18,8 @@ LIB_INFO, LIB_WRITE, LIB_COMMIT = range(0x1F00000D, 0x1F000010)      # protocol 
 LIB_SECTOR = 0x1000
 # the original's group 8 (src/editor/media_msgs.c): Clone slot names, data (answered CLONE_ACK), rename
 CLONE_NAMES, CLONE_DATA, CLONE_RENAME, CLONE_ACK = 0x18000000, 0x18000001, 0x18000002, 0x18000003
-CLONE_SLOTS = 10
+ORIGINAL_CLONE_SLOTS = 10       # the names message (CLONE_NAMES) is the original's: its 10 slots
+CLONE_SLOTS = 20                # waveod's (src/fw/ir_store.h IR_CLONE_SLOTS); CLONES says how many a pedal has
 IR_NAMES, IR_DATA, IR_RENAME, IR_ACK = 0x14000000, 0x14000001, 0x14000002, 0x14000003   # user IRs (irs.py)
 CLONES = 0x1F000010                                                 # protocol 6: what each Clone slot holds
 CLONE_EMPTY, CLONE_ORIGINAL, CLONE_NAM, CLONE_NAM_48K, CLONE_NAM_BROKEN = range(5)
@@ -34,6 +35,10 @@ RIG, BLOCK, CATALOG, EDIT = range(0x1F000015, 0x1F000019)          # protocol 8:
 SETTINGS, SETTINGS_PUT = 0x1F000019, 0x1F00001A                     # protocol 9: the GLOBAL screen (wv_settings_msgs.c)
 FLASH_STATUS = 0x1F00001E                                           # protocol 13: the flash chip's status registers
 LOCK_TEST = 0x1F00001F                                              # test builds only (WAVEOD_LOCK_TEST)
+CONTROLS, SCREEN = 0x1F000020, 0x1F000021                           # protocol 15: remote controls, the display
+BUTTONS = ('MENU', 'EXIT', 'EFX', 'SAVE', 'DRUM', 'GLOBAL', 'CTRL', 'EXP', 'A', 'B', 'C', 'D', 'UP', 'DOWN', 'FS1',
+           'FS2')                                                   # bit n = BTN_x (platform/controls.h)
+SCREEN_W, SCREEN_H = 480, 272
 FLASH_LOCKS = TextList(('py.lock_none', 'py.lock_locked', 'py.lock_failed', 'py.lock_unsupported'))  # enum flash_lock
 SETTING_IDS = dict(
     input_mode=1, input_level=2, aux=3, cabs=4, usb_mode=5, usb_rec=6, usb_mon=7, usb_wet=8, usb_aux=9,
@@ -340,16 +345,18 @@ class Pedal:
 
     # ------------------------------------------------------------------ Clone slots (the original's group 8)
     def clone_names(self):
-        """the names of the 10 Clone slots"""
+        """the names of the original's 10 Clone slots (its message; clones() has every slot)"""
         r = self.request(CLONE_NAMES)
-        return [r[80 + 17 * i:80 + 17 * (i + 1)].split(b'\0')[0].decode('latin-1') for i in range(CLONE_SLOTS)]
+        return [r[80 + 17 * i:80 + 17 * (i + 1)].split(b'\0')[0].decode('latin-1')
+                for i in range(ORIGINAL_CLONE_SLOTS)]
 
     def clones(self):
-        """what the 10 Clone slots hold (protocol 6): kind (CLONE_*), named (stored with a name), name; for a NAM
-        capture also sample_rate, loudness, crc, flags"""
+        """what the Clone slots hold (protocol 6; 20 slots, 10 on a firmware before them: one entry of 40 bytes
+        each): kind (CLONE_*), named (stored with a name), name; for a NAM capture also sample_rate, loudness, crc,
+        flags"""
         r = self.request(CLONES)
         out = []
-        for i in range(CLONE_SLOTS):
+        for i in range(min(len(r) // 40, CLONE_SLOTS)):
             kind, named = r[40 * i], bool(r[40 * i + 1])
             rate, loud, crc, flags = struct.unpack_from('<ffII', r, 40 * i + 4)
             e = dict(slot=i, kind=kind, named=named, name=r[40 * i + 20:40 * i + 40].split(b'\0')[0].decode('latin-1'))
@@ -359,7 +366,8 @@ class Pedal:
         return out
 
     def write_clone(self, slot, name, data):
-        """store `data` (up to 0x2000 - 48 bytes: a capture from nam.capture) in Clone slot `slot` (0..9) under
+        """store `data` (up to 0x2000 - 48 bytes: a capture from nam.capture) in Clone slot `slot` (0..19: one that
+        clones() lists, a firmware before the 20 slots ignores 10..19) under
         `name`; the pedal rebuilds the chain. This replaces what the slot held."""
         if not 0 <= slot < CLONE_SLOTS:
             raise PedalError(tr('py.clone_slot_bad', n=slot))
@@ -442,6 +450,31 @@ class Pedal:
         err, = struct.unpack_from('<i', r)
         if err:
             raise PedalError(tr('py.drum_empty', n=place + 1))
+
+    # ------------------------------------------------------------------ remote controls, the display (protocol 15)
+    def controls(self, buttons=(), turn=(0, 0, 0, 0), touch=None, pots=(None, None, None)):
+        """lay a state over the pedal's controls: uttons held (names of BUTTONS), 	urn detents for MENU, K1,
+        K2, K3, 	ouch None (the panel's), False (up at the last point) or (x, y) down, pots MASTER, EXP1, EXP2
+        as 0..4095 or None (the pedal's). Buttons, the touch and the pedals go back to the pedal's 2 s after the
+        last call: send the state again to keep a button held longer"""
+        mask = 0
+        for b in buttons:
+            mask |= 1 << BUTTONS.index(b)
+        t, x, y = (-1, 0, 0) if touch is None else (0, 0, 0) if touch is False else (1, touch[0], touch[1])
+        p = [0xFFFF if v is None else max(0, min(4095, int(v))) for v in pots]
+        self.request(CONTROLS, struct.pack('<I4iiiiHHHH', mask, *turn, t, x, y, *p, 0))
+
+    def screen(self):
+        """the picture on the pedal's display: SCREEN_W x SCREEN_H pixels, 0x00RRGGBB words, as bytes"""
+        rows, y = [], 0
+        while y < SCREEN_H:
+            r = self.request(SCREEN, struct.pack('<II', y, 4), retries=1)
+            at, n = struct.unpack_from('<II', r)
+            if at != y or not n:
+                raise PedalError('screen: row %d' % y)
+            rows.append(r[8:8 + n * SCREEN_W * 4])
+            y += n
+        return b''.join(rows)
 
     # ------------------------------------------------------------------ the chain screen (protocol 8)
     def rig(self):

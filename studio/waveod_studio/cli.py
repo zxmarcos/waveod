@@ -41,8 +41,8 @@ def main(argv):
                  runs=info['runs_at'], bytes=info['bytes']))
     with Pedal(a.port) as p:
         if a.cmd == 'clone':
-            for i, name in enumerate(p.clone_names()):
-                print('%2d %s' % (i + 1, name))
+            for s in p.clones():
+                print('%2d %s' % (s['slot'] + 1, s['name']))
         elif a.cmd == 'nam':
             p.write_clone(a.slot - 1, a.name or nam.default_name(a.model), data)
             print(tr('py.cli_slot_written', n=a.slot))

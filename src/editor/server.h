@@ -59,6 +59,9 @@
 /* protocol 13: the flash chip's id and status registers (wv_msgs.c) */
 #define CMD_WV_FLASH_STATUS 0x1F00001Eu
 #define CMD_WV_LOCK_TEST    0x1F00001Fu     /* test builds only (WAVEOD_LOCK_TEST) */
+/* protocol 15: the controls driven from the computer, the picture on the display (wv_msgs.c) */
+#define CMD_WV_CONTROLS     0x1F000020u
+#define CMD_WV_SCREEN       0x1F000021u
 #define WV_CHUNK            0x2000u         /* the largest flash read; room for any answer */
 #define WV_EDITED           0xFFFFu         /* get: the edited preset */
 

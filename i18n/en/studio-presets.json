@@ -256,5 +256,7 @@
   "studio.connect.old_step2": "When the pedal restarts with it, the Studio connects by itself.",
   "studio.connect.updating_lead": "Do not switch the pedal off or unplug the cable. When it finishes, it restarts and the Studio connects by itself.",
   "studio.connect.attempt": "attempt {n}",
-  "studio.connect.retry": "Try now"
+  "studio.connect.retry": "Try now",
+  "studio.grid.turn_off": "Turn the block off (double click)",
+  "studio.grid.turn_on": "Turn the block on (double click)"
 }

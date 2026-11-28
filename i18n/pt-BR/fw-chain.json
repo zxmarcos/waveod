@@ -98,5 +98,6 @@
   "fw.top.cancel": "CANCELAR",
   "fw.top.copied": "CENA %d COPIADA PARA A CENA %d",
   "fw.top.reverted": "CENA %d COMO ESTÁ SALVA",
-  "fw.top.not_saved": "PRESET NÃO SALVO"
+  "fw.top.not_saved": "PRESET NÃO SALVO",
+  "fw.target.remove": "NENHUMA (REMOVER)"
 }

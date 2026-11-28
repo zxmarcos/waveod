@@ -98,5 +98,6 @@
   "fw.top.cancel": "ABBRECHEN",
   "fw.top.copied": "SZENE %d NACH SZENE %d KOPIERT",
   "fw.top.reverted": "SZENE %d WIE GESPEICHERT",
-  "fw.top.not_saved": "PRESET NICHT GESPEICHERT"
+  "fw.top.not_saved": "PRESET NICHT GESPEICHERT",
+  "fw.target.remove": "KEINE (ENTFERNEN)"
 }

@@ -234,7 +234,7 @@
   "studio.py.area_wvpresets": "waveod presets",
   "studio.py.area_wvpresets_note": "waveod's presets, drum patterns and controls",
   "studio.py.area_clone": "Clone captures",
-  "studio.py.area_clone_note": "the 10 Clone slots (original captures or NAM)",
+  "studio.py.area_clone_note": "the 20 Clone slots (original captures or NAM)",
   "studio.py.area_factory": "Factory presets (section 3)",
   "studio.py.area_factory_note": "the 120 presets of the firmware file",
   "studio.py.area_effects": "Effect library (section 1)",

@@ -44,7 +44,9 @@
  *   0x1F00000F library commit {u32 total}                        -> {i32 error}; checked, read again, the edited
  *                                                                     preset's effects found again, the chain
  *                                                                     rebuilt (its edits kept)
- *   0x1F000010 clones  {}                                        -> 10 x 40 bytes, one per Clone slot: {u8 kind
+ *   0x1F000010 clones  {}                                        -> 20 x 40 bytes (10 before the 20 slots of
+ *                                                                     fw/ir_store.h IR_CLONE_SLOTS: the count is the
+ *                                                                     length), one per Clone slot: {u8 kind
  *                                                                     (enum wv_clone), u8 named (stored with a
  *                                                                     name), u16 0, f32 sample rate, f32 loudness,
  *                                                                     u32 weights' CRC, u32 flags, char name[20]};
@@ -78,6 +80,14 @@
  *                                                                     {u8 status 1, 2, 3} read now}: the top 4 KB
  *                                                                     (locked at start-up) copied to RAM, erased and
  *                                                                     programmed, compared, put back if it changed
+ *   0x1F000020 controls {u32 buttons held (BTN_x), i32 turn[4] (detents for MENU, K1, K2, K3), i32 touch
+ *                        (-1 the panel's, 0 up, 1 down), i32 x, i32 y, u16 pot[3] (MASTER, EXP1, EXP2: 0..4095,
+ *                        0xFFFF the pedal's), u16 0}         -> {i32 0}; laid over the physical controls
+ *                                                                     (input/remote.h) until the next one or 2 s
+ *                                                                     without any
+ *   0x1F000021 screen  {u32 first row, u32 rows}                 -> {u32 first row, u32 rows, the pixels row by
+ *                                                                     row, u32 0x00RRGGBB each}; at most 4 rows a
+ *                                                                     message (the picture last shown)
  *
  * origin: enum preset_origin (0 user, 1 factory, 2 empty); place: enum preset_place (0 waveod's record, 1 the
  * original's preset, 2 empty). Errors are presets_store's.
@@ -95,10 +105,13 @@
 #include "fw/wv_library.h"
 #include "fw/wv_preset.h"
 #include "fw/wv_store.h"
+#include "input/remote.h"
 #include "model/drum_user.h"
 #include "platform/audio.h"
+#include "platform/display.h"
 #include "platform/flash.h"
 #include "platform/sdram.h"
+#include "ui/ui.h"
 #include <string.h>
 #include "platform/sdram_code.h"           /* main-loop code: SDRAM, not ITCM */
 
@@ -106,13 +119,14 @@
 #define WAVEOD_VERSION "dev"
 #endif
 
-#define PROTOCOL 14                        /* 2: describe, 3: the global control table, 4: latency, 5: library,
+#define PROTOCOL 15                        /* 2: describe, 3: the global control table, 4: latency, 5: library,
                                                6: Clone slots, 7: MEUS RITMOS, 8: the chain screen (wv_rig_msgs.c),
                                                9: the GLOBAL screen's settings (wv_settings_msgs.c), 10: the scene
                                                menu's edits (wv_rig_msgs.c), 11: an effect's cost on the CPU
                                                (wv_bench_msgs.c), 12: the edited preset's name (wv_rig_msgs.c),
                                                13: the flash chip's status registers, 14: their start-up values
-                                               and the lock */
+                                               and the lock, 15: the controls from the computer and the
+                                               display's picture */
 
 /* what a Clone slot holds (0x1F000010) */
 enum wv_clone { WV_CLONE_EMPTY, WV_CLONE_ORIGINAL, WV_CLONE_NAM, WV_CLONE_NAM_48K, WV_CLONE_NAM_BROKEN };
@@ -453,8 +467,8 @@ static void library_commit(const struct msg *m)
 static void clones(const struct msg *m)
 {
     const struct catalog *cat = &srv.rig->cat;
-    memset(out, 0, IR_CLONE_COUNT * CLONE_ENTRY);
-    for (int i = 0; i < IR_CLONE_COUNT; i++) {
+    memset(out, 0, IR_CLONE_SLOTS * CLONE_ENTRY);
+    for (int i = 0; i < IR_CLONE_SLOTS; i++) {
         uint8_t *e = out + i * CLONE_ENTRY;
         uint32_t off = catalog_data(cat, MENU_CLONE, i);
         const uint8_t *p = off ? flash_ptr(off, IRFS_CLONE_DATA) : 0;
@@ -477,7 +491,7 @@ static void clones(const struct msg *m)
         if (catalog_item(cat, MENU_CLONE, i, &item) == 0)
             strncpy((char *)e + 20, item.name, 19);
     }
-    reply(m->cmd, out, IR_CLONE_COUNT * CLONE_ENTRY);
+    reply(m->cmd, out, IR_CLONE_SLOTS * CLONE_ENTRY);
 }
 
 static void answer(uint32_t cmd, int words, uint32_t a, uint32_t b, int err);
@@ -601,8 +615,38 @@ static void move_or_copy(const struct msg *m, int move)
     answer(m->cmd, 3, (uint32_t)from, (uint32_t)to, err);
 }
 
-void msg_waveod(const struct msg *m)
+static void controls(const struct msg *m)
 {
+    int32_t turn[ENC_COUNT];
+    for (int e = 0; e < ENC_COUNT; e++)
+        turn[e] = (int32_t)msg_word(m, 3 + e);
+    uint16_t pot[POT_COUNT];
+    for (int i = 0; i < POT_COUNT; i++)
+        pot[i] = (uint16_t)(msg_word(m, 10 + i / 2) >> (16 * (i & 1)));
+    remote_set(msg_word(m, 2), turn, (int32_t)msg_word(m, 7), (int32_t)msg_word(m, 8), (int32_t)msg_word(m, 9),
+               pot);
+    w32(0, 0);
+    reply(m->cmd, out, 4);
+}
+
+#define SCREEN_ROWS 4                       /* 4 x 480 x 4 = 7680 bytes <= WV_CHUNK */
+
+static void screen(const struct msg *m)
+{
+    uint32_t y = msg_word(m, 2), n = msg_word(m, 3);
+    if (y > DISPLAY_H)
+        y = DISPLAY_H;
+    if (n > SCREEN_ROWS)
+        n = SCREEN_ROWS;
+    if (n > DISPLAY_H - y)
+        n = DISPLAY_H - y;
+    w32(0, y);
+    w32(4, n);
+    memcpy(out + 8, ui_screen() + y * DISPLAY_W, n * DISPLAY_W * 4);
+    reply(m->cmd, out, 8 + n * DISPLAY_W * 4);
+}
+
+void msg_waveod(const struct msg *m){
     switch (m->cmd) {
     case CMD_WV_FLASH: flash_read(m); break;
     case CMD_WV_FLASH_STATUS: flash_status_msg(m); break;
@@ -633,6 +677,8 @@ void msg_waveod(const struct msg *m)
     case CMD_WV_DRUM_GET: drum_get(m); break;
     case CMD_WV_DRUM_PUT: drum_put(m); break;
     case CMD_WV_DRUM_PLAY: drum_play(m); break;
+    case CMD_WV_CONTROLS: controls(m); break;
+    case CMD_WV_SCREEN: screen(m); break;
     case CMD_WV_SETTINGS:
     case CMD_WV_SETTINGS_PUT: msg_waveod_settings(m); break;
     case CMD_WV_BENCH_ELF:

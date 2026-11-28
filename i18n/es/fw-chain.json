@@ -98,5 +98,6 @@
   "fw.top.cancel": "CANCELAR",
   "fw.top.copied": "ESCENA %d COPIADA A ESCENA %d",
   "fw.top.reverted": "ESCENA %d COMO ESTÁ GUARDADA",
-  "fw.top.not_saved": "PRESET NO GUARDADO"
+  "fw.top.not_saved": "PRESET NO GUARDADO",
+  "fw.target.remove": "NINGUNA (QUITAR)"
 }

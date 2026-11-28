@@ -1,6 +1,7 @@
 #include "fw/ir_fs.h"
 #include "fw/bytes.h"
 #include "fw/flash_map.h"
+#include "fw/ir_store.h"
 #include "platform/flash.h"
 #include <string.h>
 
@@ -79,6 +80,40 @@ static int find_free(const struct fs *f)
         if (f->free[w])
             return 32 * w + ctz(f->free[w]);
     return -1;
+}
+
+static uint32_t sector_at(const struct fs *f, unsigned s);
+static uint32_t entry_at(const struct fs *f, unsigned s, unsigned j);
+static void read_bytes(uint32_t at, uint8_t *dst, uint32_t n);
+
+/* whether a deleted entry (marker cleared, not 'Z', not blank) still names block blk. The original frees the
+   block a replaced entry names even when that entry was deleted (FUN_00025D30): after a restart the block may hold
+   another capture, which the next write then overwrites. Its own slots live with that; waveod's slots past them
+   never take such a block (fw/ir_store.h IR_CLONE_SLOTS), so the original can never free one of theirs. */
+static int stale_block(const struct fs *f, unsigned blk)
+{
+    for (int p = 0; p < PARTS; p++) {
+        if (f->current[p] == 0xff)
+            continue;
+        for (unsigned j = 0; j < f->per; j++) {
+            uint8_t e[4];
+            read_bytes(entry_at(f, f->current[p], j), e, sizeof e);
+            if (e[0] != 'Z' && e[0] != 0xff && rd16(e + 2) == blk)
+                return 1;
+        }
+    }
+    return 0;
+}
+
+/* a free Clone block for one of waveod's own slots: the lowest no deleted entry names, else the lowest */
+static int find_free_own(const struct fs *f)
+{
+    for (uint32_t w = f->free[1]; w; w &= w - 1) {
+        unsigned b = (unsigned)ctz(w);
+        if (!stale_block(f, b))
+            return (int)b;
+    }
+    return find_free(f);
 }
 
 static uint32_t sector_at(const struct fs *f, unsigned s)
@@ -239,18 +274,27 @@ static struct fs *fs_of(enum irfs_kind kind)
     return kind == IRFS_CLONE ? &clone_fs : &user_fs;
 }
 
+/* the slots written: the header's capacity for the user IRs (the original's 50), waveod's 20 for Clone (the
+   header says the original's 10; fw/ir_store.h IR_CLONE_SLOTS), all in the first directory part */
+static int slot_ok(const struct fs *f, int slot)
+{
+    int n = f->kind == IRFS_CLONE ? IR_CLONE_SLOTS : f->capacity;
+    return slot >= 0 && slot < n && f->per && (unsigned)slot / f->per < PARTS;
+}
+
 int irfs_write(enum irfs_kind kind, int slot, const char *name, const uint8_t *data, uint32_t len)
 {
     struct fs *f = fs_of(kind);
     if (!formatted(f) && format(f))
         return -1;
-    if (slot < 0 || slot >= f->capacity || !f->per)
+    if (!slot_ok(f, slot))
         return -1;
     unsigned part = (unsigned)slot / f->per, idx = (unsigned)slot % f->per;
     if (part >= PARTS || f->current[part] == 0xff)
         return -1;
     unsigned cur = f->current[part];
-    int blk = find_free(f);
+    int own = f->kind == IRFS_CLONE && slot >= IR_CLONE_COUNT;    /* a slot the original never writes */
+    int blk = own ? find_free_own(f) : find_free(f);
     if (blk < 0)
         return -1;
     uint32_t at = data_at(f, (unsigned)blk), cap = f->block;
@@ -283,7 +327,8 @@ int irfs_write(enum irfs_kind kind, int slot, const char *name, const uint8_t *d
     unsigned freed = 0;                     /* FUN_00025D30 copies every Clone entry, FUN_00025A84 the used ones */
     if (rewrite_part(f, part, cur, idx, e, f->kind == IRFS_CLONE, &freed))
         return -1;
-    mark(f, freed, 1);
+    if (!own || old[0] == 'Z')                  /* a deleted entry's block may be another capture's by now */
+        mark(f, freed, 1);
     mark(f, (unsigned)blk, 0);
     return 0;
 }
@@ -291,7 +336,7 @@ int irfs_write(enum irfs_kind kind, int slot, const char *name, const uint8_t *d
 int irfs_rename(enum irfs_kind kind, int slot, const char *name)
 {
     struct fs *f = fs_of(kind);
-    if (slot < 0 || slot >= f->capacity || !f->per)
+    if (!slot_ok(f, slot))
         return -1;
     unsigned part = (unsigned)slot / f->per, idx = (unsigned)slot % f->per;
     if (part >= PARTS || f->current[part] == 0xff)
@@ -311,7 +356,7 @@ int irfs_rename(enum irfs_kind kind, int slot, const char *name)
 int irfs_delete_clone(int slot)
 {
     struct fs *f = &clone_fs;
-    if (slot < 0 || slot >= 10 || slot >= f->capacity || !f->per)
+    if (!slot_ok(f, slot))
         return -1;
     unsigned cur = f->current[(unsigned)slot / f->per];
     if (cur == 0xff)

@@ -133,6 +133,24 @@ export function remove(t: CtlTable, i: number, mode: number) {
   else t.links.splice(i, 1);
 }
 
+const sameLink = (a: CtlLink, b: CtlLink) =>
+  a.key === b.key && a.when === b.when && a.action === b.action && a.slot === b.slot && a.arg === b.arg &&
+  a.curve === b.curve && a.flags === b.flags && a.off === b.off && a.on === b.on;
+
+/** link i out of the table with every link like it on its key (the same link in the key's other modes, split when
+ *  it was picked in one): the global table's removal, a function off a key everywhere (the pedal's
+ *  preset_control_remove_alike); how many links went */
+export function removeAlike(t: CtlTable, i: number): number {
+  const l = t.links[i];
+  if (!l) return 0;
+  const before = t.links.length;
+  t.links = t.links.filter((x) => !sameLink(x, l));
+  return before - t.links.length;
+}
+
+/** the functions' first choice: no function, the link removed (the pedal's NENHUMA (REMOVER)) */
+export const REMOVE_CHOICE = 'none';
+
 /** a link that does nothing yet (the pedal's + NOVA LIGAÇÃO): the editor gives it a destination */
 export const newLink = (key: number, mode: number) => link(key, everyMode(key) ? ALL : mode, PRESS, FN, -1, 0);
 /** a link still without a destination (left out when the table is written) */
@@ -268,7 +286,10 @@ export function choices(key: number, d: Dest, scenes: string[], knobs?: Record<s
       { id: 'next', label: t('shared.scene_next'), apply: (l) => setSimple(l, SCENE_ACT, -1, SCENE_NEXT) },
       { id: 'prev', label: t('shared.scene_prev'), apply: (l) => setSimple(l, SCENE_ACT, -1, SCENE_PREV) }];
   }
-  if (d.kind === 'fn') return functions().map(([fn, name]) => ({ id: `f${fn}`, label: name, apply: (l) => setSimple(l, FN, -1, fn) }));
+  if (d.kind === 'fn') {
+    return [{ id: REMOVE_CHOICE, label: t('ctl.remove_choice'), apply: () => {} },     // taken by the editor: removes
+      ...functions().map(([fn, name]) => ({ id: `f${fn}`, label: name, apply: (l: CtlLink) => setSimple(l, FN, -1, fn) }))];
+  }
   if (d.kind === 'midi') {
     const out: Choice[] = [{ id: 'cc', label: t('ctl.send_cc'), apply: (l) => setMidi(l, false) }];
     if (!isPedal(key)) out.push({ id: 'pc', label: t('ctl.send_pc'), apply: (l) => setMidi(l, true) });

@@ -38,6 +38,7 @@ int store_apply(const char *in_path, const char *ops_path, const char *out_path)
 void test_loader(const char *dump_path);
 void test_spill(void);
 void test_editor(void);
+void test_clone_catalog(void);
 void test_midi(void);
 void test_wvstore(void);
 void test_wvpresets(void);
@@ -56,6 +57,7 @@ void test_reverb(void);
 void test_plate(void);
 void test_nam(void);
 void test_spectrum(void);
+void test_synth(void);
 void test_mods_rig(void);
 int cab_apply(const char *ops_path, const char *out_path);
 int irfs_apply(const char *in_path, const char *ops_path, const char *out_path);

@@ -63,5 +63,11 @@
   "fw.mods.title": "MODULADORES · DESTE PRESET",
   "fw.mods.link": "PARA",
   "fw.mods.off_hint": "DESLIGADO · GIRE O KNOB 1 EM TIPO",
-  "fw.ctl.row_global": "GLOBAL · "
+  "fw.ctl.row_global": "GLOBAL · ",
+  "fw.ctl.removed_all_modes": "REMOVIDA EM TODOS OS MODOS",
+  "fw.ctlmap.group_fs": "PÉS",
+  "fw.ctlmap.group_pairs": "PARES",
+  "fw.ctlmap.group_pedals": "PEDAIS",
+  "fw.ctlmap.group_mods": "MODULADORES",
+  "fw.ctlmap.hint_list": "MENU: ABRIR · EFX: PRÓXIMO MODO · SEGURE CTRL: CARDS"
 }

@@ -120,5 +120,7 @@
   "studio.mod.rate_free": "{hz} Hz · {what} di {len}",
   "studio.mod.word_step": "passo",
   "studio.mod.word_cycle": "ciclo",
-  "studio.ctl.again": "PRESET ATTIVO DI NUOVO"
+  "studio.ctl.again": "PRESET ATTIVO DI NUOVO",
+  "studio.ctl.remove_choice": "Nessuna (rimuovi il collegamento)",
+  "studio.ctl.remove_all": "Rimuovi il collegamento da tutte le modalità"
 }

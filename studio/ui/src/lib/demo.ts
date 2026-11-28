@@ -148,7 +148,14 @@ export class DemoBackend implements Backend {
   }
 
   async catalog(menu: number): Promise<CatalogItem[]> {
-    return clone(FIX.catalog[String(menu)] ?? []);
+    const items = clone(FIX.catalog[String(menu)] ?? []);
+    if (menu === 11)                                    // waveod's Clone slots 11..20, after the captured 10
+      for (let i = items.length; items.length && i < 20; i++)
+        items.push({ ...items[items.length - 1], index: i, id: 0x0f000000 + i, name: `Clone ${i + 1}` });
+    // the user IR and Clone menus list the slots under the names they hold now, as the pedal does
+    if (menu === 6) items.forEach((i) => { const s = this.irSlots[i.index]; if (s) i.name = s.name; });
+    if (menu === 11) items.forEach((i) => { const s = this.slots[i.index]; if (s?.named) i.name = s.name; });
+    return items;
   }
 
   async presets(): Promise<PresetEntry[]> {
@@ -350,7 +357,13 @@ export class DemoBackend implements Backend {
   }
 
   // ---------------------------------------------------------------- the NAM screen
-  private slots: CloneSlot[] = clone(FIX.nam?.slots ?? []);
+  // the captured pedal had the original's 10 Clone slots: waveod's 10 more (src/fw/ir_store.h), empty
+  private slots: CloneSlot[] = (() => {
+    const s = clone(FIX.nam?.slots ?? []);
+    for (let i = s.length; s.length && i < 20; i++)
+      s.push({ slot: i, kind: 0, kind_text: 'vazio', named: false, name: `Clone ${i + 1}` });
+    return s;
+  })();
   private namPicks = 0;
 
   async clones() { await delay(40); return clone(this.slots); }

@@ -82,13 +82,13 @@ uint32_t ir_cab_data(const struct ir_dir *d, int cab)
 struct small_fs {
     uint32_t base, size;
     unsigned entry_size_at;     /* header byte holding the entry size */
-    unsigned capacity_at;       /* header byte holding the number of entries */
     unsigned block_size_at;     /* header u16 holding the data block size, 0 = sector size */
     unsigned dir_index_at;      /* header byte holding this sector's directory index */
+    int slots;                  /* the entries waveod reads (the header's capacity, 50 / 10, is the original's) */
 };
 
-static const struct small_fs user_ir_fs = { FLASH_USER_IR_FS, FLASH_USER_IR_FS_SIZE, 0x0d, 0x0c, 0, 0x0b };
-static const struct small_fs clone_fs = { FLASH_CLONE_FS, FLASH_CLONE_FS_SIZE, 0x08, 0x09, 0x0a, 0x07 };
+static const struct small_fs user_ir_fs = { FLASH_USER_IR_FS, FLASH_USER_IR_FS_SIZE, 0x0d, 0, 0x0b, IR_USER_COUNT };
+static const struct small_fs clone_fs = { FLASH_CLONE_FS, FLASH_CLONE_FS_SIZE, 0x08, 0x0a, 0x07, IR_CLONE_SLOTS };
 
 /* directory entry n of a small file system (marked 'Z'), or 0 */
 static const uint8_t *fs_entry(const struct small_fs *fs, int n)
@@ -97,8 +97,8 @@ static const uint8_t *fs_entry(const struct small_fs *fs, int n)
     if (!h0 || rd16(h0) >> 7 != FS_MAGIC >> 7)
         return 0;
     uint32_t sector = rd16(h0 + 4);
-    unsigned esize = h0[fs->entry_size_at], cap = h0[fs->capacity_at];
-    if (!sector || sector > 0x10000 || !esize || n < 0 || n >= cap)
+    unsigned esize = h0[fs->entry_size_at];
+    if (!sector || sector > 0x10000 || !esize || n < 0 || n >= fs->slots)
         return 0;
     unsigned per = (sector - 0x10) / esize;
     if (!per)
@@ -128,20 +128,20 @@ static uint32_t fs_data(const struct small_fs *fs, int n)
 
 uint32_t ir_user_data(int n)
 {
-    return n >= 0 && n < IR_USER_COUNT ? fs_data(&user_ir_fs, n) : 0;
+    return fs_data(&user_ir_fs, n);
 }
 
 uint32_t ir_clone_data(const struct ir_dir *d, int n)
 {
-    if (n < 0 || n >= IR_CLONE_COUNT)
+    if (n < 0 || n >= IR_CLONE_SLOTS)
         return 0;
-    uint32_t off = fs_data(&clone_fs, n);
-    return off ? off : dir_data(d, IR_DIR_CLONE_FIRST(d) + n);
+    uint32_t off = fs_data(&clone_fs, n);           /* slots past the directory's have no factory data */
+    return off || n >= IR_CLONE_COUNT ? off : dir_data(d, IR_DIR_CLONE_FIRST(d) + n);
 }
 
 int ir_fs_name(int clone, int n, char name[IR_FS_NAME_LEN + 1])
 {
-    const uint8_t *e = n >= 0 && n < (clone ? IR_CLONE_COUNT : IR_USER_COUNT) ? fs_entry(clone ? &clone_fs : &user_ir_fs, n) : 0;
+    const uint8_t *e = fs_entry(clone ? &clone_fs : &user_ir_fs, n);
     if (!e)
         return -1;
     int k = 0;

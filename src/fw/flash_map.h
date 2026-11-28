@@ -17,7 +17,8 @@
 #define FLASH_WV_STORE        0x3A3000u   /* waveod's presets (fw/wv_store.c), up to the Clone file system */
 #define FLASH_WV_STORE_SIZE   0x67000u
 
-#define FLASH_CLONE_FS        0x40A000u   /* 10 Clone captures (own file system), 0x36000 bytes */
+#define FLASH_CLONE_FS        0x40A000u   /* Clone captures (own file system: the original's 10, waveod's 20 in
+                                             fw/ir_store.h), 0x36000 bytes: 3 directory sectors, 25 blocks of 8 KB */
 #define FLASH_CLONE_FS_SIZE   0x36000u
 #define FLASH_FACTORY_BANK    0x440000u   /* 120 factory presets, 3 per 4 KB sector */
 #define FLASH_FACTORY_COUNT   120

@@ -59,12 +59,21 @@ static const struct screen *const screens[SCR_COUNT] = {
 
 /* ---------------------------------------------------------------- display driver */
 
+static int front;                   /* the frame buffer on the display */
+
 static void flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px)
 {
     (void)area;
-    if (lv_display_flush_is_last(disp))
-        display_show(px == (uint8_t *)display_fb(1) ? 1 : 0);
+    if (lv_display_flush_is_last(disp)) {
+        front = px == (uint8_t *)display_fb(1) ? 1 : 0;
+        display_show(front);
+    }
     lv_display_flush_ready(disp);
+}
+
+const uint32_t *ui_screen(void)
+{
+    return display_fb(front);
 }
 
 static void display_init(void)

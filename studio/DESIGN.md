@@ -73,9 +73,8 @@ components:
 ## Overview
 
 The pedal's screen, grown up for a computer. Near-black ground, one amber accent for the app's own actions, and
-every effect in its menu colour, exactly as the QME-200 shows it. The layout follows the Cortex Control idea the
-user chose: a grid of effect blocks in the middle, the model browser on the left, the knobs of the selected
-block at the bottom. Colour belongs to the effects; the chrome stays neutral so the chain reads first.
+every effect in its menu colour, exactly as the QME-200 shows it. The layout the user chose: a grid of effect
+blocks in the middle, the model browser on the left, the knobs of the selected block at the bottom. Colour belongs to the effects; the chrome stays neutral so the chain reads first.
 
 ## Colors
 
@@ -92,8 +91,11 @@ Plex Mono only for measured values (knob readouts, BPM, preset numbers).
 
 ## Layout
 
-Top bar 52px; left browser 300px; the rest is the grid stage (scaled to fit, centred) over the parameter panel.
-The grid is 2 rows x 6 columns of 112px cells between an IN pill and the OUT pill(s). Minimum window 1100 x 700.
+Top bar 52px (the screens' tabs, the language as a globe and its two letters at the right); status bar 26px along
+the bottom (the connection: its state, the device, firmware, USB, protocol); left browser 300px; the rest is the
+grid stage (scaled to fit, centred) over the parameter panel. The grid is 2 rows x 6 columns of 112px cells between
+an IN pill and the OUT pill(s); a block pointed at shows two round badges over its top right corner (on/off,
+remove). Minimum window 1100 x 700.
 
 ## Elevation & Depth
 
@@ -118,4 +120,4 @@ Buttons and fields 6px radius; panels 10px.
 - Do use the pedal's words (Paralelo, Cena, Gabinete) and its icons.
 - Do show every refusal from the pedal as a toast that says why.
 - Don't add colour to chrome; don't glow; don't use gradient text or glass.
-- Don't copy Cortex Control's icons or exact look.
+- Don't copy another editor's icons or exact look.

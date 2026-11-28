@@ -771,7 +771,8 @@ class Api:
 
     # ------------------------------------------------------------------ the NAM screen (Clone slots, protocol 6)
     def clones(self):
-        """the 10 Clone slots: [dict(slot, kind, kind_text, named, name, sample_rate?, loudness?, crc?)]"""
+        """the Clone slots (20; 10 on a firmware before them): [dict(slot, kind, kind_text, named, name,
+        sample_rate?, loudness?, crc?)]"""
         return [dict(s, kind_text=P.CLONE_KINDS.get(s['kind'], '?')) for s in self._call(lambda p: p.clones())]
 
     def pick_nam(self):

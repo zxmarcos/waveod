@@ -256,5 +256,7 @@
   "studio.connect.old_step2": "Quando il pedale si riavvia con esso, lo Studio si collega da solo.",
   "studio.connect.updating_lead": "Non spegnere il pedale e non scollegare il cavo. Quando finisce, si riavvia e lo Studio si collega da solo.",
   "studio.connect.attempt": "tentativo {n}",
-  "studio.connect.retry": "Riprova ora"
+  "studio.connect.retry": "Riprova ora",
+  "studio.grid.turn_off": "Spegni il blocco (doppio clic)",
+  "studio.grid.turn_on": "Accendi il blocco (doppio clic)"
 }

@@ -16,20 +16,10 @@
     { id: 'perf', label: 'tab.perf', ready: true },
     { id: 'pedal', label: 'tab.pedal', ready: true },
   ];
-  const l = $derived(studio.link);
-  const PHASES: Record<string, MsgKey> = {
-    starting: 'link.starting', searching: 'link.searching', busy: 'link.busy', silent: 'link.silent', old: 'link.old',
-    failed: 'link.failed', updating: 'link.updating',
-  };
-  /** the transport as the backend names it ('emulador', 'demonstração': identifiers) in the page's words */
-  const transportName = (tr: string) =>
-    tr === 'emulador' ? t('link.emulator') : tr === 'demonstração' ? t('link.demo') : tr;
   const sysName = $derived(LANGUAGES.find((x) => x.code === systemLang())?.name ?? '');
-  const where = $derived(
-    !l ? t('link.initial') : l.phase !== 'connected' ? (PHASES[l.phase] ? t(PHASES[l.phase]) : l.phase) :
-    l.transport === 'usb' ? `${l.name} · ${l.version}` : `${transportName(l.transport)} · ${l.version}`);
-  const tone = $derived(!l || l.phase === 'starting' || l.phase === 'searching' ? 'look' :
-                         l.phase === 'connected' ? 'ok' : 'bad');
+  /** the language in two letters (pt-BR -> PT) */
+  const short = $derived(i18n.lang.split('-')[0].toUpperCase());
+  const langName = $derived(LANGUAGES.find((x) => x.code === i18n.lang)?.name ?? '');
 </script>
 
 <header class="top">
@@ -45,16 +35,15 @@
               title={tab.ready ? '' : t('top.classic')}>{t(tab.label)}</button>
     {/each}
   </nav>
-  <label class="lang" title={t('lang.label')}>
-    <Icon name="globe" size={15} stroke={2} />
+  <!-- the language: the globe and two letters; the native list (a select laid over them) names them in full -->
+  <label class="lang" title="{t('lang.label')}: {langName}">
+    <Icon name="globe" size={16} stroke={2} />
+    <span class="code">{short}</span>
     <select value={i18n.choice} aria-label={t('lang.label')} onchange={(e) => i18n.set(e.currentTarget.value as Choice)}>
       <option value="system">{t('lang.system', { name: sysName })}</option>
       {#each LANGUAGES as x (x.code)}<option value={x.code}>{x.name}</option>{/each}
     </select>
   </label>
-  <div class="link" class:ok={tone === 'ok'} class:bad={tone === 'bad'} class:look={tone === 'look'}>
-    <span class="dot"></span>{where}
-  </div>
 </header>
 
 <style>
@@ -81,6 +70,7 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--label);
+    white-space: nowrap;
   }
   nav button:disabled { color: var(--dim); cursor: default; }
   nav button.current { color: var(--text); }
@@ -93,25 +83,30 @@
     height: 2px;
     background: var(--accent);
   }
-  .lang { display: flex; align-items: center; gap: 6px; flex: none; color: var(--label); }
-  .lang select {
-    height: 28px; padding: 0 6px; border-radius: var(--r-sm); background: var(--bg); color: var(--label);
-    border: 1px solid var(--border-off); font: 500 12.5px var(--f-body); cursor: pointer; outline: none;
-  }
-  .lang select:hover, .lang select:focus { color: var(--text); border-color: var(--wire); }
-  .link {
+  .lang {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
-    font: 500 12.5px var(--f-value);
-    color: var(--label);
-    white-space: nowrap;
+    gap: 6px;
     flex: none;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border-off);
+    color: var(--label);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
   }
-  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-  .ok .dot { background: var(--ok); }
-  .bad .dot { background: var(--error); }
-  .look .dot { background: var(--accent); animation: blink 1.2s ease-in-out infinite; }
-  @keyframes blink { 50% { opacity: 0.25; } }
-  @media (prefers-reduced-motion: reduce) { .look .dot { animation: none; } }
+  .lang:hover, .lang:focus-within { color: var(--text); border-color: var(--wire); }
+  .code { font: 600 13px/1 var(--f-value); letter-spacing: 0.04em; }
+  .lang select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+    font: 500 12.5px var(--f-body);
+    background: var(--bg);
+    color: var(--text);
+  }
 </style>

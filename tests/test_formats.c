@@ -33,7 +33,8 @@ void test_formats(void)
 
     CHECK(cat.irs.count == 91, "IR directory entries %d", cat.irs.count);
     CHECK(catalog_count(&cat, MENU_CAB) == 61, "factory cabs %d", catalog_count(&cat, MENU_CAB));
-    CHECK(catalog_count(&cat, MENU_IR) == 20 && catalog_count(&cat, MENU_CLONE) == 10, "IR / Clone slots");
+    CHECK(catalog_count(&cat, MENU_IR) == 20 && catalog_count(&cat, MENU_CLONE) == 20,
+          "IR / Clone slots (the directory's 10 Clone entries, waveod's 20)");
     CHECK(catalog_data(&cat, MENU_CAB, 0) >= FLASH_IR_LIBRARY + 0x2000, "cab 0 data %#x", catalog_data(&cat, MENU_CAB, 0));
 
     struct preset_source src;

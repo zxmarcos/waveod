@@ -63,5 +63,11 @@
   "fw.mods.title": "MODULADORES · ESTE PRESET",
   "fw.mods.link": "A",
   "fw.mods.off_hint": "OFF · GIRA EL KNOB 1 EN TIPO",
-  "fw.ctl.row_global": "GLOBAL · "
+  "fw.ctl.row_global": "GLOBAL · ",
+  "fw.ctl.removed_all_modes": "QUITADA EN TODOS LOS MODOS",
+  "fw.ctlmap.group_fs": "PULSADORES",
+  "fw.ctlmap.group_pairs": "PARES",
+  "fw.ctlmap.group_pedals": "PEDALES",
+  "fw.ctlmap.group_mods": "MODULADORES",
+  "fw.ctlmap.hint_list": "MENU: ABRIR · EFX: SIGUIENTE MODO · MANTÉN CTRL: TARJETAS"
 }

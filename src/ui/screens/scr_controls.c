@@ -261,6 +261,13 @@ static void remove_link(struct ui_ctx *ui, int row)
     int i = row_link(row);
     if (i < 0)
         return;
+    if (s.global) {                             /* the global table: out of every mode (fw/preset_format.h) */
+        int modes = preset_control_remove_alike(c, i);
+        collect(ui);
+        ui_toast(T(s.key < CK_TOE && (modes & (modes - 1)) ? MSG_CTL_REMOVED_ALL_MODES : MSG_COMMON_LINK_REMOVED));
+        edited(ui);
+        return;
+    }
     if (c->c[i].modes != s.mode && s.key < CK_TOE)
         c->c[i].modes &= (uint8_t)~s.mode;      /* still in the other modes */
     else

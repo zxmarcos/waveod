@@ -120,5 +120,7 @@
   "studio.mod.rate_free": "{hz} Hz · {what} von {len}",
   "studio.mod.word_step": "Schritt",
   "studio.mod.word_cycle": "Zyklus",
-  "studio.ctl.again": "AKTIVES PRESET ERNEUT"
+  "studio.ctl.again": "AKTIVES PRESET ERNEUT",
+  "studio.ctl.remove_choice": "Keine (Zuweisung entfernen)",
+  "studio.ctl.remove_all": "Zuweisung aus allen Modi entfernen"
 }

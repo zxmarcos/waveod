@@ -187,6 +187,18 @@ Plate: 8 types, dispersive lines at half the rate, 94-128 k; Spring: 10 types (f
 at a quarter of the rate, 42-101 k. See [docs/chorus.md](docs/chorus.md), [docs/modfx.md](docs/modfx.md),
 [docs/delay.md](docs/delay.md), [docs/reverb.md](docs/reverb.md) and [docs/plate.md](docs/plate.md).
 
+## Synth
+
+FX › Synth turns the guitar into a monophonic synthesizer.
+- **Tracking:** it follows the pitch of the clean input, so it can sit after a drive or an amp. The latency is
+  about 5 ms on the high strings and 20-30 ms on a low E.
+- **Voice:** two oscillators (twelve waves: saw, square, pulses, PWM, triangle, sine, supersaw, sync, organ,
+  formant voice and more) with interval and detune (a sub octave at -12), glide, and
+  Snap to semitones, through a resonant 4-pole ladder filter that follows the note and an envelope.
+- **Level:** the guitar's own dynamics (Follow) or the note held at its peak (Hold), with attack swells.
+
+See [docs/synth.md](docs/synth.md).
+
 ## The original's effects
 
 The original firmware's effects ported to readable C, their output bit for bit, as the base for improving them

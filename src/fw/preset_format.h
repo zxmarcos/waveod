@@ -279,6 +279,11 @@ void preset_controls_forget(struct preset *p, int slot, int params_only);
 int preset_control_add(struct preset_controls *c, const struct control *link);
 void preset_control_remove(struct preset_controls *c, int i);
 
+/* Link i out of the table with every link like it on its key (the same link in the key's other modes, as when a link
+   shared by several modes was split to be edited in one): the global table's removal, which takes a function off a
+   key everywhere (a footswitch pair's looper...). Returns the modes it was in (0: no such link). */
+int preset_control_remove_alike(struct preset_controls *c, int i);
+
 /* Scenes of a preset that has none: all four the blocks as they are, no scene parameters, no names. */
 void preset_scenes_reset(struct preset *p);
 

@@ -120,5 +120,7 @@
   "studio.mod.rate_free": "{hz} Hz · {what} of {len}",
   "studio.mod.word_step": "step",
   "studio.mod.word_cycle": "cycle",
-  "studio.ctl.again": "ACTIVE PRESET AGAIN"
+  "studio.ctl.again": "ACTIVE PRESET AGAIN",
+  "studio.ctl.remove_choice": "None (remove the link)",
+  "studio.ctl.remove_all": "Remove the link from every mode"
 }

@@ -1,4 +1,5 @@
 #include "ui/gesture.h"
+#include "input/remote.h"
 #include "platform/sdram.h"
 #include "platform/time.h"
 #include "platform/touch.h"
@@ -38,6 +39,7 @@ static void read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
     (void)indev;
     touch_read(&last);
+    remote_touch(&last);
     data->point.x = last.x;
     data->point.y = last.y;
     data->state = last.pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;

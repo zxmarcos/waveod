@@ -91,6 +91,16 @@ void app_init(void)
     safety_arm();                           /* from here on the main loop must keep running */
 }
 
+struct settings *app_settings(void)
+{
+    return &settings;
+}
+
+struct rig *app_rig(void)
+{
+    return &rig;
+}
+
 void app_step(void)
 {
     safety_feed();

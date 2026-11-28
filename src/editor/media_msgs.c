@@ -6,6 +6,8 @@
  *   0x14000001 / 0x18000001  data {slot, 0, ., ., ., name[17] at +0x14, data at +0x28 (4096 / 8192 bytes)}:
  *                            stored (fw/ir_fs.h), answered 0x14000003 / 0x18000003 {slot, accepted, 0}
  *   0x14000002 / 0x18000002  rename {slot, name[17]}
+ *                            (Clone slots 0..19: waveod's 20, fw/ir_store.h IR_CLONE_SLOTS; the names message and the
+ *                            delete stay the original's 10)
  *   0x11000001 sub 0x9000 | n  delete Clone capture n (FUN_0002D344)
  * The file transfer (0x0500000A..C, unused by the editor) is refused.
  */
@@ -61,7 +63,7 @@ static void store(const struct msg *m, enum irfs_kind kind)
     uint32_t slot = msg_word(m, 2), ok = 0, size = kind == IRFS_CLONE ? IRFS_CLONE_DATA : IRFS_USER_DATA;
     if (msg_word(m, 3) == 0) {
         ok = 1;
-        if (slot < (kind == IRFS_CLONE ? IR_CLONE_COUNT : IR_USER_COUNT)) {
+        if (slot < (kind == IRFS_CLONE ? IR_CLONE_SLOTS : IR_USER_COUNT)) {
             char name[18];
             text_at(m, 0x14, name);
             uint32_t n = m->len > 0x28 ? m->len - 0x28 : 0;
@@ -78,7 +80,7 @@ static void store(const struct msg *m, enum irfs_kind kind)
 static void rename_slot(const struct msg *m, enum irfs_kind kind)
 {
     uint32_t slot = kind == IRFS_CLONE ? (msg_word(m, 2) & 0xffff) : msg_word(m, 2);
-    if (slot >= (kind == IRFS_CLONE ? IR_CLONE_COUNT : IR_USER_COUNT))
+    if (slot >= (kind == IRFS_CLONE ? IR_CLONE_SLOTS : IR_USER_COUNT))
         return;
     char name[18];
     text_at(m, 0x0c, name);

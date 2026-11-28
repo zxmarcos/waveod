@@ -55,12 +55,14 @@ int main(int argc, char **argv)
     test_plate();
     test_nam();
     test_spectrum();
+    test_synth();
     if (fw) {
         if (host_flash_load_firmware(fw) != 0) {
             printf("cannot read %s\n", fw);
             return 1;
         }
         test_formats();
+        test_clone_catalog();
         test_preset_save();
         test_wvpresets();
         test_scenes();

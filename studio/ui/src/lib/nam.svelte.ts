@@ -1,11 +1,14 @@
-// The NAM screen's state: the 10 Clone slots (protocol 6) and a .nam on its way into one of them.
+// The NAM screen's state: the Clone slots (protocol 6: 20, or 10 on a firmware before them) and a .nam on its way
+// into one of them.
 
 import { errorText } from './api';
 import { t } from './i18n.svelte';
 import { studio } from './store.svelte';
 import type { CloneSlot, NamFile } from './types';
 
-export const KIND = { EMPTY: 0, ORIGINAL: 1, NAM: 2, NAM48: 3, BROKEN: 4 };
+const MENU_CLONE = 11;                      // the browser's Clone menu, which lists the slots by name
+
+export const KIND ={ EMPTY: 0, ORIGINAL: 1, NAM: 2, NAM48: 3, BROKEN: 4 };
 
 /** engine: 'nam' the A2-Lite network on waveod's NAM engine, 'clone' converted for the original's Clone */
 export interface NamDraft { slot: number; file: NamFile; name: string; native: boolean; engine: 'nam' | 'clone'; busy: boolean }
@@ -51,6 +54,7 @@ class Nam {
         : await studio.call((b) => b.writeNam(d.slot, d.file.path, d.name, d.native));
       this.draft = null;
       studio.say(t('nam.written', { n: d.slot + 1, name: d.name.trim(), kind: this.slots[d.slot]?.kind_text ?? '' }));
+      void studio.reloadCatalogs([MENU_CLONE]);
     } catch (e) {
       d.busy = false;
       studio.say(errorText(e), 'error');

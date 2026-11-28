@@ -21,6 +21,7 @@ struct settings {
     uint8_t drum_user;                      /* the drum machine plays MEUS RITMOS place drum_user - 1 (0 = the bank's
                                                pattern, chosen in the globals shared with the original) */
     uint8_t language;                       /* the screens' language: ui/i18n.h enum i18n_lang (0 = English) */
+    uint8_t ctl_list;                       /* CONTROLES opens as the list of keys (else the cards) */
 };
 
 #define SETTINGS_LANGUAGES 32                /* stored indices kept (ui/i18n_msgs.h has how many exist) */

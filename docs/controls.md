@@ -121,6 +121,15 @@ pairs and the active preset's key are on the links screen (TECLA). Below the car
 Right of it, KNOBS: what the preset's three quick knobs turn; it opens the quick knobs' assignments (below). MIDI and
 KNOBS are the last stops of the page's MENU turns; on the global table there is no KNOBS.
 
+The button at the top right (or CTRL held; a press of CTRL still goes back) switches to the list view, which the
+pedal then keeps (waveod's settings): a row per key, grouped (PÉS A-D and BANK −/+; PARES with the active
+preset's key in preset mode; PEDAIS: the toe switch, EXP 1A / 1B, EXP 2; MODULADORES; MIDI: the CCs that have
+links; KNOBS), each with what it does in the mode shown, its first two links joined and +n for the others, grey
+with a G tag when they are the global table's, SEM LIGAÇÕES when none, NADA (SEM AS GLOBAIS) when a NADA link keeps
+the global ones out. MENU turns move the cursor over the rows, MENU press (or a tap) opens the key's links screen
+(the pairs straight away, without TECLA), EFX shows the next mode, dragging scrolls. On the global table the same,
+without the active preset's key, the modulators and KNOBS.
+
 A second page, CONTROLES · MODULADORES (on a preset only): a card per modulator, MOD 1-4, with its type and rate,
 a small drawing of it playing and its first link (+n for the others); a card opens the modulators screen on it
 (Modulators, below). MENU turns go on from KNOBS to MOD 1-4 and the page follows; swipe sideways or tap a page's
@@ -150,8 +159,11 @@ Funções and MIDI; a pedal: blocks and MIDI), what of it, and when. Picking a c
 | Column | Footswitch | Pedal (EXP 1A / 1B / 2) | MIDI CC |
 |---|---|---|---|
 | 1 | blocks, Cenas, Funções, MIDI | blocks, MIDI | blocks, Cenas, Funções, MIDI |
-| 2 | a block: LIGA O BLOCO, DESLIGA O BLOCO, its parameters; the scenes 1-4, next, previous; the functions; ENVIAR CC, ENVIAR PC | a block: LIGA AO MOVER, COM O GRUPO (not EXP 2), its parameters; ENVIAR CC | as a footswitch |
+| 2 | a block: LIGA O BLOCO, DESLIGA O BLOCO, its parameters; the scenes 1-4, next, previous; NENHUMA (REMOVER), then the functions; ENVIAR CC, ENVIAR PC | a block: LIGA AO MOVER, COM O GRUPO (not EXP 2), its parameters; ENVIAR CC | as a footswitch |
 | 3 | APERTAR, SEGURAR, PISANDO (while down; not the toe switch) | the curve of a parameter or CC: LINEAR, LENTA, RÁPIDA | as a pedal |
+
+NENHUMA (REMOVER), the first of the functions, removes the link like MENU held: a key without links does nothing
+(a pair still takes both footswitches, so neither runs alone).
 
 Below, a parameter link's values: OFF / ON (a pedal: CALCANHAR / PONTA; a MIDI CC: EM 0 / EM 127) and when / the
 curve. A MIDI out link has five: the CC or program number, the channel (1-16), when / the curve, and the CC's two
@@ -227,7 +239,12 @@ table keep all their links (their own, so the global table does not reach those 
 
 CONTROLES GLOBAIS is the CONTROLES screen on the global table (title CONTROLES GLOBAIS): the same cards, links
 screen and PARA ONDE, without blocks (Cenas, Funções and MIDI only) and without the active preset's key. The table
-is written to the flash when those screens are left.
+is written to the flash when those screens are left. Removing a link there (MENU held, or NENHUMA (REMOVER))
+takes it out of every mode it is in, toast REMOVIDA EM TODOS OS MODOS: C + D's looper goes from the pair in preset,
+stomp and scene mode at once (on a preset a removal stays the edited mode's). There is no NADA link in the global
+table: a key without links already does nothing; NADA belongs to a preset, where it keeps the global links out.
+waveod Studio's controls editor does the same (Nenhuma (remover a ligação) first among the functions; the remove
+button of a global link: from every mode).
 
 On a preset, CONTROLES shows the global links that play there in grey ("(G)" on the MIDI bar); the links screen
 lists them as GLOBAL · APERTAR / SEGURAR rows: MENU press on one copies its group into the preset (to edit it

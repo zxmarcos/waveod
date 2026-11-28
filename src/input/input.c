@@ -1,4 +1,5 @@
 #include "input/input.h"
+#include "input/remote.h"
 #include "platform/time.h"
 
 #define COUNTS_PER_DETENT 4
@@ -18,6 +19,7 @@ void input_init(void)
 {
     struct controls_raw raw;
     controls_read(&raw);
+    remote_apply(&raw);
     in.buttons = raw.buttons;
     for (int i = 0; i < ENC_COUNT; i++)
         in.enc_last[i] = raw.enc[i];
@@ -44,6 +46,7 @@ int input_poll(struct input_event *ev, int max)
         input_init();
     struct controls_raw raw;
     controls_read(&raw);
+    remote_apply(&raw);
     uint32_t now = time_ms();
     int n = 0;
 

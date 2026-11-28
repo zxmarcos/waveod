@@ -77,7 +77,7 @@ A slot stores (menu, id) as before; resolving by id finds an effect wherever it 
 
 The update file brings waveod's own effects with it (`tools/portfw.py`): every block of `src/blocks/*.c` that is
 not a built-in nor a port of an original's effect (the circuit drives, the light modulations, the Delay, the
-Reverb, Plate and Spring) is built as a module and added at the end of its menu in the effect library (section 1),
+Reverb, Plate and Spring, the Synth) is built as a module and added at the end of its menu in the effect library (section 1),
 so they are in list 1 above on any pedal updated with it, without the Efeitos tab. Their entries name options and
 units like waveod's library does: `fw/library.c` reads them for any entry with a waveod id (0x57MMnnnn; the
 original's ids never start so). A module installed in waveod's library with an id the firmware already has (the
@@ -222,6 +222,19 @@ first-order all-passes (the dispersion), damping and low shelf, Householder feed
 Spring: 10 types, mono at a quarter of the rate, an input drive, four-line springs or pair tanks with a
 Schroeder all-pass each, a tone filter per type. The type tables `blocks/plate_types.h`, `blocks/spring_types.h`
 and the filters `blocks/modfx/rvb_fir.h` are generated. See docs/plate.md.
+
+## Synth (FX › Synth)
+
+A module: the guitar as a monophonic synthesizer.
+- **Tracker** (`blocks/synth/track.h`): the clean input's pitch (`io->aux`), from a normalised squared-difference
+  function kept in 64-bit integers sample by sample at 11025 Hz, with a window two periods long at each lag.
+  That gives about 5 ms of latency on the high strings and 20-30 ms on a low E.
+- **Voice:** two PolyBLEP oscillators, glide, Snap to semitones, and a 4-pole ZDF ladder whose cutoff
+  follows the note and an envelope.
+- **Level:** the guitar's envelope (Follow) or the note's peak (Hold).
+- **Size:** 15 knobs, 18 KB of state, no buffer.
+
+See docs/synth.md.
 
 ## Memory
 

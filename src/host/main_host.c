@@ -1,7 +1,11 @@
 /*
  * waveod-sim: runs the application on the PC against a firmware image and a control script.
  *
- *   waveod-sim --fw QME-200_FW_USB_V1.2.2.bin [--out DIR] [--hold B] [--crash C,P,S,T,N[,A]] COMMAND...
+ *   waveod-sim --fw QME-200_FW_USB_V1.2.2.bin [--flash DUMP] [--lang N] [--out DIR] [--hold B] [--crash C,P,S,T,N[,A]]
+ *              COMMAND...
+ *
+ * --flash DUMP: a pedal's whole flash (8 MB) in place of the update's sections. --lang N: the screens' language
+ * (ui/i18n_msgs.h enum i18n_lang, 0 = English) whatever the settings say.
  *
  * --hold B: button B held at power-up (EXIT = safe mode). --crash: the previous run ended in a crash of cause C
  * (enum crash_cause) in preset P, slot S (255 = none), T s after its start-up, the Nth in a row, A = 1 in audio.
@@ -23,9 +27,20 @@
  *                128 of the buffers (the latency test)
  *   wait:MS      let time pass
  *   shot:NAME    save the screen as DIR/NAME.png
- *   leds         print the footswitch LEDs
+ *   wav=PATH[|DB]  a WAV file on the guitar input from now on (its first channel; DB: gain), at the level USB
+ *                playback channel 3 (re-amping) brings into the chain at full scale
+ *   rec=PATH     the screen into PATH from now on, 30 frames a second of simulated time, raw 0x00RRGGBB
+ *                (ffmpeg -f rawvideo -pix_fmt bgr0 -s 480x272 -r 30); recstop closes it
+ *   preset:N     load preset N (0..239) as the editor protocol does
+ *   aout=PATH    the outputs (L, R) into PATH from now on, float32 pairs (1.0 = the converters' full scale)
+ *   at:MS        let time pass up to MS ms after the last rec= (the script's start before one)
+ *   hold:B:MS    B held MS ms *   leds         print the footswitch LEDs
  */
 #include "app/app.h"
+#include "model/rig.h"
+#include "model/settings.h"
+#include "platform/audio.h"
+#include "platform/display.h"
 #include "host/host.h"
 #include "platform/controls.h"
 #include "platform/safety.h"
@@ -33,7 +48,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STEP_MS 20
+#define STEP_MS 20                      /* the gestures' steps */
+#define TICK_MS 10                      /* the main loop's */
+#define REC_FPS 30
+
+static uint32_t sim_ms;                 /* since the script started */
+static long audio_done;                 /* blocks run: sim_ms in samples / AUDIO_FRAMES */
+static FILE *rec;                       /* rec=: frames, raw 0x00RRGGBB (ffmpeg -f rawvideo -pix_fmt bgr0) */
+static double rec_next;
+static uint32_t mark_ms;                /* at: counts from here (the last rec=) */
 
 static const struct { const char *name; uint32_t mask; } buttons[] = {
     { "MENU", BTN_MENU }, { "EXIT", BTN_EXIT }, { "EFX", BTN_EFX }, { "SAVE", BTN_SAVE },
@@ -46,10 +69,17 @@ static const char *const pots[POT_COUNT] = { "MASTER", "EXP1", "EXP2" };
 
 static void run(uint32_t ms)
 {
-    for (uint32_t t = 0; t < ms; t += STEP_MS) {
-        host_time_advance(STEP_MS);
-        host_audio_run(STEP_MS * 44100 / 64 / 1000);
+    for (uint32_t t = 0; t < ms; t += TICK_MS) {
+        host_time_advance(TICK_MS);
+        sim_ms += TICK_MS;
+        long want = (long)((uint64_t)sim_ms * 44100 / 1000 / AUDIO_FRAMES);
+        host_audio_run((int)(want - audio_done));
+        audio_done = want;
         app_step();
+        while (rec && sim_ms >= rec_next) {
+            fwrite(host_display_pixels(), 4, DISPLAY_W * DISPLAY_H, rec);
+            rec_next += 1000.0 / REC_FPS;
+        }
     }
 }
 
@@ -91,8 +121,68 @@ static int touch_x, touch_y;            /* finger of down / move / up */
 static void command(const char *cmd, const char *out_dir)
 {
     char a[32] = "", b[64] = "", c[32] = "";
+    if (strncmp(cmd, "wav=", 4) == 0) {             /* wav=PATH[|DB] (a path has colons) */
+        char path[512];
+        double db = 0;
+        snprintf(path, sizeof path, "%s", cmd + 4);
+        char *bar = strchr(path, '|');
+        if (bar) {
+            *bar = 0;
+            db = atof(bar + 1);
+        }
+        if (host_audio_wav(path, db) != 0) {
+            fprintf(stderr, "cannot read %s\n", path);
+            exit(2);
+        }
+        return;
+    }
+    if (strncmp(cmd, "aout=", 5) == 0) {            /* aout=PATH: the outputs L, R from now on, float32 pairs */
+        if (host_audio_out(cmd + 5) != 0) {
+            fprintf(stderr, "cannot write %s\n", cmd + 5);
+            exit(2);
+        }
+        return;
+    }
+    if (strncmp(cmd, "rec=", 4) == 0) {             /* rec=PATH: frames from now on, REC_FPS a second */
+        if (rec)
+            fclose(rec);
+        rec = fopen(cmd + 4, "wb");
+        if (!rec) {
+            fprintf(stderr, "cannot write %s\n", cmd + 4);
+            exit(2);
+        }
+        rec_next = sim_ms;
+        mark_ms = sim_ms;
+        return;
+    }
     sscanf(cmd, "%31[^:]:%63[^:]:%31s", a, b, c);
-    if (strcmp(a, "press") == 0 || strcmp(a, "hold") == 0) {
+    if (strcmp(a, "recstop") == 0) {
+        if (rec)
+            fclose(rec);
+        rec = 0;
+    } else if (strcmp(a, "bdown") == 0 || strcmp(a, "bup") == 0) {     /* no time passes: at: times them */
+        host_buttons_set(button(b), a[1] == 'd');
+    } else if (strcmp(a, "tdown") == 0) {
+        sscanf(b, "%d,%d", &touch_x, &touch_y);
+        host_touch_set(1, touch_x, touch_y);
+    } else if (strcmp(a, "tup") == 0) {
+        host_touch_set(0, touch_x, touch_y);
+    } else if (strcmp(a, "enc") == 0) {
+        host_encoder_turn(lookup(encoders, ENC_COUNT, b), atoi(c));
+    } else if (strcmp(a, "preset") == 0) {         /* preset:N (0..239), as the editor protocol loads one */
+        rig_load(app_rig(), atoi(b));
+        run(200);
+    } else if (strcmp(a, "at") == 0) {               /* at:MS: let time pass up to MS after the last rec= */
+        uint32_t t = mark_ms + (uint32_t)atoi(b);
+        if (t > sim_ms)
+            run(t - sim_ms);
+    } else if (strcmp(a, "hold") == 0 && c[0]) {     /* hold:B:MS: held that long */
+        uint32_t m = button(b);
+        host_buttons_set(m, 1);
+        run((uint32_t)atoi(c));
+        host_buttons_set(m, 0);
+        run(60);
+    } else if (strcmp(a, "press") == 0 || strcmp(a, "hold") == 0) {
         uint32_t m = button(b);
         host_buttons_set(m, 1);
         run(strcmp(a, "hold") == 0 ? 800 : 60);
@@ -179,7 +269,8 @@ static void command(const char *cmd, const char *out_dir)
 
 int main(int argc, char **argv)
 {
-    const char *fw = 0, *out = ".", *hold = 0;
+    const char *fw = 0, *out = ".", *hold = 0, *flash_dump = 0;
+    int lang = -1;
     int first = argc;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--fw") == 0 && i + 1 < argc)
@@ -188,6 +279,10 @@ int main(int argc, char **argv)
             out = argv[++i];
         else if (strcmp(argv[i], "--hold") == 0 && i + 1 < argc)
             hold = argv[++i];
+        else if (strcmp(argv[i], "--flash") == 0 && i + 1 < argc)
+            flash_dump = argv[++i];
+        else if (strcmp(argv[i], "--lang") == 0 && i + 1 < argc)
+            lang = atoi(argv[++i]);
         else if (strcmp(argv[i], "--crash") == 0 && i + 1 < argc) {
             unsigned v[6] = { 0, 0, SAFETY_NONE, 0, 1, 0 };
             sscanf(argv[++i], "%u,%u,%u,%u,%u,%u", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]);
@@ -205,9 +300,19 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: waveod-sim --fw firmware.bin [--out DIR] command...\n");
         return 1;
     }
+    if (flash_dump) {                           /* a pedal's whole flash (waveod_studio dump --all) */
+        FILE *f = fopen(flash_dump, "rb");
+        if (!f || fread(host_flash_image(), 1, 8u << 20, f) != 8u << 20) {
+            fprintf(stderr, "cannot read the 8 MB of %s\n", flash_dump);
+            return 1;
+        }
+        fclose(f);
+    }
     if (hold)
         host_buttons_set(button(hold), 1);
     app_init();
+    if (lang >= 0)
+        app_settings()->language = (uint8_t)lang;   /* the UI builds its screens again on the next tick */
     run(200);
     if (hold)
         host_buttons_set(button(hold), 0);

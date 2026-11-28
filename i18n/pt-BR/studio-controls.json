@@ -120,5 +120,7 @@
   "studio.mod.rate_free": "{hz} Hz · {what} de {len}",
   "studio.mod.word_step": "passo",
   "studio.mod.word_cycle": "ciclo",
-  "studio.ctl.again": "PRESET ATIVO DE NOVO"
+  "studio.ctl.again": "PRESET ATIVO DE NOVO",
+  "studio.ctl.remove_choice": "Nenhuma (remover a ligação)",
+  "studio.ctl.remove_all": "Remover a ligação de todos os modos"
 }

@@ -143,6 +143,20 @@ static int same_link(const struct control *x, const struct control *y)
            x->curve == y->curve && x->flags == y->flags && x->off == y->off && x->on == y->on;
 }
 
+int preset_control_remove_alike(struct preset_controls *c, int i)
+{
+    if (i < 0 || i >= c->count)
+        return 0;
+    const struct control l = c->c[i];
+    int modes = 0;
+    for (int k = c->count - 1; k >= 0; k--)
+        if (c->c[k].key == l.key && same_link(&c->c[k], &l)) {
+            modes |= c->c[k].modes;
+            preset_control_remove(c, k);
+        }
+    return modes;
+}
+
 static int in_group(const struct control *l, int key, int mode, int hold)
 {
     return l->key == key && (l->modes & mode) && (hold ? l->when == CW_HOLD : l->when != CW_HOLD);

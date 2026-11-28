@@ -21,5 +21,8 @@
   "studio.lang.label": "Idioma",
   "studio.lang.system": "Sistema ({name})",
   "studio.link.emulator": "emulador",
-  "studio.link.demo": "demonstração"
+  "studio.link.demo": "demonstração",
+  "studio.status.aria": "Conexão",
+  "studio.status.firmware": "firmware {version}",
+  "studio.status.protocol": "protocolo {n}"
 }

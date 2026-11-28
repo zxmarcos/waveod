@@ -14,3 +14,8 @@ int host_display_save_png(const char *path)
 {
     return png_write_xrgb(path, fbs[shown], DISPLAY_W, DISPLAY_H);
 }
+
+const uint32_t *host_display_pixels(void)
+{
+    return fbs[shown];
+}

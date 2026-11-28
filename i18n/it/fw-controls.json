@@ -63,5 +63,11 @@
   "fw.mods.title": "MODULATORI · QUESTO PRESET",
   "fw.mods.link": "VERSO",
   "fw.mods.off_hint": "OFF · GIRA LA MANOPOLA 1 SU TIPO",
-  "fw.ctl.row_global": "GLOBAL · "
+  "fw.ctl.row_global": "GLOBAL · ",
+  "fw.ctl.removed_all_modes": "RIMOSSA IN TUTTE LE MODALITÀ",
+  "fw.ctlmap.group_fs": "PEDALI",
+  "fw.ctlmap.group_pairs": "COPPIE",
+  "fw.ctlmap.group_pedals": "ESPRESSIONE",
+  "fw.ctlmap.group_mods": "MODULATORI",
+  "fw.ctlmap.hint_list": "MENU: APRI · EFX: MODALITÀ SEGUENTE · TIENI CTRL: SCHEDE"
 }

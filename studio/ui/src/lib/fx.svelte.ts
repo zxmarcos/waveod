@@ -29,7 +29,7 @@ class Effects {
   }
 
   private take(lib: FxLibrary) {
-    if (this.lib) studio.catalogs = {};       // the grid's browser lists the modules: read its menus again
+    if (this.lib) void studio.reloadCatalogs();   // the grid's browser lists the modules: read its menus again
     this.lib = lib;
     if (!lib.modules.some((m) => m.id === this.picked)) this.picked = lib.modules[0]?.id ?? null;
   }

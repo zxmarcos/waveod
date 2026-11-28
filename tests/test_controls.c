@@ -611,6 +611,62 @@ static void test_global(void)
     sent(b);
 }
 
+/* the global table: C+D's looper (factory, every mode) removed everywhere, also after being split to be edited in
+   one mode; the pair then does nothing in a preset without links of its own, and stays so after a restart */
+static void test_global_remove(void)
+{
+    static struct rig r;
+    memset(&r, 0, sizeof r);
+    rig_init(&r, RIG_AVOID_NONE);
+    rig_load(&r, 0);
+    struct preset_controls *g = &r.global;
+    const int cd = CK_COMBO + 2;
+    int modes = 0, n0 = g->count, orig = 0, i;
+    for (i = 0; i < g->count; i++)
+        if (g->c[i].key == cd && g->c[i].action == CA_FN && g->c[i].arg == FSF_LOOPER) {
+            modes |= g->c[i].modes;
+            orig++;
+        }
+    CHECK(modes == CM_ALL, "factory: C+D = looper in every mode (%#x)", modes);
+
+    /* opened in preset mode: the pedal's links screen splits it (that mode's own copy) */
+    for (i = 0; i < g->count && !(g->c[i].key == cd && g->c[i].action == CA_FN); i++)
+        ;
+    struct control copy = g->c[i];
+    copy.modes = CM_PRESET;
+    g->c[i].modes &= (uint8_t)~CM_PRESET;
+    preset_control_add(g, &copy);
+    int removed = preset_control_remove_alike(g, g->count - 1);
+    int left = 0;
+    for (i = 0; i < g->count; i++)
+        left += g->c[i].key == cd;
+    CHECK(removed == CM_ALL && left == 0 && g->count == n0 - orig,
+          "removed: modes %#x, %d C+D links left, %d -> %d links", removed, left, n0, g->count);
+    CHECK(preset_control_remove_alike(g, g->count) == 0, "out of range: nothing");
+
+    r.preset.controls.count = 0;
+    for (int mode = CM_PRESET; mode <= CM_SCENE; mode <<= 1) {
+        runs = 0;
+        CHECK(control_press(&r, cd, mode, 0, run, 0) == 0 && runs == 0, "C+D does nothing in mode %d", mode);
+    }
+    runs = ran_fn = 0;
+    control_press(&r, CK_COMBO, CM_PRESET, 0, run, 0);
+    CHECK(runs == 1 && ran_fn == FSF_TUNER, "A+B still the tuner");
+
+    CHECK(presets_store_global_controls(g) == 0, "stored");
+    static struct rig r2;
+    memset(&r2, 0, sizeof r2);
+    rig_init(&r2, RIG_AVOID_NONE);
+    left = 0;
+    for (i = 0; i < r2.global.count; i++)
+        left += r2.global.c[i].key == cd;
+    CHECK(r2.global.count == g->count && left == 0, "after a restart: still no C+D link (%d links)", r2.global.count);
+
+    static struct preset_controls back;
+    preset_controls_factory(&back);
+    CHECK(presets_store_global_controls(&back) == 0, "factory table stored back");
+}
+
 void test_controls(void)
 {
     test_legacy();
@@ -620,4 +676,5 @@ void test_controls(void)
     test_learn();
     test_midi_links();
     test_global();
+    test_global_remove();
 }

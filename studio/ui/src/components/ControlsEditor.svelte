@@ -197,7 +197,7 @@
                 <span class="lt" class:unset={C.unset(x)}>{C.linkText(x, ctl.blocks, ctl.scenes)}</span>
                 {#if also.length && w}<span class="also" title={t('ctl.also_title')}>{t('ctl.also', { modes: also.join(', ') })}</span>{/if}
               </button>
-              <button class="rm" onclick={() => ctl.remove(i)} title={t(also.length ? 'ctl.remove_mode' : 'ctl.remove')} aria-label={t('common.remove')}>
+              <button class="rm" onclick={() => ctl.remove(i)} title={t(ctl.isGlobal && !C.everyMode(key) ? 'ctl.remove_all' : also.length ? 'ctl.remove_mode' : 'ctl.remove')} aria-label={t('common.remove')}>
                 <Icon name="close" size={15} stroke={2.2} />
               </button>
             </li>

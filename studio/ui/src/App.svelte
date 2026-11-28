@@ -7,10 +7,11 @@
   routing and scenes; the pedal answers every move.
   FIRST VIEWPORT: browser rail + list on the left (312px); preset bar on top of the stage; the grid centred
   and scaled to fit; the selected block's knobs in a 236px panel at the bottom.
-  FORM: Cortex-style editor layout (user's choice), pedal identity (DESIGN.md).
+  FORM: a grid of blocks with a side browser (user's choice), pedal identity (DESIGN.md).
 -->
 <script lang="ts">
   import TopBar from './components/TopBar.svelte';
+  import StatusBar from './components/StatusBar.svelte';
   import Browser from './components/Browser.svelte';
   import PresetBar from './components/PresetBar.svelte';
   import Grid from './components/Grid.svelte';
@@ -84,6 +85,7 @@
       </main>
     {/if}
   </div>
+  <StatusBar />
   {#if studio.everConnected && !studio.online && studio.link?.phase !== 'updating'}<ConnectScreen overlay />{/if}
   {#if pedal.fw}<FirmwareSheet />{/if}
   <Toast />

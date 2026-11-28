@@ -63,6 +63,7 @@ set(WAVEOD_APP_SOURCES
     fw/wv_library.c
     fw/crc32.c
     input/input.c
+    input/remote.c
     midi/midi.c
     model/assign.c
     model/drum_names.c
@@ -190,7 +191,7 @@ set(WAVEOD_TESTED_SOURCES
     nam/rs48.c blocks/stereo_util.c blocks/gate_sc.c blocks/comp_sc.c blocks/fx_loop.c blocks/dark_muff.c
     blocks/dark_muff_lite.c blocks/green_drive.c blocks/rodent_dist.c blocks/round_fuzz.c blocks/treble_boost.c
     blocks/chorus.c blocks/flanger.c blocks/phaser.c blocks/rotary.c blocks/vibe.c blocks/tremolo.c blocks/delay.c
-    blocks/reverb.c blocks/plate.c blocks/spring.c engine/cabmic.c engine/cabmic_tables.c dsp/rfft.c dsp/spectrum.c
+    blocks/reverb.c blocks/plate.c blocks/spring.c blocks/synth.c engine/cabmic.c engine/cabmic_tables.c dsp/rfft.c dsp/spectrum.c
     engine/scope.c engine/drums.c model/drum_names.c model/drum_user.c engine/pools.c engine/chain_tail.c
     engine/module_loader.c engine/overload.c model/param_format.c model/param_format_table.c model/route.c model/rig.c
     model/control.c model/modulation.c engine/modulators.c model/expression.c fw/preset_controls.c host/host_flash.c
@@ -202,7 +203,7 @@ set(WAVEOD_TEST_SOURCES
     test_main.c test_formats.c test_loader.c test_store.c test_tuner.c test_overload.c test_globals.c test_assign.c
     test_route.c test_looper.c test_drums.c test_editor.c test_midi.c test_wvstore.c test_scenes.c test_controls.c
     test_latency.c test_cabir.c test_spill.c test_blocks.c test_mods.c test_drives.c test_chorus.c test_modfx.c
-    test_delay.c test_reverb.c test_plate.c test_nam.c test_spectrum.c
+    test_delay.c test_reverb.c test_plate.c test_nam.c test_spectrum.c test_synth.c
 )
 
 # the files that show the version (cmake/version.cmake)

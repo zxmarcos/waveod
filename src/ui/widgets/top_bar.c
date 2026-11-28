@@ -69,6 +69,8 @@ static struct {
     lv_obj_t *scene_hit, *scene, *scene_text;
     lv_obj_t *save_hit, *save, *save_icon;
     lv_obj_t *back_hit, *title;
+    lv_obj_t *view_hit, *view, *view_list, *view_cards;   /* a screen's two views (CONTROLES: cards / list) */
+    void (*view_fn)(void);
     lv_obj_t *seg[2][SEGS];
     lv_obj_t *dsp_fill;
     float level[2], peak[2], dsp;
@@ -460,7 +462,33 @@ static void on_scene(struct ui_ctx *ui, const struct gesture *g)
     }
 }
 
+static void on_view(struct ui_ctx *ui, const struct gesture *g)
+{
+    if (g->kind == GESTURE_TAP && s.view_fn) {
+        s.view_fn();
+        ui->rev++;
+    }
+}
+
 /* ---------------------------------------------------------------- creating */
+
+/* the view button's two drawings, 18 x 14: a list (a mark and a line, three times) and cards (two rows of three) */
+static lv_obj_t *view_icon(lv_obj_t *parent, int list)
+{
+    lv_obj_t *o = theme_box(parent, 0, 0, 18, 14, C_BG);
+    lv_obj_set_style_bg_opa(o, LV_OPA_TRANSP, 0);
+    lv_obj_center(o);
+    for (int r = 0; r < (list ? 3 : 2); r++) {
+        if (list) {
+            theme_box(o, 0, r * 6, 3, 2, C_TEXT);
+            theme_box(o, 5, r * 6, 13, 2, C_TEXT);
+        } else {
+            for (int c = 0; c < 3; c++)
+                theme_box(o, c * 7, r * 8, 5, 6, C_TEXT);
+        }
+    }
+    return o;
+}
 
 /* a drawn button of w x BTN_H at x, inside a hit box over the whole height of the bar */
 static lv_obj_t *button(int x, int w, lv_obj_t **hit, gesture_handler fn, int tag)
@@ -552,6 +580,10 @@ void top_bar_init(void)
     lv_obj_center(theme_icon(back, &icon_back_18, C_TEXT));
     s.title = theme_label(s.box, &font_tag_12, C_TEXT, 1);
     lv_obj_set_pos(s.title, PAD + BACK_W + GAP + 8, BTN_Y + (BTN_H - 15) / 2);
+    s.view = button(UI_W - PAD - ICON_W, ICON_W, &s.view_hit, on_view, 0);
+    s.view_list = view_icon(s.view, 1);
+    s.view_cards = view_icon(s.view, 0);
+    show(s.view_hit, 0);
 
     pop_create();
     sp_create();
@@ -626,6 +658,7 @@ void top_bar_tabs(enum screen_id active)
 {
     show(s.back_hit, 0);
     show(s.title, 0);
+    show(s.view_hit, 0);
     show(s.menu_hit, 1);
     show(s.mode_hit, 1);
     show(s.preset_hit, 1);
@@ -669,9 +702,18 @@ void top_bar_sub(const char *title)
     show(s.tempo_hit, 0);
     show(s.save_hit, 0);
     show(s.scene_hit, 0);
+    show(s.view_hit, 0);
     show(s.back_hit, 1);
     show(s.title, 1);
     theme_set_text(s.title, title);
+}
+
+void top_bar_view(int list, void (*fn)(void))
+{
+    s.view_fn = fn;
+    show(s.view_list, !list);                       /* the button shows the other view */
+    show(s.view_cards, list);
+    show(s.view_hit, 1);
 }
 
 /* 0..1 on the meter's dB scale */

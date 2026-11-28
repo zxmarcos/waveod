@@ -146,18 +146,31 @@
 
     {#each rig?.blocks.filter((b) => b.cell >= 0) ?? [] as b (b.slot)}
       {@const m = menuInfo(b.menu)}
-      <button class="block" class:off={!b.on} class:selected={selSlot === b.slot} class:over={over === b.cell}
-              class:missing={b.kind === 'missing'}
-              style:--c={m.color} style:--dark={m.dark}
-              style:left="{cx(b.cell) - BLOCK / 2}px" style:top="{cy(b.cell) - BLOCK / 2}px"
-              draggable="true" ondragstart={(e) => dragBlock(e, b)}
-              ondragover={(e) => dragOver(e, b.cell)} ondragleave={() => (over = -1)} ondrop={(e) => drop(e, b.cell)}
-              onclick={() => studio.select({ kind: 'block', slot: b.slot })}
-              ondblclick={() => studio.toggle(b.slot)}
-              aria-label="{m.name}: {b.name}{b.on ? '' : t('grid.off_suffix')}" aria-pressed={selSlot === b.slot}>
-        <span class="face"><Icon name={m.icon} size={36} stroke={1.9} /></span>
-        <span class="label">{b.name}</span>
-      </button>
+      <div class="spot" class:off={!b.on} style:--c={m.color} style:--dark={m.dark}
+           style:left="{cx(b.cell) - BLOCK / 2}px" style:top="{cy(b.cell) - BLOCK / 2}px">
+        <button class="block" class:off={!b.on} class:selected={selSlot === b.slot} class:over={over === b.cell}
+                class:missing={b.kind === 'missing'}
+                draggable="true" ondragstart={(e) => dragBlock(e, b)}
+                ondragover={(e) => dragOver(e, b.cell)} ondragleave={() => (over = -1)} ondrop={(e) => drop(e, b.cell)}
+                onclick={() => studio.select({ kind: 'block', slot: b.slot })}
+                ondblclick={() => studio.toggle(b.slot)}
+                aria-label="{m.name}: {b.name}{b.on ? '' : t('grid.off_suffix')}" aria-pressed={selSlot === b.slot}>
+          <span class="face"><Icon name={m.icon} size={36} stroke={1.9} /></span>
+          <span class="label">{b.name}</span>
+        </button>
+        <!-- on pointing at the block (or reaching it by keyboard): turn it on or off, take it out -->
+        <div class="badges">
+          <button class="badge power" class:on={b.on} onclick={() => studio.toggle(b.slot)}
+                  title={b.on ? t('grid.turn_off') : t('grid.turn_on')}
+                  aria-label="{b.on ? t('grid.turn_off') : t('grid.turn_on')}: {b.name}" aria-pressed={!b.on}>
+            <Icon name="power" size={14} stroke={2.6} />
+          </button>
+          <button class="badge remove" onclick={() => studio.remove(b.slot)}
+                  title={t('params.remove_title')} aria-label="{t('common.remove')}: {b.name}">
+            <Icon name="trash" size={14} stroke={2.2} />
+          </button>
+        </div>
+      </div>
     {/each}
 
     {#if route.mode !== 0}
@@ -216,12 +229,44 @@
     letter-spacing: 0.06em;
     color: var(--label);
   }
-  .block, .empty {
+  .spot, .empty {
     position: absolute;
     width: 84px;
     height: 84px;
     transition: left 0.4s var(--ease-out), top 0.4s var(--ease-out);
   }
+  .block { position: absolute; inset: 0; }
+
+  /* the block's quick actions: two round badges over its top right corner, shown while it is pointed at */
+  .badges {
+    position: absolute;
+    top: -11px;
+    right: -11px;
+    display: flex;
+    gap: 4px;
+    z-index: 2;
+    opacity: 0;
+    transform: translateY(3px);
+    pointer-events: none;
+    transition: opacity 0.15s, transform 0.15s var(--ease-out);
+  }
+  .spot:hover .badges, .spot:focus-within .badges { opacity: 1; transform: none; pointer-events: auto; }
+  .badge {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border-off);
+    color: var(--label);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .badge.power.on { color: var(--c); border-color: var(--c); }
+  .badge.power:hover { background: var(--dark); color: var(--text); border-color: var(--c); }
+  .spot.off .badge.power:hover { background: var(--surface); }
+  .badge.remove:hover { color: var(--error); border-color: var(--error); }
   /* an empty place: a dot on the wire at rest, a dashed slot with a plus when pointed at, chosen or dropped on */
   .empty {
     display: grid;

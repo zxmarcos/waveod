@@ -176,7 +176,8 @@ the bootloader, the application, the effects and the factory IRs and presets can
   same algorithm (`FUN_00025A84` / `FUN_00025D30` write: data to a free block, then the entry in place ('_' then 'Z')
   or a copy of the directory sector marked 0x5AFA with the old one marked 0x5AF8; renames copy the sector; a Clone
   deletion clears the entry's marker). `tools/check_irfs.py` compares the images with the original's code byte for
-  byte.
+  byte. waveod has 20 Clone slots, the original's 10 and 10 more in the same directory part that the original keeps
+  but never reads (docs/nam.md, "Twenty slots").
 - **Device** (`board/qme200/flexspi.c`, `flash.c`): FlexSPI IP commands with four LUT sequences (write enable,
   read status, 4 KB erase, page program) added in slots the bootloader's memory-mapped read does not use;
   after each command the AHB buffers are reset so the memory map shows the new data (the MPU keeps the flash

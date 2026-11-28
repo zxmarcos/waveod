@@ -9,7 +9,10 @@ STOCK_FW.bin must carry the original application V1.2.2. Its code runs in Unicor
 waveod applies the same operations with `waveod-tests --irfs-apply IN OPS OUT`. Runs:
   1. blank areas formatted by the original, N random writes / Clone renames / Clone deletes;
   2. the original mounts waveod's result and keeps going with N/2 more (the mount is compared too);
-  3. user IR renames (FUN_000252D8, whose decompiled form seems to clear the data block: the code keeps it).
+  3. user IR renames (FUN_000252D8, whose decompiled form seems to clear the data block: the code keeps it);
+  4. waveod's Clone slots 11..20 (fw/ir_store.h IR_CLONE_SLOTS, which the original never writes): waveod fills
+     them, the original mounts the result and works on its own 10 slots; both must end the same, and slots
+     11..20 (their entries and their data) must come out of the original untouched.
 Needs the 'unicorn' package (PYTHONPATH) and the host build (tools/wvbuild.py).
 """
 import argparse
@@ -140,6 +143,23 @@ def compare(name, ours, theirs, skip=()):
     return False
 
 
+def clone_slots(image, first=10, last=20):
+    """Clone slots first..last-1 as the image holds them: {slot: (entry bytes, data bytes)}, from directory part 0"""
+    out = {}
+    for s in range(3):
+        h = image[CLONE + 0x1000 * s:CLONE + 0x1000 * s + 0x10]
+        if struct.unpack_from('<H', h)[0] != 0x5AFA or h[7] != 0:
+            continue
+        esize = h[8]
+        for n in range(first, last):
+            e = bytes(image[CLONE + 0x1000 * s + 0x10 + esize * n:][:esize])
+            if e[0] == ord('Z'):
+                blk = struct.unpack_from('<H', e, 2)[0]
+                at = CLONE + 0x3000 + 0x2000 * blk
+                out[n] = (e, bytes(image[at:at + 0x2000]))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('fw')
@@ -169,6 +189,30 @@ def main():
         stock.apply(ops)
         ours = waveod_apply(ours, ops, tmp)
         ok &= compare('3. %d user IR renames' % len(ops), ours, bytes(stock.flash))
+
+        # waveod's slots 11..20 under the original, in rounds: waveod writes some of them (and works on the original's
+        # slots too), then the original mounts the result and works on its own
+        for rnd in range(4):
+            extra = [(0, 1, s, ('Extra %d.%d' % (s + 1, rnd)).encode().ljust(17, b'\0'),
+                      bytes(rng.getrandbits(8) for _ in range(0x2000)))
+                     for s in (range(10, 20) if rnd == 0 else rng.sample(range(10, 20), 4))]
+            extra.append((1, 1, rng.randrange(10, 20), ('Renamed %d' % rnd).encode().ljust(17, b'\0'), b''))
+            ours = waveod_apply(ours, extra + random_ops(rng, 10), tmp)
+            kept = clone_slots(ours)
+            if len(kept) != 10:
+                print('4.%d waveod left %d of slots 11..20' % (rnd, len(kept)))
+                ok = False
+            ops = random_ops(rng, a.ops // 2)
+            stock.mount(ours)
+            stock.apply(ops)
+            theirs = bytes(stock.flash)
+            ours = waveod_apply(ours, ops, tmp)
+            ok &= compare('4.%d %d operations of the original next to slots 11..20' % (rnd, len(ops)), ours, theirs)
+            after = clone_slots(theirs)
+            same = after == kept
+            print('4.%d slots 11..20 after the original: %s' % (rnd, 'untouched' if same else 'CHANGED %s' % sorted(
+                n + 1 for n in set(kept) | set(after) if kept.get(n) != after.get(n))))
+            ok &= same
     sys.exit(0 if ok else 1)
 
 

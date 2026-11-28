@@ -41,6 +41,28 @@ static int dir_index(const struct catalog *c, int menu, int index)
     }
 }
 
+/* id and directory name of item `index` of a special menu: its IR directory entry, or for a Clone slot past the
+   directory's (fw/ir_store.h IR_CLONE_SLOTS) the Clone entries' ids and names continued ("Clone 11" ...) */
+static int special_entry(const struct catalog *c, int menu, int index, uint32_t *id, char name[IR_NAME_LEN + 1])
+{
+    if (menu != MENU_CLONE || index < IR_CLONE_COUNT)
+        return ir_dir_entry(&c->irs, dir_index(c, menu, index), id, name);
+    if (index >= IR_CLONE_SLOTS)
+        return -1;
+    if (id)
+        *id = IR_CLONE_ID(index);
+    if (name) {
+        static const char base[] = "Clone ";
+        memcpy(name, base, sizeof base - 1);
+        int n = index + 1, k = sizeof base - 1;
+        if (n >= 10)
+            name[k++] = (char)('0' + n / 10);
+        name[k++] = (char)('0' + n % 10);
+        name[k] = 0;
+    }
+    return 0;
+}
+
 /* Module k of waveod's library is one the firmware already has (an entry of the effect library with its id, which
    the update file brings: tools/portfw.py, or a built-in): it is not listed again, the firmware's copy plays. */
 static int wv_shadowed(const struct catalog *c, int menu, int k)
@@ -79,7 +101,7 @@ int catalog_count(const struct catalog *c, int menu)
     switch (menu) {
     case MENU_CAB: return ir_cab_count(&c->irs);
     case MENU_IR:  return IR_USER_COUNT;
-    default:       return IR_CLONE_COUNT;
+    default:       return IR_CLONE_SLOTS;
     }
 }
 
@@ -128,7 +150,7 @@ int catalog_item(const struct catalog *c, int menu, int index, struct catalog_it
     if (lib_entry(&c->lib, menu, 0, &out->engine) != 0)
         return -1;
     char name[IR_FS_NAME_LEN + 1];
-    if (ir_dir_entry(&c->irs, dir_index(c, menu, index), &out->id, name) != 0)
+    if (special_entry(c, menu, index, &out->id, name) != 0)
         return -1;
     char stored[IR_FS_NAME_LEN + 1];                /* the name a user IR / capture was stored with, if any */
     if (menu != MENU_CAB && ir_fs_name(menu == MENU_CLONE, index, stored) == 0 && stored[0])
@@ -170,7 +192,7 @@ static int find_item(const struct catalog *c, int menu, uint32_t id)
     int n = catalog_count(c, menu);
     for (int i = 0; i < n; i++) {
         uint32_t item_id;
-        if (ir_dir_entry(&c->irs, dir_index(c, menu, i), &item_id, 0) == 0 && item_id == id)
+        if (special_entry(c, menu, i, &item_id, 0) == 0 && item_id == id)
             return i;
     }
     return -1;

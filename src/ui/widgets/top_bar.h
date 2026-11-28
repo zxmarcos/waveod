@@ -28,6 +28,10 @@ void top_bar_sub(const char *title);
 /* After top_bar_sub: the scene button at the right end (the screens that edit a block). */
 void top_bar_scene(void);
 
+/* After top_bar_sub: a button at the right end switching between a screen's two views (CONTROLES: the cards and the
+   list); it draws the other one (a list while the cards show, cards while the list does); a tap calls fn. */
+void top_bar_view(int list, void (*fn)(void));
+
 /* The mode chooser and the scene menu: MENU turns / press pick, EXIT closes (or leaves COPIAR PARA); 1 = consumed.
    Closed on a screen change. */
 int top_bar_input(const struct input_event *ev);

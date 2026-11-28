@@ -98,5 +98,6 @@
   "fw.top.cancel": "CANCEL",
   "fw.top.copied": "SCENE %d COPIED TO SCENE %d",
   "fw.top.reverted": "SCENE %d AS SAVED",
-  "fw.top.not_saved": "PRESET NOT SAVED"
+  "fw.top.not_saved": "PRESET NOT SAVED",
+  "fw.target.remove": "NONE (REMOVE)"
 }
